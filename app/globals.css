@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: var(--font-noto-sans-lao), "DM Sans", sans-serif;
+  --font-display: var(--font-noto-sans-lao), "Syne", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-200: #bae6fd;
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+  --color-brand-700: #0369a1;
+  --color-brand-800: #075985;
+  --color-brand-900: #0c4a6e;
+
+  --color-surface-light: #f8f9fc;
+  --color-surface-dark: #0d0f14;
+
+  --color-card-light: #ffffff;
+  --color-card-dark: #161922;
+
+  --color-border-light: #e4e8f0;
+  --color-border-dark: #1e2330;
+}
+
+@layer base {
+  :root {
+    --bg: 248 250 252;
+    --card: 255 255 255;
+    --border: 226 232 240;
+    --text-primary: 15 23 42;
+    --text-secondary: 100 116 139;
+    --brand: 29 78 216;
+    --brand-hover: 30 58 138;
+    --danger: 239 68 68;
+    --success: 16 185 129;
+    --warning: 245 158 11;
+  }
+
+  .dark {
+    --bg: 15 23 42;
+    --card: 30 41 59;
+    --border: 51 65 85;
+    --text-primary: 248 250 252;
+    --text-secondary: 148 163 184;
+    --brand: 56 189 248;
+    --brand-hover: 14 165 233;
+    --danger: 248 113 113;
+    --success: 52 211 153;
+    --warning: 251 191 36;
+  }
+
+  * {
+    border-color: rgb(var(--border));
+  }
+
+  body {
+    background-color: rgb(var(--bg));
+    color: rgb(var(--text-primary));
+    font-family: var(--font-sans);
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  input, select, textarea, button, optgroup {
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: rgba(var(--card), 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(var(--border), 0.5);
+  }
+
+  .shadow-brand-glow {
+    box-shadow: 0 4px 14px 0 rgba(var(--brand), 0.25);
+    transition: all 0.3s ease;
+  }
+
+  .shadow-brand-glow:hover {
+    box-shadow: 0 6px 20px 0 rgba(var(--brand), 0.35);
+    transform: translateY(-1px);
+  }
+
+  .hover-card-effect {
+    transition: all 0.3s ease;
+  }
+
+  .hover-card-effect:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -8px rgba(var(--brand), 0.15);
+    border-color: rgba(var(--brand), 0.3);
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--border)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--border));
+    border-radius: 2px;
+  }
+
+  /* Theme Utility Classes */
+  .text-theme-primary { color: rgb(var(--text-primary)); }
+  .text-theme-secondary { color: rgb(var(--text-secondary)); }
+  .bg-theme-bg { background-color: rgb(var(--bg)); }
+  .bg-theme-card { background-color: rgb(var(--card)); }
+  .bg-theme-secondary { background-color: rgb(var(--text-secondary)); }
+  .border-theme { border-color: rgb(var(--border)); }
+
+  .text-brand { color: rgb(var(--brand)); }
+  .text-success { color: rgb(var(--success)); }
+  .text-warning { color: rgb(var(--warning)); }
+  .text-danger { color: rgb(var(--danger)); }
+
+  .bg-brand { background-color: rgb(var(--brand)); }
+  .bg-success { background-color: rgb(var(--success)); }
+  .bg-warning { background-color: rgb(var(--warning)); }
+  .bg-danger { background-color: rgb(var(--danger)); }
+
+  .bg-brand-soft { background-color: rgba(var(--brand), 0.12); }
+  .bg-success-soft { background-color: rgba(var(--success), 0.12); }
+  .bg-warning-soft { background-color: rgba(var(--warning), 0.12); }
+  .bg-danger-soft { background-color: rgba(var(--danger), 0.12); }
+  .bg-secondary-soft { background-color: rgba(var(--text-secondary), 0.12); }
+  .bg-info-soft { background-color: rgba(var(--brand), 0.05); }
+
+  .border-brand-soft { border-color: rgba(var(--brand), 0.2); }
+  .border-success-soft { border-color: rgba(var(--success), 0.2); }
+  .border-warning-soft { border-color: rgba(var(--warning), 0.2); }
+  .border-danger-soft { border-color: rgba(var(--danger), 0.2); }
+  .border-secondary-soft { border-color: rgba(var(--text-secondary), 0.2); }
+  .border-info-soft { border-color: rgba(var(--brand), 0.2); }
+
+  .focus-ring-brand:focus {
+    border-color: rgb(var(--brand)) !important;
+    box-shadow: 0 0 0 3px rgba(var(--brand), 0.15) !important;
+  }
+}
+
+/* Smooth modal animation */
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-modal-in {
+  animation: modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-backdrop-in {
+  animation: backdrop-in 0.2s ease forwards;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Table row hover */
+.table-row-hover {
+  transition: background-color 0.15s ease;
+}
+
+/* Beautiful Background Orbs */
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+.animate-blob {
+  animation: blob 7s infinite;
+}
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Toastify font override */
+.Toastify__toast {
+  font-family: 'Noto Sans Lao', var(--font-sans), sans-serif !important;
+}
+
