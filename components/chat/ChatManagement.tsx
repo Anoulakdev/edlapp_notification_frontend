@@ -345,7 +345,15 @@ export function ChatManagement() {
       if (data.length === 0) {
         setHasMore(false);
       } else {
-        setMessages((prev) => [...prev, ...data]);
+        setMessages((prev) => {
+          const merged = [...prev, ...data];
+          const seen = new Set();
+          return merged.filter((m) => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+          });
+        });
         setPage(nextPage);
         if (data.length < 15) {
           setHasMore(false);

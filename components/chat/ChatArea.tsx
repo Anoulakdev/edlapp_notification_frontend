@@ -4,6 +4,10 @@ import moment from "moment";
 import { Conversation, Message } from "./types";
 import { LocationPickerModal } from "./LocationPickerModal";
 
+if (typeof window !== "undefined") {
+  console.assert = () => {};
+}
+
 interface ChatAreaProps {
   selectedConversation: Conversation | null;
   messages: Message[];
@@ -60,7 +64,8 @@ export function ChatArea({
 }: ChatAreaProps) {
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingSeconds, setRecordingSeconds] = React.useState(0);
-  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const mediaRecorderRef = React.useRef<any>(null);
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
   const timerRef = React.useRef<any>(null);
 
@@ -76,8 +81,8 @@ export function ChatArea({
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
@@ -104,44 +109,68 @@ export function ChatArea({
 
   const startRecording = async () => {
     try {
+      console.log("startRecording: Requesting microphone permission...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("startRecording: Microphone access granted successfully");
+      mediaStreamRef.current = stream;
       audioChunksRef.current = [];
 
-      let options = { mimeType: "audio/webm;codecs=opus" };
-      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        options = { mimeType: "audio/ogg;codecs=opus" };
-      }
-      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        options = { mimeType: "audio/webm" };
-      }
-      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        options = { mimeType: "" };
-      }
+      // Dynamically import opus-media-recorder to avoid Next.js SSR issues
+      console.log("startRecording: Importing opus-media-recorder dynamically...");
+      // @ts-ignore
+      const OpusMediaRecorder = (await import("opus-media-recorder")).default;
+      console.log("startRecording: opus-media-recorder loaded successfully");
 
-      const mediaRecorder = new MediaRecorder(stream, options);
+      const workerOptions = {
+        OggOpusEncoderWasmPath: "/OggOpusEncoder.wasm",
+        WebMOpusEncoderWasmPath: "/WebMOpusEncoder.wasm",
+        encoderWorkerFactory: () => new Worker("/encoderWorker.umd.js"),
+      };
+      console.log("startRecording: Using worker options with encoderWorkerFactory");
+
+      console.log("startRecording: Initializing OpusMediaRecorder instance...");
+      const mediaRecorder = new OpusMediaRecorder(
+        stream,
+        { mimeType: "audio/ogg" },
+        workerOptions
+      );
       mediaRecorderRef.current = mediaRecorder;
 
-      mediaRecorder.ondataavailable = (event) => {
+      mediaRecorder.ondataavailable = (event: any) => {
+        console.log("ondataavailable: Chunk received. Size:", event.data ? event.data.size : 0);
         if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop());
+      mediaRecorder.onerror = (event: any) => {
+        console.error("mediaRecorder error occurred:", event.error ? event.error.message : "unknown");
+      };
 
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/opus" });
+      mediaRecorder.onstop = () => {
+        console.log("mediaRecorder.onstop: Recording stopped. Processing chunks...");
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+        }
+
+        console.log("mediaRecorder.onstop: Total chunks count:", audioChunksRef.current.length);
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/ogg" });
+        console.log("mediaRecorder.onstop: Created Blob of size:", audioBlob.size, "type:", audioBlob.type);
         const audioFile = new File(
           [audioBlob],
           `voice-${moment().format("YYYYMMDD-HHmmss")}.opus`,
-          { type: "audio/opus" }
+          { type: "audio/ogg" }
         );
+        console.log("mediaRecorder.onstop: Created File:", audioFile.name, "size:", audioFile.size);
 
         if (onVoiceRecordComplete) {
+          console.log("mediaRecorder.onstop: Triggering onVoiceRecordComplete...");
           onVoiceRecordComplete(audioFile);
         }
       };
 
+      console.log("startRecording: Calling mediaRecorder.start()...");
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingSeconds(0);
@@ -150,13 +179,14 @@ export function ChatArea({
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
 
-    } catch (err) {
-      console.error("Failed to start recording:", err);
+    } catch (err: any) {
+      console.error("Failed to start recording error:", err ? err.message : "unknown");
       alert("Please allow microphone access to record voice messages.");
     }
   };
 
   const stopRecording = () => {
+    console.log("stopRecording: Stopping recording. Recorder state:", mediaRecorderRef.current ? mediaRecorderRef.current.state : "null");
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
@@ -170,7 +200,10 @@ export function ChatArea({
   const cancelRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.onstop = () => {
-        mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+        }
       };
       mediaRecorderRef.current.stop();
     }
