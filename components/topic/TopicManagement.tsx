@@ -123,8 +123,15 @@ export function TopicManagement() {
         cell: ({ row }) => {
           const doc = row.original;
           return (
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-250 break-all whitespace-normal py-1">
-              {doc.name}
+            <div className="py-1">
+              <div className="text-sm font-semibold text-slate-800 dark:text-slate-250 break-all whitespace-normal">
+                {doc.name}
+              </div>
+              {doc.description && (
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-all whitespace-normal line-clamp-2">
+                  {doc.description}
+                </div>
+              )}
             </div>
           );
         },

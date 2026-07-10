@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Button } from "@/components/ui/FormElements";
+import { Input, Button, Textarea } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editTopicSchema } from "@/schemas/topic";
 import { toast } from "react-toastify";
@@ -16,6 +16,7 @@ interface EditTopicModalProps {
 
 export function EditTopicModal({ open, onClose, selectedDoc, onRefresh }: EditTopicModalProps) {
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -30,6 +31,7 @@ export function EditTopicModal({ open, onClose, selectedDoc, onRefresh }: EditTo
           const doc = res.data;
 
           setName(doc.name || "");
+          setDescription(doc.description || "");
           setErrors({});
         } catch (err) {
           console.error("Failed to load topic details:", err);
@@ -47,6 +49,7 @@ export function EditTopicModal({ open, onClose, selectedDoc, onRefresh }: EditTo
 
     const result = editTopicSchema.safeParse({
       name,
+      description: description || undefined,
     });
 
     if (!result.success) {
@@ -65,6 +68,7 @@ export function EditTopicModal({ open, onClose, selectedDoc, onRefresh }: EditTo
     try {
       await axiosInstance.put(`/topics/${selectedDoc.id}`, {
         name,
+        description: description || undefined,
       });
 
       toast.success("ແກ້ໄຂຂໍ້ມູນຫົວຂໍ້ສຳເລັດ");
@@ -102,6 +106,14 @@ export function EditTopicModal({ open, onClose, selectedDoc, onRefresh }: EditTo
               value={name}
               onChange={(e) => setName(e.target.value)}
               error={errors.name}
+            />
+
+            <Textarea
+              label="ຄຳອະທິບາຍ"
+              placeholder="ປ້ອນຄຳອະທິບາຍຫົວຂໍ້..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              error={errors.description}
             />
           </div>
 

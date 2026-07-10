@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Button } from "@/components/ui/FormElements";
+import { Input, Button, Textarea } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { createTopicSchema } from "@/schemas/topic";
 import { toast } from "react-toastify";
@@ -15,6 +15,7 @@ interface AddTopicModalProps {
 
 export function AddTopicModal({ open, onClose, onRefresh }: AddTopicModalProps) {
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -22,6 +23,7 @@ export function AddTopicModal({ open, onClose, onRefresh }: AddTopicModalProps) 
   useEffect(() => {
     if (open) {
       setName("");
+      setDescription("");
       setErrors({});
     }
   }, [open]);
@@ -29,6 +31,7 @@ export function AddTopicModal({ open, onClose, onRefresh }: AddTopicModalProps) 
   const handleSubmit = async () => {
     const result = createTopicSchema.safeParse({
       name,
+      description: description || undefined,
     });
 
     if (!result.success) {
@@ -47,6 +50,7 @@ export function AddTopicModal({ open, onClose, onRefresh }: AddTopicModalProps) 
     try {
       await axiosInstance.post("/topics", {
         name,
+        description: description || undefined,
       });
 
       toast.success("ເພີ່ມຂໍ້ມູນຫົວຂໍ້ສຳເລັດ");
@@ -78,6 +82,14 @@ export function AddTopicModal({ open, onClose, onRefresh }: AddTopicModalProps) 
             value={name}
             onChange={(e) => setName(e.target.value)}
             error={errors.name}
+          />
+
+          <Textarea
+            label="ຄຳອະທິບາຍ"
+            placeholder="ປ້ອນຄຳອະທິບາຍຫົວຂໍ້..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            error={errors.description}
           />
         </div>
 
