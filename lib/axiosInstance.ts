@@ -11,12 +11,12 @@ import axios from "axios";
 
 // On client-side (in the browser), use relative URL "/api" to route requests through Next.js rewrites proxy.
 // On server-side (if run in SSR/builds), use process.env.NEXT_PUBLIC_API_BASE_URL.
-const API_BASE_URL = typeof window === "undefined"
-  ? process.env.NEXT_PUBLIC_API_BASE_URL
-  : "";
+const API_BASE_URL =
+  typeof window === "undefined" ? process.env.NEXT_PUBLIC_API_BASE_URL : "";
 
 export const axiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api`,
+  timeout: 1 * 60 * 1000, // 1 minutes timeout for large file uploads
   headers: {
     "Content-Type": "application/json",
   },
