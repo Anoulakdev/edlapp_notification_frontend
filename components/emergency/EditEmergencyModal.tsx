@@ -4,7 +4,7 @@ import { Input, Button, Textarea } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editEmergencySchema } from "@/schemas/emergency";
 import { toast } from "react-toastify";
-import { loadLeaflet } from "@/lib/utils";
+import { loadLeaflet, ASSET_BASE_URL } from "@/lib/utils";
 
 
 interface EditEmergencyModalProps {
@@ -32,8 +32,7 @@ export function EditEmergencyModal({ open, onClose, selectedDoc, onRefresh }: Ed
       setPreviewUrl(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
     } else if (currentFileName) {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      setPreviewUrl(`${baseUrl}/upload/emergency/${currentFileName}`);
+      setPreviewUrl(`${ASSET_BASE_URL}/upload/emergency/${currentFileName}`);
     } else {
       setPreviewUrl("");
     }

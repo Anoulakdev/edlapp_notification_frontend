@@ -44,7 +44,10 @@ export function ChatManagement() {
   const prevFirstMessageIdRef = useRef<number | string | undefined>(undefined);
   const prevConversationIdRef = useRef<number | string | undefined>(undefined);
 
-  const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
+  const rawBackendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
+  const backendUrl = typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? `${window.location.origin}/backend`
+    : rawBackendUrl;
 
   // 0. Load persisted topic and conversation on mount
   useEffect(() => {
@@ -181,7 +184,11 @@ export function ChatManagement() {
 
   // 3. Socket Connection & Event Handling (Connected once on mount)
   useEffect(() => {
-    const socket = io(`${backendUrl}/conversation`, {
+    const socketUrl = typeof window !== "undefined" && window.location.hostname !== "localhost"
+      ? window.location.origin
+      : rawBackendUrl;
+
+    const socket = io(`${socketUrl}/conversation`, {
       transports: ["websocket"],
     });
     socketRef.current = socket;

@@ -4,6 +4,7 @@ import { Input, Button, Textarea } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editTurnoffSchema } from "@/schemas/turnoff";
 import { toast } from "react-toastify";
+import { ASSET_BASE_URL } from "@/lib/utils";
 
 interface EditTurnoffModalProps {
   open: boolean;
@@ -29,8 +30,7 @@ export function EditTurnoffModal({ open, onClose, selectedDoc, onRefresh }: Edit
       setPreviewUrl(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
     } else if (currentFileName) {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      setPreviewUrl(`${baseUrl}/upload/turnoff/${currentFileName}`);
+      setPreviewUrl(`${ASSET_BASE_URL}/upload/turnoff/${currentFileName}`);
     } else {
       setPreviewUrl("");
     }

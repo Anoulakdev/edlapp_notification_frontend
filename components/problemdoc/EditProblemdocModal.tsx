@@ -6,7 +6,7 @@ import { Input, Button, Textarea, Select } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editProblemdocSchema } from "@/schemas/problemdoc";
 import { toast } from "react-toastify";
-import { loadLeaflet } from "@/lib/utils";
+import { loadLeaflet, ASSET_BASE_URL } from "@/lib/utils";
 
 interface EditProblemdocModalProps {
   open: boolean;
@@ -146,8 +146,7 @@ export function EditProblemdocModal({ open, onClose, selectedDoc, onRefresh }: E
       setPreviewUrl(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
     } else if (currentFileName) {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      setPreviewUrl(`${baseUrl}/upload/problem/${currentFileName}`);
+      setPreviewUrl(`${ASSET_BASE_URL}/upload/problem/${currentFileName}`);
     } else {
       setPreviewUrl("");
     }

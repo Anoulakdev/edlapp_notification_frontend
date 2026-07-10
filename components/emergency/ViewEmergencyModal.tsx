@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Calendar, Clock, MapPin, User, FileText } from "lucide-react";
 import moment from "moment";
-import { loadLeaflet } from "@/lib/utils";
+import { loadLeaflet, ASSET_BASE_URL } from "@/lib/utils";
 import { EmergencyDoc } from "@/schemas/emergency";
 
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -56,7 +56,7 @@ export function ViewEmergencyModal({ open, onClose, selectedDoc }: ViewEmergency
   const [hasRoute, setHasRoute] = useState(false);
 
   const viewUrl = selectedDoc?.emergencyImg
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/upload/emergency/${selectedDoc.emergencyImg}`
+    ? `${ASSET_BASE_URL}/upload/emergency/${selectedDoc.emergencyImg}`
     : "";
   const viewTitle = selectedDoc?.title || "";
 

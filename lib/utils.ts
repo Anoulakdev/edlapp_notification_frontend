@@ -47,3 +47,11 @@ export function loadLeaflet(): Promise<any> {
   });
 }
 
+export const ASSET_BASE_URL = (() => {
+  const defaultUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
+  if (typeof window === "undefined") return defaultUrl;
+  return window.location.hostname !== "localhost"
+    ? `${window.location.origin}/backend`
+    : defaultUrl;
+})();
+

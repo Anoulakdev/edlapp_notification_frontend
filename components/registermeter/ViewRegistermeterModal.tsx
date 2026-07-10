@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { AlertTriangle, FileText, MapPin, User, Clock, Phone, UserCheck } from "lucide-react";
-import { loadLeaflet } from "@/lib/utils";
+import { loadLeaflet, ASSET_BASE_URL } from "@/lib/utils";
 import { RegisterMeter } from "@/schemas/registermeter";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { toast } from "react-toastify";
@@ -109,10 +109,10 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
   const displayDoc = docDetail || selectedDoc;
 
   const billUrl = displayDoc?.billNearImg
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/upload/registermeter/${displayDoc.billNearImg}`
+    ? `${ASSET_BASE_URL}/upload/registermeter/${displayDoc.billNearImg}`
     : "";
   const idcardUrl = displayDoc?.idcardImg
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/upload/registermeter/${displayDoc.idcardImg}`
+    ? `${ASSET_BASE_URL}/upload/registermeter/${displayDoc.idcardImg}`
     : "";
   const viewTitle = displayDoc?.fullName || "";
 

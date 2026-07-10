@@ -6,7 +6,7 @@ import { Input, Button, Select } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editRegistermeterSchema } from "@/schemas/registermeter";
 import { toast } from "react-toastify";
-import { loadLeaflet } from "@/lib/utils";
+import { loadLeaflet, ASSET_BASE_URL } from "@/lib/utils";
 
 interface EditRegistermeterModalProps {
   open: boolean;
@@ -146,8 +146,7 @@ export function EditRegistermeterModal({ open, onClose, selectedDoc, onRefresh }
       setBillPreviewUrl(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
     } else if (currentBillFileName) {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      setBillPreviewUrl(`${baseUrl}/upload/registermeter/${currentBillFileName}`);
+      setBillPreviewUrl(`${ASSET_BASE_URL}/upload/registermeter/${currentBillFileName}`);
     } else {
       setBillPreviewUrl("");
     }
@@ -160,8 +159,7 @@ export function EditRegistermeterModal({ open, onClose, selectedDoc, onRefresh }
       setIdcardPreviewUrl(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
     } else if (currentIdcardFileName) {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      setIdcardPreviewUrl(`${baseUrl}/upload/registermeter/${currentIdcardFileName}`);
+      setIdcardPreviewUrl(`${ASSET_BASE_URL}/upload/registermeter/${currentIdcardFileName}`);
     } else {
       setIdcardPreviewUrl("");
     }

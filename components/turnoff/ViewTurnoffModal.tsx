@@ -4,6 +4,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Calendar, Clock, MapPin, User, FileText } from "lucide-react";
 import moment from "moment";
 import { TurnoffDoc } from "@/schemas/turnoff";
+import { ASSET_BASE_URL } from "@/lib/utils";
 
 interface ViewTurnoffModalProps {
   open: boolean;
@@ -13,7 +14,7 @@ interface ViewTurnoffModalProps {
 
 export function ViewTurnoffModal({ open, onClose, selectedDoc }: ViewTurnoffModalProps) {
   const viewUrl = selectedDoc?.turnoffFile
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/upload/turnoff/${selectedDoc.turnoffFile}`
+    ? `${ASSET_BASE_URL}/upload/turnoff/${selectedDoc.turnoffFile}`
     : "";
   const viewTitle = selectedDoc?.title || "";
 

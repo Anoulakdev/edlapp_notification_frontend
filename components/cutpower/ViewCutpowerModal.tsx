@@ -4,6 +4,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Calendar, MapPin, User, FileText } from "lucide-react";
 import moment from "moment";
 import { CutpowerDoc } from "@/schemas/cutpower";
+import { ASSET_BASE_URL } from "@/lib/utils";
 
 interface ViewCutpowerModalProps {
   open: boolean;
@@ -13,7 +14,7 @@ interface ViewCutpowerModalProps {
 
 export function ViewCutpowerModal({ open, onClose, selectedDoc }: ViewCutpowerModalProps) {
   const viewUrl = selectedDoc?.cutpowerFile
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/upload/cutpower/${selectedDoc.cutpowerFile}`
+    ? `${ASSET_BASE_URL}/upload/cutpower/${selectedDoc.cutpowerFile}`
     : "";
   const viewTitle = selectedDoc?.title || "";
 

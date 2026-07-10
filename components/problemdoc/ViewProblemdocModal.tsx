@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { AlertTriangle, FileText, MapPin, User, Clock, Phone, UserCheck, Wrench } from "lucide-react";
-import { loadLeaflet } from "@/lib/utils";
+import { loadLeaflet, ASSET_BASE_URL } from "@/lib/utils";
 import { ProblemDoc } from "@/schemas/problemdoc";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { toast } from "react-toastify";
@@ -109,7 +109,7 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
   const displayDoc = docDetail || selectedDoc;
 
   const viewUrl = displayDoc?.problemImg
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/upload/problem/${displayDoc.problemImg}`
+    ? `${ASSET_BASE_URL}/upload/problem/${displayDoc.problemImg}`
     : "";
   const viewTitle = displayDoc?.fullName || "";
 
@@ -669,7 +669,7 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
                   {displayDoc.problemAssigns.commentImg ? (
                     <div className="w-full h-full overflow-auto flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-900">
                       <img
-                        src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/upload/comment/${displayDoc.problemAssigns.commentImg}`}
+                        src={`${ASSET_BASE_URL}/upload/comment/${displayDoc.problemAssigns.commentImg}`}
                         alt="ຮູບພາບການສ້ອມແປງ"
                         className="max-w-full h-auto max-h-full object-contain rounded-lg shadow-sm"
                       />
@@ -687,7 +687,7 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
                   <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-900/40 flex flex-col gap-2 shrink-0">
                     <span className="text-xs text-slate-400 font-semibold">ສຽງບັນທຶກການແກ້ໄຂ</span>
                     <audio
-                      src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/upload/audio/${displayDoc.problemAssigns.commentAudio}`}
+                      src={`${ASSET_BASE_URL}/upload/audio/${displayDoc.problemAssigns.commentAudio}`}
                       controls
                       className="w-full"
                     />

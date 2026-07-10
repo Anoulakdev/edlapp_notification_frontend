@@ -6,6 +6,7 @@ import { Input, Button, Textarea } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editCutpowerSchema } from "@/schemas/cutpower";
 import { toast } from "react-toastify";
+import { ASSET_BASE_URL } from "@/lib/utils";
 
 interface EditCutpowerModalProps {
   open: boolean;
@@ -28,8 +29,7 @@ export function EditCutpowerModal({ open, onClose, selectedDoc, onRefresh }: Edi
       setPreviewUrl(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
     } else if (currentFileName) {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      setPreviewUrl(`${baseUrl}/upload/cutpower/${currentFileName}`);
+      setPreviewUrl(`${ASSET_BASE_URL}/upload/cutpower/${currentFileName}`);
     } else {
       setPreviewUrl("");
     }
