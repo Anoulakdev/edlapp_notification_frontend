@@ -270,6 +270,18 @@ export function ChatManagement() {
       }
     });
 
+    socket.on("messagesSeen", (data: { conversationId: number; topicId: number; senderType: string }) => {
+      if (selectedConversationRef.current && selectedConversationRef.current.id === data.conversationId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.senderType === (data.senderType === "edlapp" ? "callcenter" : "edlapp")
+              ? { ...m, status: "seen", seenAt: new Date().toISOString() }
+              : m
+          )
+        );
+      }
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
