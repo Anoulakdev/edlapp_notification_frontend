@@ -48,8 +48,8 @@ export function TopicSelector({
                   <span className="text-base font-bold text-slate-800 dark:text-slate-100 truncate block">
                     {topic.name}
                   </span>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 block mt-0.5 font-medium">
-                    ຄລິກເພື່ອເຂົ້າສູ່ຫ້ອງສົນທະນາ
+                  <span className="text-xs text-slate-400 dark:text-slate-500 block mt-0.5 font-medium truncate">
+                    {topic.description}
                   </span>
                 </div>
               </div>
