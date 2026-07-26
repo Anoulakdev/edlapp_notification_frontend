@@ -62,9 +62,9 @@ export function EmergencyAssign() {
 
   // Automatically override provinceId and districtId based on role
   useEffect(() => {
-    if (currentUserRoleId === 4 && currentUserProvinceId) {
+    if (currentUserRoleId === 5 && currentUserProvinceId) {
       setProvinceId(currentUserProvinceId.toString());
-    } else if (currentUserRoleId === 5 && currentUserProvinceId && currentUserDistrictId) {
+    } else if (currentUserRoleId === 6 && currentUserProvinceId && currentUserDistrictId) {
       setProvinceId(currentUserProvinceId.toString());
       setDistrictId(currentUserDistrictId.toString());
     }
@@ -411,7 +411,7 @@ export function EmergencyAssign() {
                 style={{ background: "rgb(var(--card))", borderColor: "rgb(var(--border))" }}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {currentUserRoleId !== 4 && currentUserRoleId !== 5 && (
+                  {currentUserRoleId !== 5 && currentUserRoleId !== 6 && (
                     <Select
                       label="ແຂວງ *"
                       value={provinceId}
@@ -423,8 +423,8 @@ export function EmergencyAssign() {
                     />
                   )}
 
-                  {currentUserRoleId !== 5 && (
-                    <div className={currentUserRoleId === 4 ? "md:col-span-2" : ""}>
+                  {currentUserRoleId !== 6 && (
+                    <div className={currentUserRoleId === 5 ? "md:col-span-2" : ""}>
                       <Select
                         label="ເມືອງ *"
                         value={districtId}

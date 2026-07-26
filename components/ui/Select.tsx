@@ -7,34 +7,36 @@ import { ChevronDown } from "lucide-react";
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
-  options: { value: string; label: string }[];
+  options?: { value: string; label: string }[];
 }
 
-export function Select({ label, error, options, className, ...props }: SelectProps) {
+export function Select({ label, error, options, className, disabled, children, ...props }: SelectProps) {
   return (
     <div className="flex flex-col gap-1.5 w-full">
       {label && (
-        <label htmlFor={props.id} className="text-xs font-semibold uppercase tracking-wide text-theme-secondary">
+        <label htmlFor={props.id} className={cn("text-xs font-semibold uppercase tracking-wide", disabled ? "text-slate-400 dark:text-slate-500" : "text-theme-secondary")}>
           {label}
         </label>
       )}
       <div className="relative w-full">
         <select
+          disabled={disabled}
           className={cn(
             "w-full pl-4 pr-11 py-2.5 rounded-xl text-sm outline-none transition-all duration-150 cursor-pointer appearance-none",
             "bg-theme-bg text-theme-primary",
             "border", error ? "border-danger" : "border-theme focus-ring-brand",
+            "disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-500 dark:disabled:text-slate-400 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:cursor-not-allowed disabled:shadow-inner",
             className
           )}
           {...props}
         >
-          {options.map((opt) => (
+          {options ? options.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
-          ))}
+          )) : children}
         </select>
-        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-theme-secondary">
+        <div className={cn("absolute inset-y-0 right-4 flex items-center pointer-events-none", disabled ? "text-slate-400 dark:text-slate-600" : "text-theme-secondary")}>
           <ChevronDown className="w-4 h-4" />
         </div>
       </div>

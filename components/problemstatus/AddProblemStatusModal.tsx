@@ -15,24 +15,24 @@ interface AddProblemStatusModalProps {
 }
 
 export function AddProblemStatusModal({ open, onClose, onRefresh }: AddProblemStatusModalProps) {
-  const [name, setName] = useState("");
-  const [nameEdlapp, setNameEdlapp] = useState("");
+  const [edlapp, setEdlapp] = useState("");
+  const [callcenter, setCallcenter] = useState("");
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Reset fields when modal toggled
   useEffect(() => {
     if (open) {
-      setName("");
-      setNameEdlapp("");
+      setEdlapp("");
+      setCallcenter("");
       setErrors({});
     }
   }, [open]);
 
   const handleSubmit = async () => {
     const result = createProblemStatusSchema.safeParse({
-      name,
-      name_edlapp: nameEdlapp,
+      edlapp,
+      callcenter,
     });
 
     if (!result.success) {
@@ -50,8 +50,8 @@ export function AddProblemStatusModal({ open, onClose, onRefresh }: AddProblemSt
 
     try {
       await axiosInstance.post("/problemstatus", {
-        name,
-        name_edlapp: nameEdlapp,
+        edlapp,
+        callcenter,
       });
 
       toast.success("ເພີ່ມຂໍ້ມູນສະຖານະບັນຫາສຳເລັດ");
@@ -59,7 +59,7 @@ export function AddProblemStatusModal({ open, onClose, onRefresh }: AddProblemSt
       onClose();
     } catch (err: any) {
       console.error("Failed to add problem status:", err);
-      const errMsg = err.response?.data?.message || "ເກີດຂໍ́ຜິດພາດໃນການບັນທຶກຂໍ້ມູນ";
+      const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກຂໍ້ມູນ";
       setErrors({ apiError: errMsg });
       toast.error(errMsg);
     } finally {
@@ -78,19 +78,19 @@ export function AddProblemStatusModal({ open, onClose, onRefresh }: AddProblemSt
 
         <div className="space-y-4">
           <Input
-            label="ຊື່ສະຖານະບັນຫາ *"
-            placeholder="ປ້ອນຊື່ສະຖານະບັນຫາ..."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            error={errors.name}
+            label="ສະຖານະ EDL App *"
+            placeholder="ປ້ອນສະຖານະ EDL App..."
+            value={edlapp}
+            onChange={(e) => setEdlapp(e.target.value)}
+            error={errors.edlapp}
           />
 
           <Input
-            label="ຊື່ສະຖານະໃນ EDL App *"
-            placeholder="ປ້ອນຊື່ສະຖານະໃນ EDL App..."
-            value={nameEdlapp}
-            onChange={(e) => setNameEdlapp(e.target.value)}
-            error={errors.name_edlapp}
+            label="ສະຖານະ Call Center *"
+            placeholder="ປ້ອນສະຖານະ Call Center..."
+            value={callcenter}
+            onChange={(e) => setCallcenter(e.target.value)}
+            error={errors.callcenter}
           />
         </div>
 

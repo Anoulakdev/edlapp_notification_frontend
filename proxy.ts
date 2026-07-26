@@ -7,6 +7,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/users",
     "/role",
     "/sourcetype",
+    "/problemstatus",
     "/meterstatus",
     "/syncdata",
   ],
@@ -18,8 +19,9 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyassign",
     "/cutpower",
     "/cutpowerassign",
+    "/problemdoc",
     "/registermeter",
-    "/topic",
+    "/chat",
   ],
   3: [
     "/turnoff",
@@ -28,18 +30,26 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyassign",
     "/cutpower",
     "/cutpowerassign",
+    "/problemdoc",
     "/registermeter",
-    "/topic",
+    "/chat",
+    "/branch",
+    "/repairdistrict",
+    "/problemtype",
   ],
   4: [
-    "/users",
     "/turnoff",
     "/turnoffassign",
     "/emergency",
     "/emergencyassign",
     "/cutpower",
     "/cutpowerassign",
+    "/problemdoc",
     "/registermeter",
+    "/chat",
+    "/problemtype",
+    "/topic",
+    "/messageauto",
   ],
   5: [
     "/turnoff",
@@ -48,6 +58,17 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyassign",
     "/cutpower",
     "/cutpowerassign",
+    "/problemdoc",
+    "/registermeter",
+  ],
+  6: [
+    "/turnoff",
+    "/turnoffassign",
+    "/emergency",
+    "/emergencyassign",
+    "/cutpower",
+    "/cutpowerassign",
+    "/problemdoc",
     "/registermeter",
   ],
 };
@@ -57,8 +78,9 @@ const ROLE_DEFAULT_PAGES: Record<number, string> = {
   1: "/dashboard",
   2: "/users",
   3: "/turnoff",
-  4: "/users",
+  4: "/turnoff",
   5: "/turnoff",
+  6: "/turnoff",
 };
 
 // 3. Define routes that require authentication
@@ -67,6 +89,7 @@ const GUARDED_ROUTES = [
   "/users",
   "/role",
   "/sourcetype",
+  "/problemstatus",
   "/meterstatus",
   "/syncdata",
   "/turnoff",
@@ -75,8 +98,14 @@ const GUARDED_ROUTES = [
   "/emergencyassign",
   "/cutpower",
   "/cutpowerassign",
+  "/problemdoc",
   "/registermeter",
+  "/chat",
+  "/branch",
+  "/repairdistrict",
+  "/problemtype",
   "/topic",
+  "/messageauto",
 ];
 
 // 4. Define auth routes (public but redirects to default page if logged in)
@@ -192,6 +221,6 @@ export const config = {
      * - icon.png (system icons)
      * - png/svg/jpg/jpeg/gif/webp/ico/woff/woff2 (common static files)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.png|.*\\.(?:png|svg|jpg|jpeg|gif|webp|ico|woff|woff2)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.png|.*\\.(?:png|svg|jpg|jpeg|gif|webp|ico/woff/woff2)$).*)",
   ],
 };

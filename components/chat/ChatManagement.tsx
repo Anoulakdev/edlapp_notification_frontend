@@ -282,6 +282,53 @@ export function ChatManagement() {
       }
     });
 
+    socket.on("updateMessage", (message: Message) => {
+      const currentActive = selectedConversationRef.current;
+      if (currentActive && message.conversationId === currentActive.id) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === message.id ? message : m))
+        );
+      }
+
+      setConversations((prev) => {
+        const matchedIndex = prev.findIndex((c) => c.id === message.conversationId);
+        if (matchedIndex === -1) return prev;
+
+        const updated = [...prev];
+        const conv = updated[matchedIndex];
+
+        let preview = message.content || "";
+        if (message.mType === "image") preview = "[ຮູບພາບ]";
+        else if (message.mType === "audio") preview = "[ຟາຍສຽງ]";
+        else if (message.mType === "location") preview = "[ຕຳແໜ່ງ]";
+
+        updated[matchedIndex] = {
+          ...conv,
+          lastMessage: preview,
+          lastMessageAt: message.createdAt,
+        };
+
+        return updated.sort(
+          (a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime()
+        );
+      });
+    });
+
+    socket.on("deleteMessage", (data: { messageId: number; conversationId: number; topicId: number }) => {
+      const currentActive = selectedConversationRef.current;
+      if (currentActive && data.conversationId === currentActive.id) {
+        setMessages((prev) => prev.filter((m) => m.id !== data.messageId));
+      }
+
+      setConversations((prev) => {
+        const hasConv = prev.some((c) => c.id === data.conversationId);
+        if (hasConv && fetchConversationsRef.current) {
+          fetchConversationsRef.current(false);
+        }
+        return prev;
+      });
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -599,6 +646,7 @@ export function ChatManagement() {
         {/* Right Side: Chat box */}
         <ChatArea
           selectedConversation={selectedConversation}
+          topicId={selectedConversation?.topicId || selectedTopic?.id}
           messages={messages}
           loadingMessages={loadingMessages}
           loadingMore={loadingMore}

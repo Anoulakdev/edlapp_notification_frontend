@@ -32,9 +32,93 @@ export function EditProblemdocModal({ open, onClose, selectedDoc, onRefresh }: E
 
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const [mapUrl, setMapUrl] = useState("");
+  const [parsingMapUrl, setParsingMapUrl] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [currentFileName, setCurrentFileName] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
+
+  const extractCoordsFromText = (text: string): { lat: string; lng: string } | null => {
+    if (!text) return null;
+
+    let decodedText = text;
+    try {
+      decodedText = decodeURIComponent(text);
+    } catch (_) {}
+
+    const normalizedText = decodedText.replace(/\+/g, " ");
+
+    // 1. @lat,lng format e.g. /@17.965421,102.632145/
+    const atMatch = normalizedText.match(/@(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+    if (atMatch) {
+      return { lat: parseFloat(atMatch[1]).toFixed(6), lng: parseFloat(atMatch[2]).toFixed(6) };
+    }
+
+    // 2. /maps/search/lat,lng
+    const searchMatch = normalizedText.match(/\/maps\/search\/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+    if (searchMatch) {
+      return { lat: parseFloat(searchMatch[1]).toFixed(6), lng: parseFloat(searchMatch[2]).toFixed(6) };
+    }
+
+    // 3. ?q=lat,lng or &q=lat,lng or query=lat,lng or ll=lat,lng or center=lat,lng
+    const qMatch = normalizedText.match(/[?&](?:q|query|ll|center)=(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+    if (qMatch) {
+      return { lat: parseFloat(qMatch[1]).toFixed(6), lng: parseFloat(qMatch[2]).toFixed(6) };
+    }
+
+    // 4. !3dlat!4dlng (Google Maps data parameter)
+    const dMatch = normalizedText.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    if (dMatch) {
+      return { lat: parseFloat(dMatch[1]).toFixed(6), lng: parseFloat(dMatch[2]).toFixed(6) };
+    }
+
+    // 5. General lat,lng numbers in text e.g. "17.965421, 102.632145"
+    const genMatches = Array.from(normalizedText.matchAll(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/g));
+    for (const m of genMatches) {
+      const latVal = parseFloat(m[1]);
+      const lngVal = parseFloat(m[2]);
+      if (latVal >= -90 && latVal <= 90 && lngVal >= -180 && lngVal <= 180) {
+        return { lat: latVal.toFixed(6), lng: lngVal.toFixed(6) };
+      }
+    }
+
+    return null;
+  };
+
+  const handleMapUrlChange = async (urlVal: string) => {
+    setMapUrl(urlVal);
+    const cleanUrl = urlVal.trim();
+    if (!cleanUrl) return;
+
+    // 1. Direct local parse check
+    let coords = extractCoordsFromText(cleanUrl);
+    if (coords) {
+      setLat(coords.lat);
+      setLng(coords.lng);
+      toast.success("ດຶງພິກັດ Latitude / Longitude ຈາກລິ້ງ Google Maps ສຳເລັດ!");
+      return;
+    }
+
+    // 2. Server-side unshorten API call to resolve 302 redirects & bypass CORS
+    if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+      setParsingMapUrl(true);
+      try {
+        const res = await fetch(`/api/unshorten?url=${encodeURIComponent(cleanUrl)}`);
+        const data = await res.json();
+        if (data?.lat && data?.lng) {
+          setLat(String(data.lat));
+          setLng(String(data.lng));
+          toast.success("ດຶງພິກັດ Latitude / Longitude ຈາກລິ້ງ Google Maps ສຳເລັດ!");
+        } else if (data?.error) {
+          console.warn("Could not extract coords from URL:", data.error);
+        }
+      } catch (err) {
+        console.error("Failed to unshorten map URL:", err);
+      } finally {
+        setParsingMapUrl(false);
+      }
+    }
+  };
 
   const [problemTypes, setProblemTypes] = useState<{ id: number; name: string }[]>([]);
 
@@ -407,6 +491,22 @@ export function EditProblemdocModal({ open, onClose, selectedDoc, onRefresh }: E
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   />
+                </div>
+
+                {/* Google Maps Link Input */}
+                <div className="col-span-2">
+                  <Input
+                    label="ລິ້ງ Google Maps (ດຶງພິກັດອັດໂນມັດ)"
+                    placeholder="ວາງລິ້ງ Google Maps ເຊັ່ນ: https://maps.app.goo.gl/..."
+                    value={mapUrl}
+                    onChange={(e) => handleMapUrlChange(e.target.value)}
+                    disabled={parsingMapUrl}
+                  />
+                  {parsingMapUrl && (
+                    <p className="text-[11px] text-blue-500 mt-1 animate-pulse font-medium">
+                      ⏳ ກຳລັງດຶງພິກັດ Latitude / Longitude ຈາກລິ້ງ...
+                    </p>
+                  )}
                 </div>
 
                 <Input

@@ -1,15 +1,17 @@
 import React from "react";
-import { Phone, Loader2, Image as ImageIcon, Mic, Square, X, Send, MessageSquare, ArrowLeft, Volume2, ChevronDown, MapPin, Trash2 } from "lucide-react";
+import { Phone, Loader2, Image as ImageIcon, Mic, Square, X, Send, MessageSquare, MessageSquareText, Search, ArrowLeft, Volume2, ChevronDown, MapPin, Trash2 } from "lucide-react";
 import moment from "moment";
 import { Conversation, Message } from "./types";
 import { LocationPickerModal } from "./LocationPickerModal";
+import axiosInstance from "@/lib/axiosInstance";
 
 if (typeof window !== "undefined") {
-  console.assert = () => {};
+  console.assert = () => { };
 }
 
 interface ChatAreaProps {
   selectedConversation: Conversation | null;
+  topicId?: number;
   messages: Message[];
   loadingMessages: boolean;
   loadingMore: boolean;
@@ -38,6 +40,7 @@ interface ChatAreaProps {
 
 export function ChatArea({
   selectedConversation,
+  topicId,
   messages,
   loadingMessages,
   loadingMore,
@@ -75,6 +78,39 @@ export function ChatArea({
   const [isLocationModalOpen, setIsLocationModalOpen] = React.useState(false);
   const [previewImageUrl, setPreviewImageUrl] = React.useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = React.useState<number | null>(null);
+
+  // Auto messages / quick reply states
+  const [autoMessages, setAutoMessages] = React.useState<Array<{ id: number; messageTopic: string; topic?: { id: number; name: string } }>>([]);
+  const [showAutoMenu, setShowAutoMenu] = React.useState(false);
+  const [loadingAutoMessages, setLoadingAutoMessages] = React.useState(false);
+  const selectedFromAutoMenuRef = React.useRef(false);
+
+  const fetchAutoMessages = React.useCallback(async (tId?: number, searchKw?: string) => {
+    setLoadingAutoMessages(true);
+    try {
+      const cleanSearch = searchKw?.startsWith("/") ? searchKw.slice(1) : searchKw;
+      const res = await axiosInstance.get("/messageautos/selectmessageauto", {
+        params: {
+          topicId: tId,
+          search: cleanSearch || undefined,
+        },
+      });
+      setAutoMessages(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch auto messages:", err);
+    } finally {
+      setLoadingAutoMessages(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (showAutoMenu && !selectedFromAutoMenuRef.current && inputText.trim().length > 0) {
+      const timer = setTimeout(() => {
+        fetchAutoMessages(topicId, inputText);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [topicId, inputText, showAutoMenu, fetchAutoMessages]);
 
   React.useEffect(() => {
     return () => {
@@ -539,8 +575,75 @@ export function ChatArea({
           </div>
         )}
 
+        {/* Auto Messages Suggestion Panel */}
+        {showAutoMenu && (
+          <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl mb-3 border border-slate-200/80 dark:border-slate-800 shadow-xl max-h-64 flex flex-col animate-fade-in select-none">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800/80 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-lg">
+                  <MessageSquareText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    ຂໍ້ຄວາມອັດຕະໂນມັດ
+                  </h4>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAutoMenu(false)}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Auto Message List */}
+            <div className="overflow-y-auto flex-1 flex flex-col gap-1 pr-1">
+              {loadingAutoMessages ? (
+                <div className="flex items-center justify-center py-6 text-slate-400 gap-2 text-xs">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                  <span>ກຳລັງໂຫຼດຂໍ້ຄວາມ...</span>
+                </div>
+              ) : autoMessages.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">
+                  ບໍ່ພົບຂໍ້ຄວາມອັດໂນມັດ
+                </div>
+              ) : (
+                autoMessages.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      selectedFromAutoMenuRef.current = true;
+                      onInputTextChange(item.messageTopic);
+                      setShowAutoMenu(false);
+                    }}
+                    className="text-left px-3 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs text-slate-700 dark:text-slate-200 transition-colors flex items-center justify-between group border border-transparent hover:border-blue-100 dark:hover:border-blue-900/40"
+                  >
+                    <span className="line-clamp-2 font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                      {item.messageTopic}
+                    </span>
+                    {item.topic?.name && (
+                      <span className="text-[10px] shrink-0 ml-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 font-normal">
+                        {item.topic.name}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Form controls */}
-        <form onSubmit={onSubmitMessage} className="flex items-center gap-2">
+        <form
+          onSubmit={(e) => {
+            setShowAutoMenu(false);
+            onSubmitMessage(e);
+          }}
+          className="flex items-center gap-2"
+        >
           <div className="flex gap-0.5 shrink-0">
             {/* Image Trigger */}
             {!isRecording && (
@@ -610,7 +713,16 @@ export function ChatArea({
               type="text"
               placeholder="ຂຽນຂໍ້ຄວາມ..."
               value={inputText}
-              onChange={(e) => onInputTextChange(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                selectedFromAutoMenuRef.current = false;
+                onInputTextChange(val);
+                if (val.trim().length > 0) {
+                  setShowAutoMenu(true);
+                } else {
+                  setShowAutoMenu(false);
+                }
+              }}
               className="flex-1 px-3 md:px-5 py-2 md:py-2.5 text-sm bg-slate-50 dark:bg-slate-850/60 border border-slate-200/80 dark:border-slate-700/80 rounded-full focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-slate-800 dark:text-slate-100"
             />
           )}

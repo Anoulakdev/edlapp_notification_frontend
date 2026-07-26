@@ -112,6 +112,8 @@ export const emptyForm = {
   roleId: 0,
   provinceId: undefined as number | undefined,
   districtId: undefined as number | undefined,
+  branchId: undefined as number | undefined,
+  repairDistrictId: undefined as number | undefined,
 };
 
 const ROWS_PER_PAGE = 10;
@@ -207,6 +209,8 @@ export function UserManagement() {
         roleId: Number(newForm.roleId),
         provinceId: newForm.provinceId ? Number(newForm.provinceId) : null,
         districtId: newForm.districtId ? Number(newForm.districtId) : null,
+        branchId: newForm.branchId ? Number(newForm.branchId) : null,
+        repairDistrictId: newForm.repairDistrictId ? Number(newForm.repairDistrictId) : null,
       });
       setAddOpen(false);
       await fetchUsers(debouncedSearch);
@@ -226,6 +230,8 @@ export function UserManagement() {
         roleId: Number(updatedForm.roleId),
         provinceId: updatedForm.provinceId ? Number(updatedForm.provinceId) : null,
         districtId: updatedForm.districtId ? Number(updatedForm.districtId) : null,
+        branchId: updatedForm.branchId ? Number(updatedForm.branchId) : null,
+        repairDistrictId: updatedForm.repairDistrictId ? Number(updatedForm.repairDistrictId) : null,
       });
       setEditOpen(false);
       await fetchUsers(debouncedSearch);
@@ -377,7 +383,7 @@ export function UserManagement() {
         header: "ສິດຜູ້ໃຊ້",
         cell: ({ getValue }) => {
           const role = getValue() as string;
-          return <Badge color={roleColors[role] || "gray"}>{role}</Badge>;
+          return <Badge color="blue">{role}</Badge>;
         },
       },
       {

@@ -70,14 +70,14 @@ export function RegistermeterManagement() {
   const [currentUserDistrictId, setCurrentUserDistrictId] = useState<number | null>(null);
 
   const effectiveProvinceId = useMemo(() => {
-    if (currentUserRoleId === 4 || currentUserRoleId === 5) {
+    if (currentUserRoleId === 5 || currentUserRoleId === 6) {
       return currentUserProvinceId ? String(currentUserProvinceId) : "";
     }
     return selectedProvinceId;
   }, [currentUserRoleId, currentUserProvinceId, selectedProvinceId]);
 
   const effectiveDistrictId = useMemo(() => {
-    if (currentUserRoleId === 5) {
+    if (currentUserRoleId === 6) {
       return currentUserDistrictId ? String(currentUserDistrictId) : "";
     }
     return selectedDistrictId;
@@ -204,7 +204,7 @@ export function RegistermeterManagement() {
   ) => {
     try {
       setLoading(true);
-      const isCustomer = currentUserRoleId === 6;
+      const isCustomer = currentUserRoleId === 7;
       const url = isCustomer ? "/registermeters/edlapp" : "/registermeters";
       const params: Record<string, any> = {
         search: searchVal.trim() || undefined,
@@ -538,8 +538,8 @@ export function RegistermeterManagement() {
           const doc = row.original;
           const isCreator = currentUserId !== null && Number(currentUserId) === Number(doc.createdById);
           const hasUserAccept = !!doc.userAcceptMeters;
-          const isRole2Or3 = currentUserRoleId === 2 || currentUserRoleId === 3;
           const isRole4 = currentUserRoleId === 4;
+          const isRole6 = currentUserRoleId === 6;
 
           return (
             <div className="flex items-center gap-1.5 shrink-0">
@@ -552,8 +552,8 @@ export function RegistermeterManagement() {
                 </button>
               </ButtonTooltip>
 
-              {/* Call Center (Role 2/3) accept & forward action */}
-              {isRole2Or3 && !hasUserAccept && (
+              {/* Accept & forward action for Role 4 */}
+              {isRole4 && !hasUserAccept && (
                 <ButtonTooltip text="ຮັບເລື່ອງ & ສົ່ງຕໍ່">
                   <button
                     onClick={() => openForward(doc, "create")}
@@ -564,8 +564,8 @@ export function RegistermeterManagement() {
                 </ButtonTooltip>
               )}
 
-              {/* Branch Admin (Role 4) accept & process action */}
-              {isRole4 && hasUserAccept && !doc.userAcceptMeters?.userProvinceId && (
+              {/* Accept document action for Role 6 */}
+              {isRole6 && hasUserAccept && !doc.userAcceptMeters?.userProvinceId && (
                 <ButtonTooltip text="ຮັບເອກະສານ">
                   <button
                     onClick={() => openForward(doc, "update")}
@@ -656,7 +656,7 @@ export function RegistermeterManagement() {
             ຂໍໝໍ້ນັບໄຟໃໝ່
           </h1>
         </div>
-        {!isCustomer && (
+        {currentUserRoleId === 4 && (
           <div className="sm:ml-auto flex items-center">
             <button
               onClick={openAdd}

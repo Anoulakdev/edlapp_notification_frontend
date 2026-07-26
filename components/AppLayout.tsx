@@ -38,7 +38,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         {/* Sticky Glassmorphic Header */}
-        <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} sidebarOpen={sidebarOpen} />
+        <Header onMenuClick={() => setSidebarOpen((prev) => !prev)} sidebarOpen={sidebarOpen} />
 
         {/* Dynamic page content */}
         <main className="flex-1 min-w-0">

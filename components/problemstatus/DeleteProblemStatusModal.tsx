@@ -5,11 +5,13 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/FormElements";
 import { Trash2 } from "lucide-react";
 
+import { ProblemStatus } from "@/schemas/problemstatus";
+
 interface DeleteProblemStatusModalProps {
   open: boolean;
   onClose: () => void;
   onDelete: () => Promise<void>;
-  selectedDoc: { id: number; name: string } | null;
+  selectedDoc: ProblemStatus | null;
 }
 
 export function DeleteProblemStatusModal({ open, onClose, onDelete, selectedDoc }: DeleteProblemStatusModalProps) {
@@ -42,7 +44,7 @@ export function DeleteProblemStatusModal({ open, onClose, onDelete, selectedDoc 
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold truncate" style={{ color: "rgb(var(--text-primary))" }}>
-              {selectedDoc?.name}
+              {selectedDoc?.callcenter || selectedDoc?.edlapp || "-"}
             </div>
           </div>
         </div>

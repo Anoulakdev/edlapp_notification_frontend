@@ -530,7 +530,7 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
                   </div>
 
                   <div className="flex flex-col gap-1 h-full min-h-0">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">ຮູບສຳມະໂນຄົວ / ບັດ</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">ຮູບສຳມະໂນຄົວ / ບັດປະຈຳຕົວ</span>
                     <div className="flex-1 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 flex flex-col">
                       {idcardUrl ? (
                         <div className="w-full h-full overflow-auto flex items-center justify-center p-2 bg-slate-50 dark:bg-slate-900">
@@ -543,7 +543,7 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1 p-4">
                           <FileText className="w-8 h-8 text-slate-350" />
-                          <span className="text-xs">ບໍ່ມີຮູບສຳມະໂນຄົວ/ບັດ</span>
+                          <span className="text-xs">ບໍ່ມີຮູບສຳມະໂນຄົວ/ບັດປະຈຳຕົວ</span>
                         </div>
                       )}
                     </div>
@@ -563,7 +563,7 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
                         <User className="w-5 h-5" />
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider">ຜູ້ຮັບເລື່ອງ ແລະ ສົ່ງຕໍ່ (Call Center)</span>
+                        <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider">ຜູ້ຮັບເລື່ອງ ແລະ ສົ່ງຕໍ່ (Contact Center)</span>
                         <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
                           {displayDoc.userAcceptMeters.userCall?.employee
                             ? `${displayDoc.userAcceptMeters.userCall.employee.first_name} ${displayDoc.userAcceptMeters.userCall.employee.last_name}`
@@ -612,7 +612,7 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
                           <User className="w-5 h-5" />
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">ຜູ້ຮັບເອກະສານປະຈຳສາຂາແຂວງ</span>
+                          <span className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">ຜູ້ຮັບເອກະສານປະຈຳຫ້ອງການເມືອງ</span>
                           <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
                             {displayDoc.userAcceptMeters.userProvince?.employee
                               ? `${displayDoc.userAcceptMeters.userProvince.employee.first_name} ${displayDoc.userAcceptMeters.userProvince.employee.last_name}`

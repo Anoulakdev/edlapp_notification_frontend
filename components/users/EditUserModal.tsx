@@ -17,6 +17,9 @@ export function EditUserModal({ open, onClose, onEdit, selectedUser }: EditUserM
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [districts, setDistricts] = useState<{ id: number; district_name: string }[]>([]);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
+  const [repairDistricts, setRepairDistricts] = useState<{ id: number; name: string }[]>([]);
+  const [loadingRepairDistricts, setLoadingRepairDistricts] = useState(false);
 
   // Dynamic dropdown lists fetched internally
   const [roles, setRoles] = useState<{ id: number; name: string }[]>([]);
@@ -27,13 +30,15 @@ export function EditUserModal({ open, onClose, onEdit, selectedUser }: EditUserM
     if (open) {
       const fetchMetadata = async () => {
         try {
-          const [rolesRes, provincesRes, meRes] = await Promise.all([
+          const [rolesRes, provincesRes, branchesRes, meRes] = await Promise.all([
             axiosInstance.get("/roles/selectrole"),
             axiosInstance.get("/provinces/selectprovince"),
+            axiosInstance.get("/branchs/selectbranch"),
             axiosInstance.get("/auth/me")
           ]);
           setRoles(rolesRes.data || []);
           setProvinces(provincesRes.data || []);
+          setBranches(branchesRes.data || []);
           setCurrentUser(meRes.data || null);
         } catch (err) {
           console.error("Failed to fetch metadata in EditUserModal:", err);
@@ -53,8 +58,10 @@ export function EditUserModal({ open, onClose, onEdit, selectedUser }: EditUserM
       setForm({
         username: selectedUser.raw?.username || "",
         roleId: selectedUser.raw?.roleId || 0,
-        provinceId: currentUser?.roleId === 4 ? currentUser.provinceId : (currentUser?.roleId === 2 ? undefined : (selectedUser.raw?.provinceId || undefined)),
-        districtId: currentUser?.roleId === 2 ? undefined : (selectedUser.raw?.districtId || undefined),
+        provinceId: selectedUser.raw?.provinceId || undefined,
+        districtId: selectedUser.raw?.districtId || undefined,
+        branchId: selectedUser.raw?.branchId || undefined,
+        repairDistrictId: selectedUser.raw?.repairDistrictId || undefined,
       });
       setSaving(false);
       setErrors({});
@@ -62,25 +69,9 @@ export function EditUserModal({ open, onClose, onEdit, selectedUser }: EditUserM
     }
   }
 
-  // Handle auto province assignment based on logged-in user's roleId
-  useEffect(() => {
-    if (currentUser?.roleId === 4 && currentUser?.provinceId) {
-      setForm((f) => ({
-        ...f,
-        provinceId: currentUser.provinceId,
-      }));
-    } else if (currentUser?.roleId === 2) {
-      setForm((f) => ({
-        ...f,
-        provinceId: undefined,
-        districtId: undefined,
-      }));
-    }
-  }, [currentUser]);
-
   // Fetch districts when selected province changes
   useEffect(() => {
-    const activeProvinceId = currentUser?.roleId === 4 ? currentUser?.provinceId : form.provinceId;
+    const activeProvinceId = form.provinceId;
 
     if (!activeProvinceId) {
       setDistricts([]);
@@ -94,7 +85,7 @@ export function EditUserModal({ open, onClose, onEdit, selectedUser }: EditUserM
         // 1. Fetch province details by ID to get the province_code
         const provinceRes = await axiosInstance.get(`/provinces/${activeProvinceId}`);
         const provinceCode = provinceRes.data?.province_code;
-        
+
         if (!provinceCode) {
           setDistricts([]);
           return;
@@ -112,7 +103,29 @@ export function EditUserModal({ open, onClose, onEdit, selectedUser }: EditUserM
     };
 
     fetchDistrictsForProvince();
-  }, [form.provinceId, currentUser]);
+  }, [form.provinceId]);
+
+  // Fetch repair districts when selected branch changes
+  useEffect(() => {
+    const activeBranchId = form.branchId;
+
+    const fetchRepairDistrictsForBranch = async () => {
+      try {
+        setLoadingRepairDistricts(true);
+        const repairRes = await axiosInstance.get("/repairdistricts/selectrepairdistrict", {
+          params: activeBranchId ? { branchId: activeBranchId } : undefined,
+        });
+        setRepairDistricts(repairRes.data || []);
+      } catch (err) {
+        console.error("Failed to fetch repair districts:", err);
+        setRepairDistricts([]);
+      } finally {
+        setLoadingRepairDistricts(false);
+      }
+    };
+
+    fetchRepairDistrictsForBranch();
+  }, [form.branchId]);
 
   const handleEdit = async () => {
     if (!selectedUser) return;
@@ -188,7 +201,32 @@ export function EditUserModal({ open, onClose, onEdit, selectedUser }: EditUserM
           label="ສິດຜູ້ໃຊ້ *"
           value={form.roleId.toString()}
           onChange={(e) => {
-            setForm((f) => ({ ...f, roleId: Number(e.target.value) }));
+            const selectedRole = Number(e.target.value);
+            setForm((f) => {
+              let updatedProvince = f.provinceId;
+              let updatedDistrict = f.districtId;
+              let updatedBranch = f.branchId;
+              let updatedRepairDistrict = f.repairDistrictId;
+
+              if (selectedRole === 5) {
+                updatedDistrict = undefined;
+                updatedRepairDistrict = undefined;
+              } else if (selectedRole !== 6) {
+                updatedProvince = undefined;
+                updatedDistrict = undefined;
+                updatedBranch = undefined;
+                updatedRepairDistrict = undefined;
+              }
+
+              return {
+                ...f,
+                roleId: selectedRole,
+                provinceId: updatedProvince,
+                districtId: updatedDistrict,
+                branchId: updatedBranch,
+                repairDistrictId: updatedRepairDistrict,
+              };
+            });
             if (errors.roleId) setErrors((prev) => ({ ...prev, roleId: "" }));
           }}
           options={[
@@ -198,56 +236,74 @@ export function EditUserModal({ open, onClose, onEdit, selectedUser }: EditUserM
           error={errors.roleId}
         />
 
-        {/* Dynamic Province & District selection visibility based on logged-in user's role */}
-        {currentUser?.roleId === 4 && (
-          <div>
-            <Select
-              label="ເມືອງ"
-              value={form.districtId?.toString() || ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                setForm((f) => ({ ...f, districtId: val ? Number(val) : undefined }));
-              }}
-              disabled={loadingDistricts}
-              options={[
-                { value: "", label: loadingDistricts ? "ກຳລັງໂຫຼດ..." : "ເລືອກເມືອງ (ທັງໝົດ)" },
-                ...districts.map((d) => ({ value: d.id.toString(), label: d.district_name })),
-              ]}
-            />
-          </div>
-        )}
+        {/* Dynamic Province, District, Branch & RepairDistrict selection visibility for roleId 1 and 2 */}
+        {(currentUser?.roleId === 1 || currentUser?.roleId === 2) && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="ແຂວງ"
+                value={form.provinceId?.toString() || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    provinceId: val ? Number(val) : undefined,
+                    districtId: undefined,
+                  }));
+                }}
+                disabled={form.roleId !== 5 && form.roleId !== 6}
+                options={[
+                  { value: "", label: "ເລືອກແຂວງ" },
+                  ...provinces.map((p) => ({ value: p.id.toString(), label: p.province_name })),
+                ]}
+              />
+              <Select
+                label="ເມືອງ"
+                value={form.districtId?.toString() || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((f) => ({ ...f, districtId: val ? Number(val) : undefined }));
+                }}
+                disabled={form.roleId !== 6 || !form.provinceId || loadingDistricts}
+                options={[
+                  { value: "", label: loadingDistricts ? "ກຳລັງໂຫຼດ..." : "ເລືອກເມືອງ" },
+                  ...districts.map((d) => ({ value: d.id.toString(), label: d.district_name })),
+                ]}
+              />
+            </div>
 
-        {currentUser?.roleId === 1 && (
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="ແຂວງ"
-              value={form.provinceId?.toString() || ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                setForm((f) => ({
-                  ...f,
-                  provinceId: val ? Number(val) : undefined,
-                  districtId: undefined,
-                }));
-              }}
-              options={[
-                { value: "", label: "ເລືອກແຂວງ (ທັງໝົດ)" },
-                ...provinces.map((p) => ({ value: p.id.toString(), label: p.province_name })),
-              ]}
-            />
-            <Select
-              label="ເມືອງ"
-              value={form.districtId?.toString() || ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                setForm((f) => ({ ...f, districtId: val ? Number(val) : undefined }));
-              }}
-              disabled={!form.provinceId || loadingDistricts}
-              options={[
-                { value: "", label: loadingDistricts ? "ກຳລັງໂຫຼດ..." : "ເລືອກເມືອງ (ທັງໝົດ)" },
-                ...districts.map((d) => ({ value: d.id.toString(), label: d.district_name })),
-              ]}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="ສາຂາແຂວງ"
+                value={form.branchId?.toString() || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    branchId: val ? Number(val) : undefined,
+                    repairDistrictId: undefined,
+                  }));
+                }}
+                disabled={form.roleId !== 5 && form.roleId !== 6}
+                options={[
+                  { value: "", label: "ເລືອກສາຂາແຂວງ" },
+                  ...branches.map((b) => ({ value: b.id.toString(), label: b.name })),
+                ]}
+              />
+              <Select
+                label="ສູນສ້ອມແປງເມືອງ"
+                value={form.repairDistrictId?.toString() || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((f) => ({ ...f, repairDistrictId: val ? Number(val) : undefined }));
+                }}
+                disabled={form.roleId !== 6 || !form.branchId || loadingRepairDistricts}
+                options={[
+                  { value: "", label: loadingRepairDistricts ? "ກຳລັງໂຫຼດ..." : "ເລືອກສູນສ້ອມແປງເມືອງ" },
+                  ...repairDistricts.map((rd) => ({ value: rd.id.toString(), label: rd.name })),
+                ]}
+              />
+            </div>
           </div>
         )}
 

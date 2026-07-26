@@ -29,8 +29,10 @@ export default function SignInView() {
           } else if (roleId === 3) {
             window.location.href = "/turnoff";
           } else if (roleId === 4) {
-            window.location.href = "/users";
+            window.location.href = "/turnoff";
           } else if (roleId === 5) {
+            window.location.href = "/turnoff";
+          } else if (roleId === 6) {
             window.location.href = "/turnoff";
           } else {
             try {
@@ -99,8 +101,10 @@ export default function SignInView() {
         } else if (roleId === 3) {
           window.location.href = "/turnoff";
         } else if (roleId === 4) {
-          window.location.href = "/users";
+          window.location.href = "/turnoff";
         } else if (roleId === 5) {
+          window.location.href = "/turnoff";
+        } else if (roleId === 6) {
           window.location.href = "/turnoff";
         } else {
           try {

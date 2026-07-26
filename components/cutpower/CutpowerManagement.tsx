@@ -495,15 +495,17 @@ export function CutpowerManagement() {
 
           </h1>
         </div>
-        <div className="sm:ml-auto flex items-center">
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2.5} />
-            ເພີ່ມຂໍ້ມູນ
-          </button>
-        </div>
+        {[4, 5].includes(currentUserRoleId || 0) && (
+          <div className="sm:ml-auto flex items-center">
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              ເພີ່ມຂໍ້ມູນ
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Table Card Container */}

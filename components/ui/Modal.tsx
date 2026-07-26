@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, ReactNode } from "react";
+import { useEffect, ReactNode, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -12,6 +13,13 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   // Close on ESC
   useEffect(() => {
     if (!open) return;
@@ -26,7 +34,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const sizeMap = {
     sm: "max-w-sm",
@@ -37,7 +45,9 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
     full: "max-w-[95vw] min-h-[95vh]",
   };
 
-  return (
+  // Render via portal into document.body so Modal re-renders are isolated
+  // from parent component trees (e.g. ProblemdocManagement's TanStack table)
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto p-4" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div
@@ -68,6 +78,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
           <div className="p-6">{children}</div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

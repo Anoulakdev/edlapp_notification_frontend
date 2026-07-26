@@ -1,7 +1,7 @@
-import { ProblemdocManagement } from "@/components/problemdoc/ProblemdocManagement";
+import { ProblemdocPageClient } from "./ProblemdocPageClient";
 
 export default function ProblemdocPage() {
-  return <ProblemdocManagement />;
+  return <ProblemdocPageClient />;
 }
 
 export const metadata = {

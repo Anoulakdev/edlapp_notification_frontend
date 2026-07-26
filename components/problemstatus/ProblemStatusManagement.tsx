@@ -123,25 +123,25 @@ export function ProblemStatusManagement() {
         },
       },
       {
-        accessorKey: "name",
-        header: "ຊື່ສະຖານະບັນຫາ",
+        accessorKey: "edlapp",
+        header: "ສະຖານະ EDL App",
         cell: ({ row }) => {
           const doc = row.original;
           return (
             <div className="text-sm font-semibold text-slate-800 dark:text-slate-200 break-all whitespace-normal py-1">
-              {doc.name}
+              {doc.edlapp || "-"}
             </div>
           );
         },
       },
       {
-        accessorKey: "name_edlapp",
-        header: "ຊື່ສະຖານະໃນ EDL App",
+        accessorKey: "callcenter",
+        header: "ສະຖານະ Call Center",
         cell: ({ row }) => {
           const doc = row.original;
           return (
             <div className="text-sm text-slate-600 dark:text-slate-400 break-all whitespace-normal py-1 font-medium">
-              {doc.name_edlapp || "-"}
+              {doc.callcenter || "-"}
             </div>
           );
         },
@@ -183,8 +183,8 @@ export function ProblemStatusManagement() {
     const s = search.toLowerCase().trim();
     return docs.filter(
       (doc) =>
-        doc.name.toLowerCase().includes(s) ||
-        (doc.name_edlapp && doc.name_edlapp.toLowerCase().includes(s))
+        (doc.edlapp && doc.edlapp.toLowerCase().includes(s)) ||
+        (doc.callcenter && doc.callcenter.toLowerCase().includes(s))
     );
   }, [docs, search]);
 
@@ -299,8 +299,8 @@ export function ProblemStatusManagement() {
                   {headerGroup.headers.map((header) => {
                     const widthClass =
                       header.id === "index" ? "w-[10%] min-w-[70px]" :
-                        header.id === "name" ? "w-[35%] min-w-[150px]" :
-                          header.id === "name_edlapp" ? "w-[40%] min-w-[180px]" :
+                        header.id === "edlapp" ? "w-[37.5%] min-w-[180px]" :
+                          header.id === "callcenter" ? "w-[37.5%] min-w-[180px]" :
                             header.id === "actions" ? "w-[15%] min-w-[100px]" : "";
                     return (
                       <th
@@ -347,8 +347,8 @@ export function ProblemStatusManagement() {
                     {row.getVisibleCells().map((cell) => {
                       const widthClass =
                         cell.column.id === "index" ? "w-[10%] min-w-[70px]" :
-                          cell.column.id === "name" ? "w-[35%] min-w-[150px]" :
-                            cell.column.id === "name_edlapp" ? "w-[40%] min-w-[180px]" :
+                          cell.column.id === "edlapp" ? "w-[37.5%] min-w-[180px]" :
+                            cell.column.id === "callcenter" ? "w-[37.5%] min-w-[180px]" :
                               cell.column.id === "actions" ? "w-[15%] min-w-[100px]" : "";
                       return (
                         <td key={cell.id} className={`px-6 py-4 ${widthClass}`}>

@@ -175,11 +175,10 @@ export function ProblemTypeManagement() {
                 <button
                   onClick={() => openDelete(doc)}
                   disabled={hasProblemDocs}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${
-                    hasProblemDocs
+                  className={`p-2 rounded-xl transition-colors shrink-0 ${hasProblemDocs
                       ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
                       : "text-red-500 bg-red-500/10 hover:bg-red-500/20"
-                  }`}
+                    }`}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

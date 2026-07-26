@@ -4,6 +4,10 @@ export const createUserSchema = z
   .object({
     username: z.string(),
     roleId: z.number(),
+    provinceId: z.number().optional(),
+    districtId: z.number().optional(),
+    branchId: z.number().optional(),
+    repairDistrictId: z.number().optional(),
     searching: z.boolean(),
     externalEmployee: z.any().nullable().optional(),
   })
@@ -55,6 +59,10 @@ export const fullUserSchema = z.object({
   avatar: z.string(),
   avatarColor: z.string(),
   empimg: z.string().nullable().optional(),
+  provinceId: z.number().nullable().optional(),
+  districtId: z.number().nullable().optional(),
+  branchId: z.number().nullable().optional(),
+  repairDistrictId: z.number().nullable().optional(),
   raw: z.any().optional(),
 });
 

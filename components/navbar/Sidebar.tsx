@@ -50,7 +50,7 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
       <div
         onClick={onClose}
         className={cn(
-          "fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm transition-opacity duration-300 lg:hidden",
+          "fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm transition-opacity duration-300 lg:hidden",
           isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
       />
@@ -58,10 +58,10 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
       {/* Main Sidebar Container */}
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 flex flex-col h-full border-r transition-all duration-300 ease-in-out lg:translate-x-0",
+          "fixed top-0 bottom-0 left-0 z-50 flex flex-col h-full border-r transition-transform duration-300 ease-in-out w-[280px] max-w-[85vw] text-white border-white/10",
           isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
-          sidebarCollapsed ? "lg:w-[76px]" : "lg:w-[260px]",
-          "text-white border-white/10"
+          "lg:translate-x-0",
+          sidebarCollapsed ? "lg:w-[76px]" : "lg:w-[260px]"
         )}
         style={{
           background: "linear-gradient(180deg, rgb(30, 58, 138) 0%, rgb(29, 78, 216) 100%)",
@@ -71,37 +71,31 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
         {/* Header/Logo Area */}
         <div
           className={cn(
-            "h-16 flex items-center border-b border-white/10 shrink-0",
-            sidebarCollapsed ? "lg:px-0 lg:justify-center" : "px-6 justify-between"
+            "h-28 flex items-center shrink-0 overflow-hidden relative",
+            sidebarCollapsed ? "lg:px-1 lg:justify-center" : "px-1 justify-between"
           )}
         >
-          <Link href="/" onClick={onClose} className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white shadow-md shadow-blue-500/10 overflow-hidden shrink-0">
-              <img src="/icon.png" alt="EDL Logo" className="w-full h-full object-contain p-0.5" />
-            </div>
-            <span
+          <Link href="/" onClick={onClose} className="flex-1 flex items-center justify-start h-full min-w-0">
+            <img
+              src="/ECC.png"
+              alt="ECC Logo"
               className={cn(
-                "text-lg font-bold text-white tracking-tight transition-opacity duration-200",
-                sidebarCollapsed && "lg:opacity-0 lg:w-0 lg:overflow-hidden lg:hidden"
+                "w-full h-full object-contain transition-all duration-200 scale-[1.85] origin-left",
+                sidebarCollapsed ? "lg:object-center lg:origin-center lg:scale-125" : "object-left"
               )}
-              style={{
-                fontFamily: "var(--font-display)",
-                letterSpacing: "-0.03em",
-              }}
-            >
-              EDL<span className="text-blue-200"> Notification</span>
-            </span>
+            />
           </Link>
 
           {/* Close button for mobile */}
           <button
+            type="button"
             onClick={onClose}
             className={cn(
-              "lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors",
+              "lg:hidden p-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors shrink-0 relative z-10 mr-1",
               sidebarCollapsed && "lg:hidden"
             )}
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -158,7 +152,7 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
                     <div
                       className={cn(
                         "overflow-hidden transition-all duration-300 ease-in-out pl-4 space-y-1 border-l border-white/15 ml-5.5",
-                        isExpanded && !sidebarCollapsed ? "max-h-[500px] opacity-100 mt-1 py-0.5" : "max-h-0 opacity-0 pointer-events-none"
+                        isExpanded ? "max-h-[500px] opacity-100 mt-1 py-0.5" : "max-h-0 opacity-0 pointer-events-none"
                       )}
                     >
                       {item.children.map((child) => {

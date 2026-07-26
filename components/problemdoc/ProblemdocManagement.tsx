@@ -17,6 +17,9 @@ import {
   MapPin,
   Eye,
   AlertTriangle,
+  Forward,
+  CheckSquare,
+  Wrench,
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
@@ -30,10 +33,15 @@ import { AddProblemdocModal } from "./AddProblemdocModal";
 import { EditProblemdocModal } from "./EditProblemdocModal";
 import { DeleteProblemdocModal } from "./DeleteProblemdocModal";
 import { ViewProblemdocModal } from "./ViewProblemdocModal";
+import { AssignProblemdocModal } from "./AssignProblemdocModal";
 
 const ROWS_PER_PAGE = 10;
 
-export function ProblemdocManagement() {
+interface ProblemdocManagementProps {
+  onRepairRequest?: (doc: ProblemDoc) => void;
+}
+
+export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementProps = {}) {
   const router = useRouter();
   const [docs, setDocs] = useState<ProblemDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +96,7 @@ export function ProblemdocManagement() {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<ProblemDoc | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
@@ -184,6 +193,40 @@ export function ProblemdocManagement() {
     setViewOpen(true);
   };
 
+  const openAssign = (doc: ProblemDoc) => {
+    setSelectedDoc(doc);
+    setAssignOpen(true);
+  };
+
+  const openRepair = (doc: ProblemDoc) => {
+    if (onRepairRequest) {
+      onRepairRequest(doc);
+    }
+  };
+
+  const handleAcceptWork = async (doc: ProblemDoc) => {
+    try {
+      await axiosInstance.put(`/problemdocs/updatereceiver/${doc.id}`, {
+        problemstatusId: 3,
+      });
+      toast.success("ຮັບວຽກສຳເລັດ");
+      fetchDocs(
+        search,
+        problemDate,
+        effectiveProvinceId,
+        effectiveDistrictId,
+        selectedVillageId,
+        selectedProblemTypeId,
+        selectedSourceTypeId,
+        filterMyDocs
+      );
+    } catch (err: any) {
+      console.error("Failed to receive work:", err);
+      const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການຮັບວຽກ";
+      toast.error(errMsg);
+    }
+  };
+
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -229,7 +272,7 @@ export function ProblemdocManagement() {
 
   // Fetch documents when filter state changes
   useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
     fetchDocs(
       debouncedSearch,
       problemDate,
@@ -380,6 +423,20 @@ export function ProblemdocManagement() {
     setFilterMyDocs(false);
   };
 
+  // Stable refresh callback — memoized so modal props don't change on every parent render
+  const handleRefresh = useCallback(() => {
+    fetchDocs(
+      search,
+      problemDate,
+      effectiveProvinceId,
+      effectiveDistrictId,
+      selectedVillageId,
+      selectedProblemTypeId,
+      selectedSourceTypeId,
+      filterMyDocs
+    );
+  }, [fetchDocs, search, problemDate, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedProblemTypeId, selectedSourceTypeId, filterMyDocs]);
+
   // Handlers
   const openAdd = () => setAddOpen(true);
 
@@ -392,6 +449,11 @@ export function ProblemdocManagement() {
     setSelectedDoc(doc);
     setDeleteOpen(true);
   };
+
+  const handleAssignClose = useCallback(() => {
+    setAssignOpen(false);
+    setSelectedDoc(null);
+  }, []);
 
   const handleDelete = async () => {
     if (!selectedDoc) return;
@@ -492,7 +554,7 @@ export function ProblemdocManagement() {
           let badgeClass = "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300";
           if (doc.sourcetypeId === 1) {
             badgeClass = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
-          } else if (doc.sourcetypeId === 2) {
+          } else if (doc.sourcetypeId === 3) {
             badgeClass = "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
           }
           return (
@@ -519,7 +581,7 @@ export function ProblemdocManagement() {
           }
           return (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}>
-              {doc.problemstatus?.name || "-"}
+              {doc.problemstatus?.callcenter || "-"}
             </span>
           );
         },
@@ -530,6 +592,11 @@ export function ProblemdocManagement() {
         cell: ({ row }) => {
           const doc = row.original;
           const isCreator = currentUserId !== null && Number(currentUserId) === Number(doc.createdById);
+          const canAssign = currentUserRoleId === 3 && (doc.problemstatusId === 1 || doc.problemstatusId === 2);
+          const isAssigned = Boolean(doc.branchId && doc.repairDistrictId);
+          const canReceiveWork = currentUserRoleId === 6 && doc.problemstatusId === 2;
+          const canRepairWork = currentUserRoleId === 6 && doc.problemstatusId === 3;
+
           return (
             <div className="flex items-center gap-1.5 shrink-0">
               <ButtonTooltip text="ເບິ່ງຂໍ້ມູນ">
@@ -540,36 +607,73 @@ export function ProblemdocManagement() {
                   <Eye className="w-4 h-4" />
                 </button>
               </ButtonTooltip>
-              <ButtonTooltip text={isCreator ? "ແກ້ໄຂ" : "ບໍ່ມີສິດແກ້ໄຂ"}>
-                <button
-                  onClick={() => openEdit(doc)}
-                  disabled={!isCreator}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${!isCreator
-                    ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
-                    : "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
-                    }`}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-              </ButtonTooltip>
-              <ButtonTooltip text={isCreator ? "ລົບ" : "ບໍ່ມີສິດລົບ"}>
-                <button
-                  onClick={() => openDelete(doc)}
-                  disabled={!isCreator}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${!isCreator
-                    ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
-                    : "text-red-500 bg-red-500/10 hover:bg-red-500/20"
-                    }`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </ButtonTooltip>
+              {canAssign && (
+                <ButtonTooltip text={isAssigned ? "ແກ້ໄຂການມອບໝາຍ" : "ມອບໝາຍງານ"}>
+                  <button
+                    onClick={() => openAssign(doc)}
+                    className={`p-2 rounded-xl transition-colors shrink-0 ${isAssigned
+                        ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
+                        : "text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20"
+                      }`}
+                  >
+                    <Forward className="w-4 h-4" />
+                  </button>
+                </ButtonTooltip>
+              )}
+              {canReceiveWork && (
+                <ButtonTooltip text="ຮັບວຽກ">
+                  <button
+                    onClick={() => handleAcceptWork(doc)}
+                    className="p-2 rounded-xl text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors shrink-0"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                  </button>
+                </ButtonTooltip>
+              )}
+              {canRepairWork && (
+                <ButtonTooltip text="ແກ້ໄຂວຽກ">
+                  <button
+                    onClick={() => openRepair(doc)}
+                    className="p-2 rounded-xl text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-colors shrink-0"
+                  >
+                    <Wrench className="w-4 h-4" />
+                  </button>
+                </ButtonTooltip>
+              )}
+              {currentUserRoleId === 4 && (
+                <>
+                  <ButtonTooltip text={isCreator ? "ແກ້ໄຂ" : "ບໍ່ມີສິດແກ້ໄຂ"}>
+                    <button
+                      onClick={() => openEdit(doc)}
+                      disabled={!isCreator}
+                      className={`p-2 rounded-xl transition-colors shrink-0 ${!isCreator
+                        ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
+                        : "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                        }`}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </ButtonTooltip>
+                  <ButtonTooltip text={isCreator ? "ລົບ" : "ບໍ່ມີສິດລົບ"}>
+                    <button
+                      onClick={() => openDelete(doc)}
+                      disabled={!isCreator}
+                      className={`p-2 rounded-xl transition-colors shrink-0 ${!isCreator
+                        ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
+                        : "text-red-500 bg-red-500/10 hover:bg-red-500/20"
+                        }`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </ButtonTooltip>
+                </>
+              )}
             </div>
           );
         },
       },
     ],
-    [currentUserId]
+    [currentUserId, currentUserRoleId]
   );
 
   const filteredDocs = useMemo(() => {
@@ -621,15 +725,17 @@ export function ProblemdocManagement() {
             ແຈ້ງບັນຫາ
           </h1>
         </div>
-        <div className="sm:ml-auto flex items-center">
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2.5} />
-            ເພີ່ມຂໍ້ມູນແຈ້ງບັນຫາ
-          </button>
-        </div>
+        {currentUserRoleId === 4 && (
+          <div className="sm:ml-auto flex items-center">
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              ເພີ່ມຂໍ້ມູນ
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Table Card Container */}
@@ -942,13 +1048,20 @@ export function ProblemdocManagement() {
       </div>
 
       {/* MODALS */}
-      <AddProblemdocModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={() => fetchDocs(search, problemDate, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedProblemTypeId, selectedSourceTypeId, filterMyDocs)} />
+      <AddProblemdocModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={handleRefresh} />
 
       <EditProblemdocModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         selectedDoc={selectedDoc}
-        onRefresh={() => fetchDocs(search, problemDate, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedProblemTypeId, selectedSourceTypeId, filterMyDocs)}
+        onRefresh={handleRefresh}
+      />
+
+      <AssignProblemdocModal
+        open={assignOpen}
+        onClose={handleAssignClose}
+        selectedDoc={selectedDoc}
+        onRefresh={handleRefresh}
       />
 
       <DeleteProblemdocModal

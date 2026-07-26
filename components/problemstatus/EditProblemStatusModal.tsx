@@ -7,16 +7,18 @@ import { axiosInstance } from "@/lib/axiosInstance";
 import { editProblemStatusSchema } from "@/schemas/problemstatus";
 import { toast } from "react-toastify";
 
+import { ProblemStatus } from "@/schemas/problemstatus";
+
 interface EditProblemStatusModalProps {
   open: boolean;
   onClose: () => void;
-  selectedDoc: { id: number; name: string } | null;
+  selectedDoc: ProblemStatus | null;
   onRefresh: () => void;
 }
 
 export function EditProblemStatusModal({ open, onClose, selectedDoc, onRefresh }: EditProblemStatusModalProps) {
-  const [name, setName] = useState("");
-  const [nameEdlapp, setNameEdlapp] = useState("");
+  const [edlapp, setEdlapp] = useState("");
+  const [callcenter, setCallcenter] = useState("");
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -30,8 +32,8 @@ export function EditProblemStatusModal({ open, onClose, selectedDoc, onRefresh }
           const res = await axiosInstance.get(`/problemstatus/${selectedDoc.id}`);
           const doc = res.data;
 
-          setName(doc.name || "");
-          setNameEdlapp(doc.name_edlapp || "");
+          setEdlapp(doc.edlapp || "");
+          setCallcenter(doc.callcenter || "");
           setErrors({});
         } catch (err) {
           console.error("Failed to load problem status details:", err);
@@ -48,8 +50,8 @@ export function EditProblemStatusModal({ open, onClose, selectedDoc, onRefresh }
     if (!selectedDoc) return;
 
     const result = editProblemStatusSchema.safeParse({
-      name,
-      name_edlapp: nameEdlapp,
+      edlapp,
+      callcenter,
     });
 
     if (!result.success) {
@@ -67,8 +69,8 @@ export function EditProblemStatusModal({ open, onClose, selectedDoc, onRefresh }
 
     try {
       await axiosInstance.put(`/problemstatus/${selectedDoc.id}`, {
-        name,
-        name_edlapp: nameEdlapp,
+        edlapp,
+        callcenter,
       });
 
       toast.success("ແກ້ໄຂຂໍ້ມູນສະຖານະບັນຫາສຳເລັດ");
@@ -101,19 +103,19 @@ export function EditProblemStatusModal({ open, onClose, selectedDoc, onRefresh }
 
           <div className="space-y-4">
             <Input
-              label="ຊື່ສະຖານະບັນຫາ *"
-              placeholder="ປ້ອນຊື່ສະຖານະບັນຫາ..."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              error={errors.name}
+              label="ສະຖານະ EDL App *"
+              placeholder="ປ້ອນສະຖານະ EDL App..."
+              value={edlapp}
+              onChange={(e) => setEdlapp(e.target.value)}
+              error={errors.edlapp}
             />
 
             <Input
-              label="ຊື່ສະຖານະໃນ EDL App *"
-              placeholder="ປ້ອນຊື່ສະຖານະໃນ EDL App..."
-              value={nameEdlapp}
-              onChange={(e) => setNameEdlapp(e.target.value)}
-              error={errors.name_edlapp}
+              label="ສະຖານະ Call Center *"
+              placeholder="ປ້ອນສະຖານະ Call Center..."
+              value={callcenter}
+              onChange={(e) => setCallcenter(e.target.value)}
+              error={errors.callcenter}
             />
           </div>
 
