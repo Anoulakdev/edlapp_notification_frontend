@@ -46,3 +46,15 @@ export interface Message {
     employee: { first_name: string; last_name: string };
   } | null;
 }
+
+export interface AgentRating {
+  id: number;
+  agentId: number;
+  externalUserId: number;
+  topicId?: number | null;
+  conversationId?: number | null;
+  messageId?: number | null;
+  rating: number;
+  comment?: string | null;
+  createdAt: string;
+}

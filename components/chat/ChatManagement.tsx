@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axiosInstance from "@/lib/axiosInstance";
 import { io, Socket } from "socket.io-client";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Volume2, VolumeX } from "lucide-react";
 import { TopicSelector } from "./TopicSelector";
 import { ConversationList } from "./ConversationList";
 import { ChatArea } from "./ChatArea";
 import { Topic, Conversation, Message } from "./types";
+import { toast } from "react-toastify";
+import { playNotificationSound } from "./sound";
 
 export function ChatManagement() {
   // Navigation & selection states
@@ -25,6 +27,12 @@ export function ChatManagement() {
   const [selectedImgFile, setSelectedImgFile] = useState<File | null>(null);
   const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
   const [imgPreview, setImgPreview] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const soundEnabledRef = useRef(soundEnabled);
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
 
   // Loading states
   const [loadingTopics, setLoadingTopics] = useState(false);
@@ -104,8 +112,9 @@ export function ChatManagement() {
     }
   }, []);
 
-  // 1. Fetch active topics on mount
+  // 1. Fetch active topics on mount & play notification sound when entering /chat page
   useEffect(() => {
+    playNotificationSound();
     Promise.resolve().then(() => {
       setLoadingTopics(true);
       axiosInstance.get("/topics/selecttopic")
@@ -202,14 +211,23 @@ export function ChatManagement() {
     });
 
     socket.on("topicUnreadCountUpdate", (data: { topicId: number; unreadCount: number }) => {
-      setTopics((prev) =>
-        prev.map((t) =>
+      setTopics((prev) => {
+        const oldTopic = prev.find((t) => t.id === data.topicId);
+        if (oldTopic && data.unreadCount > (oldTopic.unreadCount || 0) && soundEnabledRef.current) {
+          playNotificationSound();
+        }
+        return prev.map((t) =>
           t.id === data.topicId ? { ...t, unreadCount: data.unreadCount } : t
-        )
-      );
+        );
+      });
     });
 
     socket.on("newMessage", (message: Message) => {
+      // Play chime notification sound if message is sent by edlapp client (on any screen!)
+      if (message.senderType === "edlapp" && soundEnabledRef.current) {
+        playNotificationSound();
+      }
+
       // If we are on the topic selector screen, refresh the topic list in real time!
       if (!selectedTopicRef.current) {
         if (refreshTopicsRef.current) {
@@ -292,7 +310,12 @@ export function ChatManagement() {
 
       setConversations((prev) => {
         const matchedIndex = prev.findIndex((c) => c.id === message.conversationId);
-        if (matchedIndex === -1) return prev;
+        if (matchedIndex === -1) {
+          if (fetchConversationsRef.current) {
+            fetchConversationsRef.current(false);
+          }
+          return prev;
+        }
 
         const updated = [...prev];
         const conv = updated[matchedIndex];
@@ -327,6 +350,13 @@ export function ChatManagement() {
         }
         return prev;
       });
+    });
+
+    socket.on("ratingSubmitted", (data: { conversationId: number; rating: number; comment?: string }) => {
+      const currentActive = selectedConversationRef.current;
+      if (currentActive && data.conversationId === currentActive.id) {
+        setSelectedConversation((prev) => (prev ? { ...prev } : null));
+      }
     });
 
     return () => {
@@ -562,6 +592,39 @@ export function ChatManagement() {
     }
   };
 
+  const handleClearChat = async (convId: number) => {
+    try {
+      await axiosInstance.delete(`/conversations/clear/${convId}`);
+      toast.success("ລ້າງປະຫວັດການສົນທະນາສຳເລັດ");
+      if (selectedConversation?.id === convId) {
+        setMessages([]);
+      }
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === convId ? { ...c, lastMessage: null, lastMessageAt: null } : c
+        )
+      );
+    } catch (error: any) {
+      console.error("Failed to clear chat:", error);
+      toast.error(error?.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການລ້າງປະຫວັດ");
+    }
+  };
+
+  const handleDeleteChat = async (convId: number) => {
+    try {
+      await axiosInstance.delete(`/conversations/${convId}`);
+      toast.success("ລົບຫ້ອງສົນທະນາສຳເລັດ");
+      setConversations((prev) => prev.filter((c) => c.id !== convId));
+      if (selectedConversation?.id === convId) {
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+    } catch (error: any) {
+      console.error("Failed to delete chat:", error);
+      toast.error(error?.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການລົບຫ້ອງສົນທະນາ");
+    }
+  };
+
   const handleSendLocation = async (lat: number, lng: number) => {
     if (!selectedConversation) return;
     setSending(true);
@@ -622,11 +685,23 @@ export function ChatManagement() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
+          <div className="flex items-center gap-3">
             <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
               {selectedTopic.name}
             </h2>
+            <button
+              onClick={() => setSoundEnabled((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 active:scale-95 ${
+                soundEnabled
+                  ? "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/50"
+                  : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700"
+              }`}
+              title={soundEnabled ? "ປິດສຽງແຈ້ງເຕືອນ" : "ເປີດສຽງແຈ້ງເຕືອນ"}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-blue-500 animate-bounce" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
+              <span className="hidden sm:inline">{soundEnabled ? "ສຽງແຈ້ງເຕືອນ: ເປີດ" : "ສຽງແຈ້ງເຕືອນ: ປິດ"}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -641,6 +716,8 @@ export function ChatManagement() {
           filteredConversations={filteredConversations}
           selectedConversation={selectedConversation}
           onSelectConversation={setSelectedConversation}
+          onClearChat={handleClearChat}
+          onDeleteChat={handleDeleteChat}
         />
 
         {/* Right Side: Chat box */}
@@ -671,6 +748,7 @@ export function ChatManagement() {
           backendUrl={backendUrl}
           onBack={() => setSelectedConversation(null)}
           currentUserId={currentUser?.id}
+          socket={socketRef.current}
         />
       </div>
     </div>

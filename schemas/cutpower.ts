@@ -57,6 +57,9 @@ export const cutpowerDocSchema = z.object({
   cutpowerAddresses: z
     .array(
       z.object({
+        id: z.number().optional(),
+        villageId: z.number().optional(),
+        userCount: z.number().optional().nullable(),
         village: z.object({
           id: z.number(),
           village_name: z.string(),

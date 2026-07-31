@@ -1,9 +1,10 @@
 import React from "react";
-import { Phone, Loader2, Image as ImageIcon, Mic, Square, X, Send, MessageSquare, MessageSquareText, Search, ArrowLeft, Volume2, ChevronDown, MapPin, Trash2 } from "lucide-react";
+import { Phone, Loader2, Image as ImageIcon, Mic, Square, X, Send, MessageSquare, MessageSquareText, Search, ArrowLeft, Volume2, ChevronDown, MapPin, Trash2, Star } from "lucide-react";
 import moment from "moment";
-import { Conversation, Message } from "./types";
+import { Conversation, Message, AgentRating } from "./types";
 import { LocationPickerModal } from "./LocationPickerModal";
 import axiosInstance from "@/lib/axiosInstance";
+import { toast } from "react-toastify";
 
 if (typeof window !== "undefined") {
   console.assert = () => { };
@@ -36,6 +37,7 @@ interface ChatAreaProps {
   backendUrl: string;
   onBack?: () => void;
   currentUserId?: number;
+  socket?: any;
 }
 
 export function ChatArea({
@@ -64,6 +66,7 @@ export function ChatArea({
   backendUrl,
   onBack,
   currentUserId,
+  socket,
 }: ChatAreaProps) {
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingSeconds, setRecordingSeconds] = React.useState(0);
@@ -78,6 +81,69 @@ export function ChatArea({
   const [isLocationModalOpen, setIsLocationModalOpen] = React.useState(false);
   const [previewImageUrl, setPreviewImageUrl] = React.useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = React.useState<number | null>(null);
+  const [requestingRating, setRequestingRating] = React.useState(false);
+  const [agentRatings, setAgentRatings] = React.useState<AgentRating[]>([]);
+
+  React.useEffect(() => {
+    if (!selectedConversation?.id) {
+      setAgentRatings([]);
+      return;
+    }
+    const fetchRating = async () => {
+      try {
+        const res = await axiosInstance.get(`/conversations/rating/${selectedConversation.id}`);
+        const data = Array.isArray(res.data) ? res.data : (res.data ? [res.data] : []);
+        setAgentRatings(data);
+      } catch (err) {
+        setAgentRatings([]);
+      }
+    };
+    fetchRating();
+  }, [selectedConversation?.id]);
+
+  // Realtime Rating Update Listener via Socket.io
+  React.useEffect(() => {
+    if (!socket) return;
+
+    const handleRatingSubmitted = (newRatingData: AgentRating) => {
+      console.log("Realtime ratingSubmitted received in ChatArea:", newRatingData);
+      if (selectedConversation && newRatingData.conversationId === selectedConversation.id) {
+        setAgentRatings((prev) => {
+          const index = prev.findIndex(
+            (r) => r.id === newRatingData.id || (r.messageId && r.messageId === newRatingData.messageId)
+          );
+          if (index !== -1) {
+            const copy = [...prev];
+            copy[index] = newRatingData;
+            return copy;
+          }
+          return [newRatingData, ...prev];
+        });
+      }
+    };
+
+    socket.on("ratingSubmitted", handleRatingSubmitted);
+
+    return () => {
+      socket.off("ratingSubmitted", handleRatingSubmitted);
+    };
+  }, [socket, selectedConversation]);
+
+  const handleRequestRating = async () => {
+    if (!selectedConversation) return;
+    try {
+      setRequestingRating(true);
+      await axiosInstance.post("/conversations/request-rating", {
+        conversationId: selectedConversation.id,
+      });
+      toast.success("ສົ່ງຄຳຮ້ອງຂໍໃຫ້ດາວປະເມິນສຳເລັດ");
+    } catch (err: any) {
+      console.error("Failed to request rating:", err);
+      toast.error(err?.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການສົ່ງຄຳຮ້ອງຂໍປະເມິນ");
+    } finally {
+      setRequestingRating(false);
+    }
+  };
 
   // Auto messages / quick reply states
   const [autoMessages, setAutoMessages] = React.useState<Array<{ id: number; messageTopic: string; topic?: { id: number; name: string } }>>([]);
@@ -295,6 +361,26 @@ export function ChatArea({
             </p>
           </div>
         </div>
+
+        {/* Header Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRequestRating}
+            disabled={requestingRating}
+            className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-gradient-to-r from-amber-500/15 via-amber-400/20 to-yellow-500/15 hover:from-amber-500/25 hover:to-yellow-500/25 border border-amber-400/40 dark:border-amber-500/30 shadow-sm hover:shadow-amber-500/20 transition-all duration-300 active:scale-95 disabled:opacity-50"
+            title="ສົ່ງຄຳຮ້ອງຂໍໃຫ້ດາວປະເມິນ"
+          >
+            {requestingRating ? (
+              <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+            ) : (
+              <div className="relative">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-300 animate-ping" />
+              </div>
+            )}
+            <span className="hidden sm:inline tracking-wide">ຂໍດາວປະເມິນ</span>
+          </button>
+        </div>
       </div>
 
       {/* Message List Wall */}
@@ -440,9 +526,85 @@ export function ChatArea({
                             </div>
                           </div>
                         ) : (
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words pr-5">
-                            {msg.content}
-                          </p>
+                          msg.content.includes("ປະເມິນ") || msg.content.includes("ให้คะแนน") || msg.content.includes("ขอคะแนน") || msg.content.includes("ຂໍດາວ") ? (() => {
+                            const ratingForMsg = agentRatings.find((r) => r.messageId === msg.id);
+
+                            return (
+                              <div className="flex flex-col gap-3 my-1.5 p-4 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900/90 to-yellow-950/40 border border-amber-500/35 text-slate-100 shadow-xl shadow-amber-950/20 backdrop-blur-md min-w-[260px] relative overflow-hidden group/card">
+                                {/* Ambient background glow effect */}
+                                <div className="absolute -top-10 -right-10 w-28 h-28 bg-amber-500/15 rounded-full blur-xl pointer-events-none group-hover/card:bg-amber-500/25 transition-all duration-500" />
+
+                                {/* Header Card */}
+                                <div className="flex items-center justify-between pb-2.5 border-b border-amber-500/25 relative z-10">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400/30 to-amber-600/30 text-amber-300 flex items-center justify-center shrink-0 border border-amber-400/40 shadow-sm">
+                                      <Star className="w-4.5 h-4.5 fill-amber-400 text-amber-400 animate-pulse" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black text-amber-300 tracking-wide">
+                                        {ratingForMsg ? "ຜົນການປະເມິນການບໍລິການ" : "ຄຳຮ້ອງຂໍປະເມິນການບໍລິການ"}
+                                      </span>
+                                      <span className="text-[10px] text-amber-200/70 font-medium">
+                                        {ratingForMsg ? "Submitted Service Rating" : "EDL Service Rating Request"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Message Content */}
+                                {!ratingForMsg && (
+                                  <p className="text-xs font-semibold text-slate-200 leading-relaxed pr-1 relative z-10">
+                                    {msg.content}
+                                  </p>
+                                )}
+
+                                {/* 5 Stars Rating Display */}
+                                <div className="flex flex-col items-center gap-1.5 py-2.5 px-4 rounded-xl bg-black/40 border border-amber-500/25 shadow-inner relative z-10">
+                                  <div className="flex items-center justify-center gap-2">
+                                    {[1, 2, 3, 4, 5].map((star) => {
+                                      const isFilled = ratingForMsg ? star <= ratingForMsg.rating : false;
+                                      return (
+                                        <Star
+                                          key={star}
+                                          className={`w-5 h-5 drop-shadow-md transition-all duration-300 ${isFilled
+                                            ? "fill-amber-400 text-amber-400 scale-105"
+                                            : ratingForMsg
+                                              ? "fill-slate-800 text-slate-700/60 opacity-40"
+                                              : "fill-amber-400/30 text-amber-400/50 animate-pulse"
+                                            }`}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+
+                                  {ratingForMsg?.comment && (
+                                    <div className="mt-1 p-2 rounded-xl bg-amber-500/10 border border-amber-400/20 text-xs italic text-amber-200 text-center font-medium w-full flex items-center justify-center gap-1.5">
+                                      <span>💬</span>
+                                      <span>"{ratingForMsg.comment}"</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Footer Status Badge */}
+                                <div className="flex justify-end relative z-10">
+                                  {ratingForMsg ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shadow-sm">
+                                      <span>✓ ປະເມິນແລ້ວ ({ratingForMsg.rating} ດາວ)</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-sm animate-pulse">
+                                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                      <span>ລໍຖ້າການປະເມິນ...</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })() : (
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words pr-5">
+                              {msg.content}
+                            </p>
+                          )
                         )
                       )}
 

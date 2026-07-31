@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
-import { axiosInstance } from "@/lib/axiosInstance";
+import { axiosInstance, rawBackendUrl } from "@/lib/axiosInstance";
+import { io } from "socket.io-client";
 import moment from "moment";
 import { ButtonTooltip } from "@/lib/Tooltip";
 import { RegisterMeter } from "@/schemas/registermeter";
@@ -288,85 +289,38 @@ export function RegistermeterManagement() {
     filterMyDocs
   ]);
 
-  // Real-time SSE Connection
+  // Real-time Socket.io Connection
   useEffect(() => {
-    const sseUrl = `/api/registermeters/sse`;
-    let eventSource: EventSource | null = null;
-    let reconnectTimeout: any = null;
+    const socketUrl =
+      typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? window.location.origin
+        : rawBackendUrl;
 
-    const connectSSE = () => {
-      if (eventSource) {
-        eventSource.close();
+    const socket = io(`${socketUrl}/registermeter`, {
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      console.log("Registermeter Socket.io connected successfully:", socket.id);
+    });
+
+    socket.on("registermeterUpdated", (data: { action: string }) => {
+      if (data.action === "refresh") {
+        const filters = filterRef.current;
+        fetchDocs(
+          filters.debouncedSearch,
+          filters.effectiveProvinceId,
+          filters.effectiveDistrictId,
+          filters.selectedVillageId,
+          filters.selectedStatusId,
+          filters.selectedSourceTypeId,
+          filters.filterMyDocs
+        );
       }
-
-      eventSource = new EventSource(sseUrl, {
-        withCredentials: true,
-      });
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.action === "refresh") {
-            const filters = filterRef.current;
-            fetchDocs(
-              filters.debouncedSearch,
-              filters.effectiveProvinceId,
-              filters.effectiveDistrictId,
-              filters.selectedVillageId,
-              filters.selectedStatusId,
-              filters.selectedSourceTypeId,
-              filters.filterMyDocs
-            );
-          }
-        } catch (err) {
-          console.error("Failed to parse SSE event data:", err);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error("SSE connection error, attempting to reconnect in 5s...", err);
-        if (eventSource) {
-          eventSource.close();
-          eventSource = null;
-        }
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        reconnectTimeout = setTimeout(() => {
-          connectSSE();
-        }, 5000);
-      };
-    };
-
-    connectSSE();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const isClosed = !eventSource || eventSource.readyState === EventSource.CLOSED;
-        if (isClosed) {
-          connectSSE();
-        }
-      }
-    };
-
-    const keepAliveInterval = setInterval(() => {
-      const isClosed = !eventSource || eventSource.readyState === EventSource.CLOSED;
-      if (isClosed && !reconnectTimeout) {
-        connectSSE();
-      }
-    }, 30000);
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleVisibilityChange);
+    });
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      clearInterval(keepAliveInterval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleVisibilityChange);
+      socket.disconnect();
     };
   }, [fetchDocs]);
 
@@ -538,7 +492,7 @@ export function RegistermeterManagement() {
           const doc = row.original;
           const isCreator = currentUserId !== null && Number(currentUserId) === Number(doc.createdById);
           const hasUserAccept = !!doc.userAcceptMeters;
-          const isRole4 = currentUserRoleId === 4;
+          const canForward = [2, 3].includes(currentUserRoleId || 0);
           const isRole6 = currentUserRoleId === 6;
 
           return (
@@ -552,8 +506,8 @@ export function RegistermeterManagement() {
                 </button>
               </ButtonTooltip>
 
-              {/* Accept & forward action for Role 4 */}
-              {isRole4 && !hasUserAccept && (
+              {/* Accept & forward action for Roles 2, 3, and 4 */}
+              {canForward && !hasUserAccept && (
                 <ButtonTooltip text="ຮັບເລື່ອງ & ສົ່ງຕໍ່">
                   <button
                     onClick={() => openForward(doc, "create")}
@@ -642,7 +596,7 @@ export function RegistermeterManagement() {
     return pages;
   };
 
-  const isCustomer = currentUserRoleId === 4 || currentUserRoleId === 5;
+  const isCustomer = currentUserRoleId === 5 || currentUserRoleId === 6;
 
   return (
     <div className="max-w-screen-2xl mx-auto px-4 md:px-6 py-8" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
@@ -726,7 +680,7 @@ export function RegistermeterManagement() {
             style={{ borderColor: "rgb(var(--border))", background: "rgb(var(--bg))" }}
           >
             {/* Province Filter */}
-            {currentUserRoleId !== 4 && currentUserRoleId !== 5 && (
+            {currentUserRoleId !== 5 && currentUserRoleId !== 6 && (
               <div className="w-full sm:w-48 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase">ແຂວງ</label>
                 <div className="relative w-full">
@@ -749,7 +703,7 @@ export function RegistermeterManagement() {
             )}
 
             {/* District Filter */}
-            {currentUserRoleId !== 5 && (
+            {currentUserRoleId !== 6 && (
               <div className="w-full sm:w-48 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase">ເມືອງ</label>
                 <div className="relative w-full">

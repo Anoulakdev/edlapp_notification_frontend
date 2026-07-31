@@ -1,12 +1,16 @@
 "use client";
 
-import { ChevronDown, User, LogOut, KeyRound } from "lucide-react";
+import { ChevronDown, User, LogOut, KeyRound, ShieldCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface UserProfile {
   username: string;
+  role?: {
+    id: number;
+    name: string;
+  } | null;
   employee: {
     first_name: string;
     last_name: string;
@@ -17,12 +21,11 @@ interface UserProfile {
 
 const getAvatarGradient = (username: string) => {
   const colors = [
-    "from-blue-600 to-indigo-600 text-white",
-    "from-purple-600 to-pink-600 text-white",
-    "from-pink-600 to-rose-600 text-white",
-    "from-emerald-600 to-teal-600 text-white",
-    "from-amber-600 to-orange-600 text-white",
-    "from-cyan-600 to-blue-600 text-white",
+    "from-blue-600 via-indigo-600 to-purple-600 text-white",
+    "from-purple-600 via-pink-600 to-rose-600 text-white",
+    "from-emerald-600 via-teal-600 to-cyan-600 text-white",
+    "from-amber-500 via-orange-600 to-red-600 text-white",
+    "from-cyan-600 via-blue-600 to-indigo-600 text-white",
   ];
   if (!username) return colors[0];
   let sum = 0;
@@ -68,7 +71,8 @@ export function ProfileDropdown() {
   }, [profileOpen]);
 
   return (
-    <div className="relative" data-profile-button style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
+    <div className="relative select-none" data-profile-button style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
+      {/* Navbar Profile Trigger Button */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -77,75 +81,79 @@ export function ProfileDropdown() {
         aria-label="Profile menu"
         aria-expanded={profileOpen}
         className={cn(
-          "flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg transition-all duration-200 hover:shadow-md group border cursor-pointer",
+          "flex items-center gap-2.5 p-1.5 rounded-2xl transition-all duration-300 border cursor-pointer group shadow-sm hover:shadow-md backdrop-blur-md active:scale-98",
           profileOpen
-            ? "bg-slate-200 dark:bg-slate-700 border-slate-200 dark:border-slate-700"
-            : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700"
+            ? "bg-blue-50/90 dark:bg-slate-800/90 border-blue-400/50 dark:border-blue-500/50 ring-2 ring-blue-500/20"
+            : "bg-slate-100/80 dark:bg-slate-850/80 border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-200/80 dark:hover:bg-slate-800/80"
         )}
       >
-        <div
-          className={cn(
-            "w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shadow-sm transition-all overflow-hidden shrink-0",
-            userData?.employee?.empimg ? "" : `bg-gradient-to-tr ${getAvatarGradient(userData?.username || "A")}`
-          )}
-        >
-          {userData?.employee?.empimg ? (
-            <img src={userData.employee.empimg} alt="profile" className="w-full h-full object-cover object-top" />
-          ) : (
-            userData ? userData.username.charAt(0).toUpperCase() : "A"
-          )}
-        </div>
-        <div className="hidden lg:block text-left">
+        {/* Avatar with Glow Ring */}
+        <div className="relative">
           <div
             className={cn(
-              "text-xs font-semibold leading-none mb-0.5",
-              profileOpen ? "text-slate-800 dark:text-slate-100" : "text-slate-700 dark:text-slate-200"
+              "w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shadow-inner transition-transform duration-300 group-hover:scale-105 overflow-hidden shrink-0 ring-2 ring-white/40 dark:ring-slate-700/50",
+              userData?.employee?.empimg ? "" : `bg-gradient-to-br ${getAvatarGradient(userData?.username || "A")}`
+            )}
+          >
+            {userData?.employee?.empimg ? (
+              <img src={userData.employee.empimg} alt="profile" className="w-full h-full object-cover object-top" />
+            ) : (
+              userData ? userData.username.charAt(0).toUpperCase() : "A"
+            )}
+          </div>
+          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 shadow-sm" />
+        </div>
+
+        {/* User Info Details */}
+        <div className="hidden lg:flex flex-col text-left pr-1">
+          <span
+            className={cn(
+              "text-xs font-bold leading-tight truncate max-w-[140px] tracking-tight mb-0.5",
+              profileOpen ? "text-blue-600 dark:text-blue-400" : "text-slate-800 dark:text-slate-100"
             )}
           >
             {userData ? `${userData.employee.first_name} ${userData.employee.last_name}` : "Loading..."}
-          </div>
-          <div
-            className={cn(
-              "text-xs leading-none",
-              profileOpen ? "text-slate-500 dark:text-slate-400" : "text-slate-400 dark:text-slate-500"
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="text-[10px] leading-tight font-extrabold truncate max-w-[105px] tracking-wide bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 dark:from-blue-400 dark:via-indigo-300 dark:to-purple-300 bg-clip-text text-transparent"
+            >
+              {userData ? `${userData.username}` : "..."}
+            </span>
+            {userData?.role?.name && (
+              <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-wider uppercase bg-gradient-to-r from-blue-500/15 via-indigo-500/15 to-purple-500/15 text-blue-600 dark:text-blue-300 border border-blue-400/30 shrink-0 shadow-2xs">
+                {userData.role.name}
+              </span>
             )}
-          >
-            {userData ? userData.username : "..."}
           </div>
         </div>
+
         <ChevronDown
           className={cn(
-            "w-3.5 h-3.5 hidden lg:block transition-transform duration-300",
-            profileOpen ? "text-slate-800 dark:text-slate-100 rotate-180" : "text-slate-500 dark:text-slate-400 rotate-0"
+            "w-4 h-4 hidden lg:block transition-transform duration-300 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200",
+            profileOpen ? "rotate-180 text-blue-500 dark:text-blue-400" : "rotate-0"
           )}
         />
       </button>
 
-      {/* Profile Dropdown Menu */}
+      {/* Profile Dropdown Menu Card */}
       {profileOpen && (
         <div
-          className="absolute right-0 mt-3 w-56 rounded-xl shadow-xl overflow-hidden border z-50 backdrop-blur-sm"
+          className="absolute right-0 mt-3 w-64 rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 animate-fade-in divide-y divide-slate-100 dark:divide-slate-800/80"
           style={{
-            background: "rgb(var(--card))",
-            border: "1px solid rgb(var(--border))",
-            boxShadow: "0 4px 32px rgba(0, 0, 0, 0.12)",
-            animation: "slideDown 200ms ease-out",
+            boxShadow: "0 20px 40px -15px rgba(0, 0, 0, 0.2), 0 0 20px 0 rgba(59, 130, 246, 0.1)",
           }}
         >
-          {/* Header */}
-          <div
-            className="px-4 py-3 border-b"
-            style={{
-              background:
-                "linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%)",
-              borderColor: "rgb(var(--border))",
-            }}
-          >
-            <div className="flex items-center gap-3">
+          {/* Header Banner */}
+          <div className="p-4 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white relative overflow-hidden">
+            {/* Ambient Lighting Accent */}
+            <div className="absolute -top-10 -right-10 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none" />
+
+            <div className="flex items-center gap-3.5 relative z-10">
               <div
                 className={cn(
-                  "w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold shadow-md overflow-hidden shrink-0",
-                  userData?.employee?.empimg ? "" : `bg-gradient-to-tr ${getAvatarGradient(userData?.username || "A")}`
+                  "w-11 h-11 rounded-2xl flex items-center justify-center text-base font-black shadow-lg overflow-hidden shrink-0 ring-2 ring-white/30",
+                  userData?.employee?.empimg ? "" : `bg-gradient-to-br ${getAvatarGradient(userData?.username || "A")}`
                 )}
               >
                 {userData?.employee?.empimg ? (
@@ -154,78 +162,59 @@ export function ProfileDropdown() {
                   userData ? userData.username.charAt(0).toUpperCase() : "A"
                 )}
               </div>
-              <div>
-                <div className="text-sm font-semibold text-white">
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-black text-white truncate tracking-tight">
                   {userData ? `${userData.employee.first_name} ${userData.employee.last_name}` : "Loading..."}
-                </div>
-                <div className="text-xs text-white text-opacity-80">
-                  {userData ? userData.username : "..."}
+                </h4>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  <span className="text-xs text-white/80 font-medium truncate">
+                    {userData?.username || "..."}
+                  </span>
+                  {userData?.role?.name && (
+                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-wider uppercase bg-white/20 text-white border border-white/30 backdrop-blur-md shrink-0 shadow-sm">
+                      {userData.role.name}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="py-2">
+          {/* Menu Items List */}
+          <div className="p-2 space-y-1">
             {/* Profile Option */}
             <button
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-all duration-150 group/item"
-              style={{ color: "rgb(var(--text-secondary))" }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgb(var(--bg))";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-              }}
               onClick={() => {
                 setProfileOpen(false);
                 router.push("/profile");
               }}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200 group/item"
             >
-              <User
-                className="w-4 h-4 transition-transform group-hover/item:scale-110"
-                strokeWidth={2}
-              />
-              <span className="font-medium">ໂປຣໄຟລ໌</span>
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover/item:bg-blue-500 group-hover/item:text-white flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors">
+                <User className="w-4 h-4" strokeWidth={2.2} />
+              </div>
+              <span>ໂປຣໄຟລ໌</span>
             </button>
 
             {/* Change Password Option */}
             <button
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-all duration-150 group/item"
-              style={{ color: "rgb(var(--text-secondary))" }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgb(var(--bg))";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-              }}
               onClick={() => {
                 setProfileOpen(false);
                 router.push("/changepassword");
               }}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200 group/item"
             >
-              <KeyRound
-                className="w-4 h-4 transition-transform group-hover/item:scale-110"
-                strokeWidth={2}
-              />
-              <span className="font-medium">ປ່ຽນລະຫັດຜ່ານ</span>
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover/item:bg-blue-500 group-hover/item:text-white flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors">
+                <KeyRound className="w-4 h-4" strokeWidth={2.2} />
+              </div>
+              <span>ປ່ຽນລະຫັດຜ່ານ</span>
             </button>
 
             {/* Divider */}
-            <div
-              className="h-px my-2"
-              style={{ background: "rgb(var(--border))" }}
-            />
+            <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
 
             {/* Logout Option */}
             <button
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-all duration-150 group/item"
-              style={{ color: "rgb(var(--danger))" }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgb(var(--danger) / 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-              }}
               onClick={async () => {
                 setProfileOpen(false);
                 localStorage.removeItem("userRoleId");
@@ -238,12 +227,12 @@ export function ProfileDropdown() {
                 }
                 router.push("/signin");
               }}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all duration-200 group/item"
             >
-              <LogOut
-                className="w-4 h-4 transition-transform group-hover/item:scale-110"
-                strokeWidth={2}
-              />
-              <span className="font-medium">ອອກຈາກລະບົບ</span>
+              <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 group-hover/item:bg-rose-500 group-hover/item:text-white flex items-center justify-center text-rose-500 transition-colors">
+                <LogOut className="w-4 h-4" strokeWidth={2.2} />
+              </div>
+              <span>ອອກຈາກລະບົບ</span>
             </button>
           </div>
         </div>

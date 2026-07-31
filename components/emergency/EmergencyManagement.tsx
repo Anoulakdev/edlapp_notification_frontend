@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
-import { axiosInstance } from "@/lib/axiosInstance";
+import { axiosInstance, rawBackendUrl } from "@/lib/axiosInstance";
+import { io } from "socket.io-client";
 import { encryptId } from "@/lib/crypto";
 import { Modal } from "@/components/ui/Modal";
 import moment from "moment";
@@ -66,7 +67,7 @@ export function EmergencyManagement() {
   const [currentUserProvinceId, setCurrentUserProvinceId] = useState<number | null>(null);
 
   const effectiveProvinceId = useMemo(() => {
-    if (currentUserRoleId === 4) {
+    if (currentUserRoleId === 5) {
       return currentUserProvinceId ? String(currentUserProvinceId) : "";
     }
     return selectedProvinceId;
@@ -132,9 +133,17 @@ export function EmergencyManagement() {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState<EmergencyDoc | null>(null);
 
-  const openViewFile = (doc: EmergencyDoc) => {
+  const openViewFile = async (doc: EmergencyDoc) => {
     setViewDoc(doc);
     setViewOpen(true);
+    try {
+      const res = await axiosInstance.get(`/emergencydocs/${doc.id}`);
+      if (res.data) {
+        setViewDoc(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch emergency doc details:", err);
+    }
   };
 
   // Debounce search input
@@ -180,81 +189,36 @@ export function EmergencyManagement() {
     filterRef.current = { debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs };
   }, [debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs]);
 
-  // Real-time SSE Connection
+  // Real-time Socket.io Connection
   useEffect(() => {
-    const sseUrl = `/api/emergencydocs/sse`;
-    let eventSource: EventSource | null = null;
-    let reconnectTimeout: any = null;
+    const socketUrl =
+      typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? window.location.origin
+        : rawBackendUrl;
 
-    const connectSSE = () => {
-      if (eventSource) {
-        eventSource.close();
+    const socket = io(`${socketUrl}/emergencydoc`, {
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      console.log("Emergencydoc Socket.io connected successfully:", socket.id);
+    });
+
+    socket.on("emergencydocUpdated", (data: { action: string }) => {
+      if (data.action === "refresh") {
+        const {
+          debouncedSearch: s,
+          emergencyDate: ed,
+          effectiveProvinceId: ep,
+          selectedDistrictId: sdId,
+          filterMyDocs: md,
+        } = filterRef.current;
+        fetchDocs(s, ed, ep, sdId, md);
       }
-
-      eventSource = new EventSource(sseUrl, {
-        withCredentials: true,
-      });
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.action === "refresh") {
-            const { debouncedSearch: s, emergencyDate: ed, effectiveProvinceId: ep, selectedDistrictId: sdId, filterMyDocs: md } = filterRef.current;
-            fetchDocs(s, ed, ep, sdId, md);
-          }
-        } catch (err) {
-          console.error("Failed to parse SSE event data:", err);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error("SSE connection error, attempting to reconnect in 5s...", err);
-        if (eventSource) {
-          eventSource.close();
-          eventSource = null;
-        }
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        reconnectTimeout = setTimeout(() => {
-          connectSSE();
-        }, 5000);
-      };
-    };
-
-    connectSSE();
-
-    // Reconnect when browser/tab becomes active/visible again after sleep/inactive
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const isClosed = !eventSource || eventSource.readyState === EventSource.CLOSED;
-        if (isClosed) {
-          console.log("SSE connection lost or inactive, auto-reconnecting on visibility change...");
-          connectSSE();
-        }
-      }
-    };
-
-    // Periodic check every 30 seconds to ensure connection is not closed
-    const keepAliveInterval = setInterval(() => {
-      const isClosed = !eventSource || eventSource.readyState === EventSource.CLOSED;
-      if (isClosed && !reconnectTimeout) {
-        console.log("SSE connection detected as closed in keep-alive check. Reconnecting...");
-        connectSSE();
-      }
-    }, 30000);
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleVisibilityChange); // Also check when window gets focus
+    });
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      clearInterval(keepAliveInterval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleVisibilityChange);
+      socket.disconnect();
     };
   }, [fetchDocs]);
 
@@ -399,6 +363,7 @@ export function EmergencyManagement() {
         cell: ({ row }) => {
           const doc = row.original;
           const isCreator = currentUserId !== null && (Number(currentUserId) === Number(doc.createdById) || Number(currentUserId) === Number(doc.createdBy?.id));
+          const canEditOrAssign = isCreator || [2, 3].includes(currentUserRoleId || 0);
           const dateOnly = doc.emergencyDate ? doc.emergencyDate.split("T")[0] : "";
           const isPast = moment().isAfter(moment(`${dateOnly} ${doc.endTime}`, "YYYY-MM-DD HH:mm"));
           const isDeleteDisabled = !isCreator || isPast;
@@ -415,11 +380,11 @@ export function EmergencyManagement() {
                   </button>
                 </ButtonTooltip>
               )}
-              <ButtonTooltip text={!isCreator ? "ບໍ່ມີສິດກຳນົດບ້ານ" : isPast ? "ກາຍເວລາສິ້ນສຸດ" : "ກຳນົດບ້ານ"}>
+              <ButtonTooltip text={!canEditOrAssign ? "ບໍ່ມີສິດກຳນົດບ້ານ" : isPast ? "ກາຍເວລາສິ້ນສຸດ" : "ກຳນົດບ້ານ"}>
                 <button
                   onClick={() => openAssignVillages(doc)}
-                  disabled={!isCreator || isPast}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${(!isCreator || isPast)
+                  disabled={!canEditOrAssign || isPast}
+                  className={`p-2 rounded-xl transition-colors shrink-0 ${(!canEditOrAssign || isPast)
                     ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
                     : doc.provinceId
                       ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
@@ -429,11 +394,11 @@ export function EmergencyManagement() {
                   <MapPin className="w-4 h-4" />
                 </button>
               </ButtonTooltip>
-              <ButtonTooltip text={isCreator ? "ແກ້ໄຂ" : "ບໍ່ມີສິດແກ້ໄຂ"}>
+              <ButtonTooltip text={canEditOrAssign ? "ແກ້ໄຂ" : "ບໍ່ມີສິດແກ້ໄຂ"}>
                 <button
                   onClick={() => openEdit(doc)}
-                  disabled={!isCreator}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${!isCreator
+                  disabled={!canEditOrAssign}
+                  className={`p-2 rounded-xl transition-colors shrink-0 ${!canEditOrAssign
                     ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
                     : "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
                     }`}
@@ -458,7 +423,7 @@ export function EmergencyManagement() {
         },
       },
     ],
-    [currentUserId]
+    [currentUserId, currentUserRoleId]
   );
 
   const filteredDocs = useMemo(() => {
@@ -511,7 +476,7 @@ export function EmergencyManagement() {
 
           </h1>
         </div>
-        {[3, 4, 6].includes(currentUserRoleId || 0) && (
+        {[2, 3, 6].includes(currentUserRoleId || 0) && (
           <div className="sm:ml-auto flex items-center">
             <button
               onClick={openAdd}
@@ -588,7 +553,7 @@ export function EmergencyManagement() {
                 style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
               />
             </div>
-            {currentUserRoleId !== 4 && currentUserRoleId !== 5 && (
+            {currentUserRoleId !== 5 && currentUserRoleId !== 6 && (
               <div className="w-full sm:w-48 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase">ແຂວງ</label>
                 <div className="relative w-full">
@@ -609,7 +574,7 @@ export function EmergencyManagement() {
                 </div>
               </div>
             )}
-            {currentUserRoleId !== 5 && (
+            {currentUserRoleId !== 6 && (
               <div className="w-full sm:w-48 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase">ເມືອງ</label>
                 <div className="relative w-full">

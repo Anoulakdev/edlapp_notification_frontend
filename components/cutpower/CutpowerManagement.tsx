@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
-import { axiosInstance } from "@/lib/axiosInstance";
+import { axiosInstance, rawBackendUrl } from "@/lib/axiosInstance";
+import { io } from "socket.io-client";
 import { encryptId } from "@/lib/crypto";
 import moment from "moment";
 import { TableTooltip, ButtonTooltip } from "@/lib/Tooltip";
@@ -62,7 +63,7 @@ export function CutpowerManagement() {
   const [currentUserProvinceId, setCurrentUserProvinceId] = useState<number | null>(null);
 
   const effectiveProvinceId = useMemo(() => {
-    if (currentUserRoleId === 4) {
+    if (currentUserRoleId === 5) {
       return currentUserProvinceId ? String(currentUserProvinceId) : "";
     }
     return selectedProvinceId;
@@ -128,9 +129,17 @@ export function CutpowerManagement() {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState<CutpowerDoc | null>(null);
 
-  const openViewFile = (doc: CutpowerDoc) => {
+  const openViewFile = async (doc: CutpowerDoc) => {
     setViewDoc(doc);
     setViewOpen(true);
+    try {
+      const res = await axiosInstance.get(`/cutpowerdocs/${doc.id}`);
+      if (res.data) {
+        setViewDoc(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cutpower doc details:", err);
+    }
   };
 
   // Debounce search input
@@ -177,81 +186,36 @@ export function CutpowerManagement() {
     filterRef.current = { debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs };
   }, [debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs]);
 
-  // Real-time SSE Connection
+  // Real-time Socket.io Connection
   useEffect(() => {
-    const sseUrl = `/api/cutpowerdocs/sse`;
-    let eventSource: EventSource | null = null;
-    let reconnectTimeout: any = null;
+    const socketUrl =
+      typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? window.location.origin
+        : rawBackendUrl;
 
-    const connectSSE = () => {
-      if (eventSource) {
-        eventSource.close();
+    const socket = io(`${socketUrl}/cutpowerdoc`, {
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      console.log("Cutpowerdoc Socket.io connected successfully:", socket.id);
+    });
+
+    socket.on("cutpowerdocUpdated", (data: { action: string }) => {
+      if (data.action === "refresh") {
+        const {
+          debouncedSearch: s,
+          cutpowerDate: cd,
+          effectiveProvinceId: ep,
+          selectedDistrictId: sdId,
+          filterMyDocs: md,
+        } = filterRef.current;
+        fetchDocs(s, cd, ep, sdId, md);
       }
-
-      eventSource = new EventSource(sseUrl, {
-        withCredentials: true,
-      });
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.action === "refresh") {
-            const { debouncedSearch: s, cutpowerDate: cd, effectiveProvinceId: ep, selectedDistrictId: sdId, filterMyDocs: md } = filterRef.current;
-            fetchDocs(s, cd, ep, sdId, md);
-          }
-        } catch (err) {
-          console.error("Failed to parse SSE event data:", err);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error("SSE connection error, attempting to reconnect in 5s...", err);
-        if (eventSource) {
-          eventSource.close();
-          eventSource = null;
-        }
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        reconnectTimeout = setTimeout(() => {
-          connectSSE();
-        }, 5000);
-      };
-    };
-
-    connectSSE();
-
-    // Reconnect when browser/tab becomes active/visible again after sleep/inactive
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const isClosed = !eventSource || eventSource.readyState === EventSource.CLOSED;
-        if (isClosed) {
-          console.log("SSE connection lost or inactive, auto-reconnecting on visibility change...");
-          connectSSE();
-        }
-      }
-    };
-
-    // Periodic check every 30 seconds to ensure connection is not closed
-    const keepAliveInterval = setInterval(() => {
-      const isClosed = !eventSource || eventSource.readyState === EventSource.CLOSED;
-      if (isClosed && !reconnectTimeout) {
-        console.log("SSE connection detected as closed in keep-alive check. Reconnecting...");
-        connectSSE();
-      }
-    }, 30000);
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleVisibilityChange); // Also check when window gets focus
+    });
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      clearInterval(keepAliveInterval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleVisibilityChange);
+      socket.disconnect();
     };
   }, [fetchDocs]);
 
@@ -495,7 +459,7 @@ export function CutpowerManagement() {
 
           </h1>
         </div>
-        {[4, 5].includes(currentUserRoleId || 0) && (
+        {[2, 3, 4, 5, 6].includes(currentUserRoleId || 0) && (
           <div className="sm:ml-auto flex items-center">
             <button
               onClick={openAdd}
@@ -572,7 +536,7 @@ export function CutpowerManagement() {
                 style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
               />
             </div>
-            {currentUserRoleId !== 4 && currentUserRoleId !== 5 && (
+            {currentUserRoleId !== 5 && currentUserRoleId !== 6 && (
               <div className="w-full sm:w-48 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase">ແຂວງ</label>
                 <div className="relative w-full">
@@ -593,7 +557,7 @@ export function CutpowerManagement() {
                 </div>
               </div>
             )}
-            {currentUserRoleId !== 5 && (
+            {currentUserRoleId !== 6 && (
               <div className="w-full sm:w-48 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase">ເມືອງ</label>
                 <div className="relative w-full">

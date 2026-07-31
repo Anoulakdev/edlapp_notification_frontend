@@ -27,6 +27,7 @@ export const emergencyDocSchema = z.object({
   emergencyDate: z.string(),
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
+  useTime: z.number().nullable().optional(),
   lat: z.number().nullable().optional(),
   lng: z.number().nullable().optional(),
   emergencyImg: z.string(),
@@ -65,6 +66,9 @@ export const emergencyDocSchema = z.object({
   emergencyAddresses: z
     .array(
       z.object({
+        id: z.number().optional(),
+        villageId: z.number().optional(),
+        userCount: z.number().optional().nullable(),
         village: z.object({
           id: z.number(),
           village_name: z.string(),

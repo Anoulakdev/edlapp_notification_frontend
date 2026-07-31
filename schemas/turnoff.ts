@@ -31,6 +31,7 @@ export const turnoffDocSchema = z.object({
   endDate: z.string(),
   startTime: z.string(),
   endTime: z.string(),
+  useTime: z.number().nullable().optional(),
   turnoffFile: z.string(),
   provinceId: z.number().nullable().optional(),
   districtId: z.number().nullable().optional(),
@@ -67,6 +68,9 @@ export const turnoffDocSchema = z.object({
   turnoffAddresses: z
     .array(
       z.object({
+        id: z.number().optional(),
+        villageId: z.number().optional(),
+        userCount: z.number().optional().nullable(),
         village: z.object({
           id: z.number(),
           village_name: z.string(),

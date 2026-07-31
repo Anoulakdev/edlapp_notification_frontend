@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
-import { axiosInstance } from "@/lib/axiosInstance";
+import { axiosInstance, rawBackendUrl } from "@/lib/axiosInstance";
+import { io } from "socket.io-client";
 import { Modal } from "@/components/ui/Modal";
 import moment from "moment";
 import { TableTooltip, ButtonTooltip } from "@/lib/Tooltip";
@@ -328,86 +329,39 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     filterMyDocs
   ]);
 
-  // Real-time SSE Connection
+  // Real-time Socket.io Connection
   useEffect(() => {
-    const sseUrl = `/api/problemdocs/sse`;
-    let eventSource: EventSource | null = null;
-    let reconnectTimeout: any = null;
+    const socketUrl =
+      typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? window.location.origin
+        : rawBackendUrl;
 
-    const connectSSE = () => {
-      if (eventSource) {
-        eventSource.close();
+    const socket = io(`${socketUrl}/problemdoc`, {
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      console.log("Problemdoc Socket.io connected successfully:", socket.id);
+    });
+
+    socket.on("problemdocUpdated", (data: { action: string }) => {
+      if (data.action === "refresh") {
+        const filters = filterRef.current;
+        fetchDocs(
+          filters.debouncedSearch,
+          filters.problemDate,
+          filters.effectiveProvinceId,
+          filters.effectiveDistrictId,
+          filters.selectedVillageId,
+          filters.selectedProblemTypeId,
+          filters.selectedSourceTypeId,
+          filters.filterMyDocs
+        );
       }
-
-      eventSource = new EventSource(sseUrl, {
-        withCredentials: true,
-      });
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.action === "refresh") {
-            const filters = filterRef.current;
-            fetchDocs(
-              filters.debouncedSearch,
-              filters.problemDate,
-              filters.effectiveProvinceId,
-              filters.effectiveDistrictId,
-              filters.selectedVillageId,
-              filters.selectedProblemTypeId,
-              filters.selectedSourceTypeId,
-              filters.filterMyDocs
-            );
-          }
-        } catch (err) {
-          console.error("Failed to parse SSE event data:", err);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error("SSE connection error, attempting to reconnect in 5s...", err);
-        if (eventSource) {
-          eventSource.close();
-          eventSource = null;
-        }
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        reconnectTimeout = setTimeout(() => {
-          connectSSE();
-        }, 5000);
-      };
-    };
-
-    connectSSE();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const isClosed = !eventSource || eventSource.readyState === EventSource.CLOSED;
-        if (isClosed) {
-          connectSSE();
-        }
-      }
-    };
-
-    const keepAliveInterval = setInterval(() => {
-      const isClosed = !eventSource || eventSource.readyState === EventSource.CLOSED;
-      if (isClosed && !reconnectTimeout) {
-        connectSSE();
-      }
-    }, 30000);
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleVisibilityChange);
+    });
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      clearInterval(keepAliveInterval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleVisibilityChange);
+      socket.disconnect();
     };
   }, [fetchDocs]);
 
