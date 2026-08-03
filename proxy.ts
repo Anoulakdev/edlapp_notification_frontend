@@ -19,14 +19,19 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyassign",
     "/cutpower",
     "/cutpowerassign",
-    // "/problemdoc",
+    "/problemdoc",
     "/registermeter",
     "/chat",
+    "/chathistory",
     "/branch",
     "/repairdistrict",
     "/problemtype",
     "/topic",
     "/messageauto",
+    "/turnoffreport",
+    "/emergencyreport",
+    "/cutpowerreport",
+    "/registermeterreport",
   ],
   3: [
     "/turnoff",
@@ -41,6 +46,10 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/branch",
     "/repairdistrict",
     "/problemtype",
+    "/turnoffreport",
+    "/emergencyreport",
+    "/cutpowerreport",
+    "/registermeterreport",
   ],
   4: [
     "/turnoff",
@@ -55,6 +64,10 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/problemtype",
     "/topic",
     "/messageauto",
+    "/turnoffreport",
+    "/emergencyreport",
+    "/cutpowerreport",
+    "/registermeterreport",
   ],
   5: [
     "/turnoff",
@@ -65,6 +78,10 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/cutpowerassign",
     "/problemdoc",
     "/registermeter",
+    "/turnoffreport",
+    "/emergencyreport",
+    "/cutpowerreport",
+    "/registermeterreport",
   ],
   6: [
     "/turnoff",
@@ -75,6 +92,10 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/cutpowerassign",
     "/problemdoc",
     "/registermeter",
+    "/turnoffreport",
+    "/emergencyreport",
+    "/cutpowerreport",
+    "/registermeterreport",
   ],
 };
 
@@ -106,11 +127,16 @@ const GUARDED_ROUTES = [
   "/problemdoc",
   "/registermeter",
   "/chat",
+  "/chathistory",
   "/branch",
   "/repairdistrict",
   "/problemtype",
   "/topic",
   "/messageauto",
+  "/turnoffreport",
+  "/emergencyreport",
+  "/cutpowerreport",
+  "/registermeterreport",
 ];
 
 // 4. Define auth routes (public but redirects to default page if logged in)
@@ -177,8 +203,8 @@ export function proxy(request: NextRequest) {
   }
 
   // 3. Handle guarded routes
-  const isGuardedRoute = GUARDED_ROUTES.some((route) =>
-    pathname.startsWith(route),
+  const isGuardedRoute = GUARDED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(route + "/"),
   );
   if (isGuardedRoute) {
     if (!isAuthenticated) {
@@ -194,8 +220,8 @@ export function proxy(request: NextRequest) {
     }
 
     // Check if user's role is allowed on this specific route prefix
-    const isAllowed = ROLE_ALLOWED_ROUTES[roleId].some((route) =>
-      pathname.startsWith(route),
+    const isAllowed = ROLE_ALLOWED_ROUTES[roleId].some(
+      (route) => pathname === route || pathname.startsWith(route + "/"),
     );
     if (!isAllowed) {
       // Unauthorized -> redirect to standard unauthorized page

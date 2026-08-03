@@ -10,7 +10,9 @@ const ROLE_DEFAULT_PAGES: Record<number, string> = {
   1: "/dashboard",
   2: "/users",
   3: "/turnoff",
-  4: "/users",
+  4: "/turnoff",
+  5: "/turnoff",
+  6: "/turnoff",
 };
 
 export default function UnauthorizedView() {
@@ -148,7 +150,7 @@ export default function UnauthorizedView() {
           {/* Double pulsing glow rings */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-red-600/10 to-rose-500/10 animate-ping duration-1500" />
           <div className="absolute -inset-4 rounded-full bg-red-600/5 animate-pulse duration-2500" />
-          
+
           <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center shadow-lg shadow-red-500/35 relative z-10 animate-icon-alert">
             <ShieldAlert className="w-12 h-12 text-white" strokeWidth={2} />
           </div>
