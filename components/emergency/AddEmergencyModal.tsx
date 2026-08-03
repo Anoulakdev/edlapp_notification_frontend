@@ -32,7 +32,7 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
     let decodedText = text;
     try {
       decodedText = decodeURIComponent(text);
-    } catch (_) {}
+    } catch (_) { }
 
     const normalizedText = decodedText.replace(/\+/g, " ");
 
@@ -491,7 +491,7 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wide text-theme-secondary">
-                ຮູບພາບແຈ້ງເຫດ *
+                ຮູບພາບແຈ້ງເຫດ <span className="text-red-500 font-bold ml-0.5">*</span>
               </label>
               <input
                 type="file"

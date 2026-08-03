@@ -1,21 +1,36 @@
 "use client";
 
-import { SelectHTMLAttributes } from "react";
+import { SelectHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
+  label?: ReactNode;
   error?: string;
   options?: { value: string; label: string }[];
 }
 
 export function Select({ label, error, options, className, disabled, children, ...props }: SelectProps) {
+  const renderLabel = () => {
+    if (!label) return null;
+    if (typeof label === "string" && label.includes("*")) {
+      const parts = label.split("*");
+      return (
+        <>
+          {parts[0]}
+          <span className="text-red-500 font-bold ml-0.5">*</span>
+          {parts.slice(1).join("*")}
+        </>
+      );
+    }
+    return label;
+  };
+
   return (
     <div className="flex flex-col gap-1.5 w-full">
       {label && (
         <label htmlFor={props.id} className={cn("text-xs font-semibold uppercase tracking-wide", disabled ? "text-slate-400 dark:text-slate-500" : "text-theme-secondary")}>
-          {label}
+          {renderLabel()}
         </label>
       )}
       <div className="relative w-full">

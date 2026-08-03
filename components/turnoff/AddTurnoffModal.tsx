@@ -171,7 +171,7 @@ export function AddTurnoffModal({ open, onClose, onRefresh }: AddTurnoffModalPro
 
               <div className="col-span-2 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-theme-secondary">
-                  ໄຟລ໌ເອກະສານ (PDF)
+                  ໄຟລ໌ເອກະສານ (PDF) <span className="text-red-500 font-bold ml-0.5">*</span>
                 </label>
                 <input
                   type="file"

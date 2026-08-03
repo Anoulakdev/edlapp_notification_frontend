@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   Zap,
   MessageSquare,
+  History,
   Building2,
   Wrench,
   FolderCog,
@@ -65,6 +66,7 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
   // { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   { label: "ສົນທະນາ (Chat)", href: "/chat", icon: MessageSquare },
+  { label: "ປະຫວັດການສົນທະນາ", href: "/chathistory", icon: History },
   {
     label: "ຈັດການຂໍ້ມູນ",
     icon: FolderCog,
@@ -74,6 +76,28 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
       { label: "ປະເພດບັນຫາ", href: "/problemtype", icon: Layers },
       { label: "ຫົວຂໍ້ການສົນທະນາ", href: "/topic", icon: Layers },
       { label: "ຂໍ້ຄວາມອັດໂນມັດ", href: "/messageauto", icon: Bot },
+    ],
+  },
+  {
+    label: "ລາຍງານ",
+    icon: BarChart3,
+    children: [
+      { label: "ລາຍງານແຈ້ງການມອດໄຟ", href: "/turnoffreport", icon: FileX },
+      {
+        label: "ລາຍງານແຈ້ງການມອດໄຟສຸກເສີນ",
+        href: "/emergencyreport",
+        icon: AlertCircle,
+      },
+      {
+        label: "ລາຍງານແຈ້ງການຕັດໄຟ",
+        href: "/cutpowerreport",
+        icon: Zap,
+      },
+      {
+        label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
+        href: "/registermeterreport",
+        icon: FileText,
+      },
     ],
   },
 ];
@@ -91,6 +115,28 @@ const ROLE_3_NAV_ITEMS: NavItem[] = [
       { label: "ສາຂາແຂວງ", href: "/branch", icon: Building2 },
       { label: "ສູນສ້ອມແປງເມືອງ", href: "/repairdistrict", icon: Wrench },
       { label: "ປະເພດບັນຫາ", href: "/problemtype", icon: Layers },
+    ],
+  },
+  {
+    label: "ລາຍງານ",
+    icon: BarChart3,
+    children: [
+      { label: "ລາຍງານແຈ້ງການມອດໄຟ", href: "/turnoffreport", icon: FileX },
+      {
+        label: "ລາຍງານແຈ້ງການມອດໄຟສຸກເສີນ",
+        href: "/emergencyreport",
+        icon: AlertCircle,
+      },
+      {
+        label: "ລາຍງານແຈ້ງການຕັດໄຟ",
+        href: "/cutpowerreport",
+        icon: Zap,
+      },
+      {
+        label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
+        href: "/registermeterreport",
+        icon: FileText,
+      },
     ],
   },
 ];
@@ -111,6 +157,28 @@ const ROLE_4_NAV_ITEMS: NavItem[] = [
       { label: "ຂໍ້ຄວາມອັດໂນມັດ", href: "/messageauto", icon: Bot },
     ],
   },
+  {
+    label: "ລາຍງານ",
+    icon: BarChart3,
+    children: [
+      { label: "ລາຍງານແຈ້ງການມອດໄຟ", href: "/turnoffreport", icon: FileX },
+      {
+        label: "ລາຍງານແຈ້ງການມອດໄຟສຸກເສີນ",
+        href: "/emergencyreport",
+        icon: AlertCircle,
+      },
+      {
+        label: "ລາຍງານແຈ້ງການຕັດໄຟ",
+        href: "/cutpowerreport",
+        icon: Zap,
+      },
+      {
+        label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
+        href: "/registermeterreport",
+        icon: FileText,
+      },
+    ],
+  },
 ];
 
 const ROLE_5_NAV_ITEMS: NavItem[] = [
@@ -119,6 +187,28 @@ const ROLE_5_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
   // { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
+  {
+    label: "ລາຍງານ",
+    icon: BarChart3,
+    children: [
+      { label: "ລາຍງານແຈ້ງການມອດໄຟ", href: "/turnoffreport", icon: FileX },
+      {
+        label: "ລາຍງານແຈ້ງການມອດໄຟສຸກເສີນ",
+        href: "/emergencyreport",
+        icon: AlertCircle,
+      },
+      {
+        label: "ລາຍງານແຈ້ງການຕັດໄຟ",
+        href: "/cutpowerreport",
+        icon: Zap,
+      },
+      {
+        label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
+        href: "/registermeterreport",
+        icon: FileText,
+      },
+    ],
+  },
 ];
 
 const ROLE_6_NAV_ITEMS: NavItem[] = [
@@ -127,6 +217,28 @@ const ROLE_6_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
   // { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
+  {
+    label: "ລາຍງານ",
+    icon: BarChart3,
+    children: [
+      { label: "ລາຍງານແຈ້ງການມອດໄຟ", href: "/turnoffreport", icon: FileX },
+      {
+        label: "ລາຍງານແຈ້ງການມອດໄຟສຸກເສີນ",
+        href: "/emergencyreport",
+        icon: AlertCircle,
+      },
+      {
+        label: "ລາຍງານແຈ້ງການຕັດໄຟ",
+        href: "/cutpowerreport",
+        icon: Zap,
+      },
+      {
+        label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
+        href: "/registermeterreport",
+        icon: FileText,
+      },
+    ],
+  },
 ];
 
 export const navItems: NavItem[] = [];

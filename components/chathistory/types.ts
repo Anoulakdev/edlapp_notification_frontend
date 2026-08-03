@@ -1,0 +1,61 @@
+export interface Topic {
+  id: number;
+  name: string;
+  description?: string | null;
+  unreadCount?: number;
+}
+
+export interface ExternalUser {
+  id: number;
+  name: string;
+  tel: string;
+}
+
+export interface Conversation {
+  id: number;
+  externalUserId: number;
+  topicId: number;
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  unreadExternalCount: number;
+  unreadAgentCount: number;
+  createdAt: string;
+  updatedAt: string;
+  externalUser: ExternalUser;
+  topic?: Topic;
+}
+
+export interface Message {
+  id: number;
+  conversationId: number;
+  senderType: "edlapp" | "callcenter";
+  edlappId: number | null;
+  agentId: number | null;
+  mType: "text" | "image" | "audio" | "location";
+  content: string | null;
+  fileImg: string | null;
+  fileAudio: string | null;
+  lat: number | null;
+  lng: number | null;
+  status: "sent" | "delivered" | "seen";
+  seenAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  edlappUser?: { id: number; name: string } | null;
+  agentUser?: {
+    id: number;
+    employee: { first_name: string; last_name: string };
+  } | null;
+}
+
+export interface AgentRating {
+  id: number;
+  agentId: number;
+  externalUserId: number;
+  topicId?: number | null;
+  conversationId?: number | null;
+  messageId?: number | null;
+  rating: number;
+  comment?: string | null;
+  createdAt: string;
+}

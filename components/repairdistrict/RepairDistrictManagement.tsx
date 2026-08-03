@@ -9,6 +9,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   User,
   Calendar,
   FileText,
@@ -356,7 +357,7 @@ export function RepairDistrictManagement() {
               placeholder="ຄົ້ນຫາ..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none transition-all"
+              className="w-full pl-9 pr-4 py-2 h-[38px] rounded-xl text-sm outline-none transition-all"
               style={{
                 fontFamily: "inherit",
                 background: "rgb(var(--bg))",
@@ -372,17 +373,23 @@ export function RepairDistrictManagement() {
             />
           </div>
 
-          <div className="w-full sm:w-60">
+          <div className="relative w-full sm:w-60">
             <select
               value={selectedBranchFilter}
               onChange={(e) => setSelectedBranchFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-all cursor-pointer"
+              className="w-full pl-3 pr-10 py-2 h-[38px] appearance-none rounded-xl text-sm outline-none transition-all cursor-pointer"
               style={{
                 fontFamily: "inherit",
                 background: "rgb(var(--bg))",
                 border: "1px solid rgb(var(--border))",
                 color: "rgb(var(--text-primary))",
               }}
+              onFocus={(e) =>
+                (e.currentTarget.style.borderColor = "rgb(var(--brand))")
+              }
+              onBlur={(e) =>
+                (e.currentTarget.style.borderColor = "rgb(var(--border))")
+              }
             >
               <option value="">-- ສາຂາແຂວງທັງໝົດ --</option>
               {branches.map((b) => (
@@ -391,6 +398,7 @@ export function RepairDistrictManagement() {
                 </option>
               ))}
             </select>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           <div className="flex items-center gap-2 sm:ml-auto">
