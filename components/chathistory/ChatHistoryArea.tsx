@@ -73,39 +73,97 @@ export function ChatHistoryArea({
     fetchRating();
   }, [selectedConversation?.id]);
 
-  const prevConvIdRef = React.useRef<number | undefined>(undefined);
+  const lastConvIdRef = React.useRef<number | undefined>(undefined);
+  const shouldScrollToBottomRef = React.useRef<boolean>(true);
   const scrollHeightBeforeLoadRef = React.useRef<number>(0);
   const isFetchingMoreRef = React.useRef<boolean>(false);
 
-  // Auto-scroll to bottom (latest message) when switching conversation & messages finish loading
+  // Helper to scroll to bottom reliably across production browsers
+  const scrollToBottom = React.useCallback(
+    (behavior: ScrollBehavior = "instant") => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior,
+        });
+      } else if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior });
+      }
+    },
+    [chatContainerRef, messagesEndRef]
+  );
+
+  // Handle user manual scroll: if user scrolls up away from bottom, stop auto-scrolling
+  const handleScroll = React.useCallback(() => {
+    if (!chatContainerRef.current || isFetchingMoreRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    // If distance from bottom > 80px, user manually scrolled up
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 80;
+    if (!isNearBottom) {
+      shouldScrollToBottomRef.current = false;
+    }
+  }, [chatContainerRef]);
+
+  // When selectedConversation changes, reset shouldScrollToBottom to true
+  React.useEffect(() => {
+    if (selectedConversation?.id) {
+      shouldScrollToBottomRef.current = true;
+      lastConvIdRef.current = selectedConversation.id;
+    }
+  }, [selectedConversation?.id]);
+
+  // Auto-scroll to bottom when messages or ratings load for selected conversation
   React.useEffect(() => {
     if (!selectedConversation || loadingMessages || messages.length === 0) return;
+    if (isFetchingMoreRef.current) return;
 
-    const isNewConv = prevConvIdRef.current !== selectedConversation.id;
-    if (isNewConv) {
-      prevConvIdRef.current = selectedConversation.id;
-      setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: "instant" });
-        }
+    if (shouldScrollToBottomRef.current) {
+      scrollToBottom("instant");
+      const rId = requestAnimationFrame(() => scrollToBottom("instant"));
+      const t1 = setTimeout(() => {
+        if (shouldScrollToBottomRef.current) scrollToBottom("instant");
       }, 50);
+      const t2 = setTimeout(() => {
+        if (shouldScrollToBottomRef.current) scrollToBottom("instant");
+      }, 150);
+      const t3 = setTimeout(() => {
+        if (shouldScrollToBottomRef.current) scrollToBottom("instant");
+      }, 400);
+      const t4 = setTimeout(() => {
+        if (shouldScrollToBottomRef.current) scrollToBottom("instant");
+      }, 800);
+
+      return () => {
+        cancelAnimationFrame(rId);
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        clearTimeout(t4);
+      };
     }
-  }, [selectedConversation, messages, loadingMessages, messagesEndRef]);
+  }, [selectedConversation?.id, loadingMessages, messages, agentRatings, scrollToBottom]);
 
   const handleLoadMore = () => {
     if (chatContainerRef.current) {
       scrollHeightBeforeLoadRef.current = chatContainerRef.current.scrollHeight;
       isFetchingMoreRef.current = true;
+      shouldScrollToBottomRef.current = false;
     }
     onLoadMore();
   };
 
+  // Adjust scroll position when loading older messages so user stays at the exact same message position
   React.useLayoutEffect(() => {
     if (isFetchingMoreRef.current && chatContainerRef.current) {
       const newScrollHeight = chatContainerRef.current.scrollHeight;
       const heightDifference = newScrollHeight - scrollHeightBeforeLoadRef.current;
-      chatContainerRef.current.scrollTop += heightDifference;
-      isFetchingMoreRef.current = false;
+      chatContainerRef.current.scrollTop = heightDifference;
+
+      // Clear isFetchingMoreRef flag in a timeout AFTER useEffect cycle completes
+      const t = setTimeout(() => {
+        isFetchingMoreRef.current = false;
+      }, 150);
+      return () => clearTimeout(t);
     }
   }, [messages]);
 
@@ -182,6 +240,7 @@ export function ChatHistoryArea({
       {/* Messages Scroll Area */}
       <div
         ref={chatContainerRef}
+        onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 min-h-0"
       >
         {/* Load More Button */}
@@ -268,6 +327,9 @@ export function ChatHistoryArea({
                             <img
                               src={`${backendUrl}/upload/conversation/${msg.fileImg}`}
                               alt="Image Attachment"
+                              onLoad={() => {
+                                if (!isFetchingMoreRef.current) scrollToBottom("instant");
+                              }}
                               className="w-full h-auto object-cover max-h-[300px] transition-all duration-350 group-hover/img:scale-[1.02]"
                             />
                           </div>
@@ -295,6 +357,9 @@ export function ChatHistoryArea({
                                 frameBorder="0"
                                 style={{ border: 0 }}
                                 src={`https://maps.google.com/maps?q=${msg.lat},${msg.lng}&z=15&output=embed&iwloc=near`}
+                                onLoad={() => {
+                                  if (!isFetchingMoreRef.current) scrollToBottom("instant");
+                                }}
                                 allowFullScreen
                               />
                             </div>

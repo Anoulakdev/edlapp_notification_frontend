@@ -183,11 +183,12 @@ export function ChatHistoryManagement() {
 
   useEffect(() => {
     if (selectedConversation) {
+      setMessages([]);
       fetchMessages(1, false);
     } else {
       setMessages([]);
     }
-  }, [selectedConversation, fetchMessages]);
+  }, [selectedConversation?.id, fetchMessages]);
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {

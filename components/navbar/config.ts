@@ -31,6 +31,7 @@ import {
   Wrench,
   FolderCog,
   Bot,
+  Star,
 } from "lucide-react";
 
 export type NavChild = {
@@ -97,6 +98,11 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
         href: "/registermeterreport",
         icon: FileText,
+      },
+      {
+        label: "ລາຍງານການປະເມິນຄວາມພໍໃຈ",
+        href: "/ratingreport",
+        icon: Star,
       },
     ],
   },

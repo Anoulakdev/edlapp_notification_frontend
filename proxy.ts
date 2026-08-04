@@ -32,6 +32,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyreport",
     "/cutpowerreport",
     "/registermeterreport",
+    "/ratingreport",
   ],
   3: [
     "/turnoff",
@@ -137,6 +138,7 @@ const GUARDED_ROUTES = [
   "/emergencyreport",
   "/cutpowerreport",
   "/registermeterreport",
+  "/ratingreport",
 ];
 
 // 4. Define auth routes (public but redirects to default page if logged in)
