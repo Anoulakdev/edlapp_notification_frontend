@@ -399,6 +399,7 @@ export function TurnoffReportManagement() {
     if (notoSansLaoBase64) {
       doc.addFileToVFS("NotoSansLao-Regular.ttf", notoSansLaoBase64);
       doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "normal");
+      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "bold");
     }
 
     // ── Helper: detect Lao Unicode block (U+0E80–U+0EFF) ───────────────────

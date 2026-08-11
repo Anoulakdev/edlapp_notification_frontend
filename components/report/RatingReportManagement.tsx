@@ -510,6 +510,7 @@ export function RatingReportManagement() {
     if (notoSansLaoBase64) {
       doc.addFileToVFS("NotoSansLao-Regular.ttf", notoSansLaoBase64);
       doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "normal");
+      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "bold");
     }
 
     const isLaoChar = (ch: string) => {
@@ -1192,7 +1193,7 @@ export function RatingReportManagement() {
                               </span>
                             </div>
                           </td>
-                          <td className="py-3.5 px-4">
+                          <td className="py-3.5 px-4 whitespace-nowrap">
                             <div className="font-medium text-slate-800 dark:text-gray-200 text-xs sm:text-sm">
                               {customerName}
                             </div>
@@ -1202,7 +1203,7 @@ export function RatingReportManagement() {
                               </div>
                             )}
                           </td>
-                          <td className="py-3.5 px-4">
+                          <td className="py-3.5 px-4 whitespace-nowrap">
                             <div className="font-semibold text-slate-800 dark:text-white text-xs sm:text-sm">
                               {agentName}
                             </div>
@@ -1212,7 +1213,7 @@ export function RatingReportManagement() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3.5 px-4">
+                          <td className="py-3.5 px-4 whitespace-nowrap">
                             <span className="px-2.5 py-1 bg-slate-100 dark:bg-gray-700 text-slate-700 dark:text-gray-300 rounded-md text-xs font-medium">
                               {item.topic?.name || "-"}
                             </span>
@@ -1222,7 +1223,7 @@ export function RatingReportManagement() {
                               {renderStars(item.rating)}
                             </div>
                           </td>
-                          <td className="py-3.5 px-4 max-w-xs">
+                          <td className="py-3.5 px-4 max-w-xs whitespace-nowrap">
                             <p className="text-xs text-slate-600 dark:text-gray-300 line-clamp-2">
                               {item.comment || "-"}
                             </p>
@@ -1341,7 +1342,7 @@ export function RatingReportManagement() {
                           <td className="py-3.5 px-4 text-center text-xs font-semibold text-slate-400 dark:text-gray-500">
                             {index + 1}
                           </td>
-                          <td className="py-3.5 px-4">
+                          <td className="py-3.5 px-4 whitespace-nowrap">
                             <div className="font-semibold text-slate-800 dark:text-white text-sm flex items-center gap-2">
                               <span>{agentName}</span>
                               {gender && (

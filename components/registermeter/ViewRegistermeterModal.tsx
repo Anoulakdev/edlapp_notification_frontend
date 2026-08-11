@@ -317,7 +317,7 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
       title={modalTitle}
       size="2xl"
     >
-      <div className="flex flex-col h-[75vh] max-h-[75vh]" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
+      <div className="flex flex-col h-auto max-h-[80vh] lg:h-[75vh] lg:max-h-[75vh] overflow-y-auto lg:overflow-hidden pr-1 lg:pr-0 scrollbar-thin" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
         {/* Tab Headers */}
         <div className="flex border-b border-slate-200 dark:border-slate-800 mb-4 shrink-0">
           <button
@@ -347,9 +347,9 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
         ) : (
           <>
             {/* Tab 1: Document Details */}
-            <div className={activeTab === "document" ? "flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 overflow-hidden" : "hidden"}>
+            <div className={activeTab === "document" ? "flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 overflow-visible lg:overflow-hidden" : "hidden"}>
               {/* Left Side: General Fields (Scrollable) */}
-              <div className="flex-1 lg:col-span-5 flex flex-col gap-5 overflow-y-auto pr-2 scrollbar-thin">
+              <div className="w-full lg:col-span-5 flex flex-col gap-5 overflow-y-visible lg:overflow-y-auto pr-0 lg:pr-2 scrollbar-thin">
                 {/* Name & Phone */}
                 <div className="flex flex-col gap-3">
                   <div className="grid grid-cols-2 gap-4">
@@ -452,9 +452,9 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
               </div>
 
               {/* Right Side: Map & File Previews */}
-              <div className="flex-1 lg:col-span-7 h-[70vh] lg:h-full flex flex-col gap-4 overflow-hidden">
+              <div className="w-full lg:col-span-7 h-auto lg:h-full flex flex-col gap-4 overflow-visible lg:overflow-hidden">
                 {/* Top: Map */}
-                <div className="flex-[1.5] min-h-[250px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 relative">
+                <div className="h-[280px] lg:h-auto lg:flex-[1.5] lg:min-h-[250px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 relative shrink-0 lg:shrink">
                   {displayDoc?.lat && displayDoc?.lng ? (
                     <>
                       <div id="view-map-container" className="w-full h-full z-10" />
@@ -508,7 +508,7 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
                 </div>
 
                 {/* Bottom: File Previews */}
-                <div className="flex-1 min-h-[150px] grid grid-cols-2 gap-4">
+                <div className="h-[220px] lg:h-auto lg:flex-1 lg:min-h-[150px] grid grid-cols-1 sm:grid-cols-2 gap-4 shrink-0 lg:shrink">
                   <div className="flex flex-col gap-1 h-full min-h-0">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">ຮູບໃບບິນໃກ້ຄຽງ</span>
                     <div className="flex-1 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 flex flex-col">
@@ -553,7 +553,7 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
             </div>
 
             {/* Tab 2: Assignment Info */}
-            <div className={activeTab === "assignment" ? "flex-1 flex flex-col overflow-y-auto pr-2 scrollbar-thin" : "hidden"}>
+            <div className={activeTab === "assignment" ? "flex-1 flex flex-col overflow-y-visible lg:overflow-y-auto pr-0 lg:pr-2 scrollbar-thin" : "hidden"}>
               {displayDoc?.userAcceptMeters ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
                   {/* Left Column: Call Center Assignment */}

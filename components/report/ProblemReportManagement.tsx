@@ -507,6 +507,7 @@ export function ProblemReportManagement() {
     if (notoSansLaoBase64) {
       doc.addFileToVFS("NotoSansLao-Regular.ttf", notoSansLaoBase64);
       doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "normal");
+      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "bold");
     }
 
     const isLaoChar = (ch: string) => {

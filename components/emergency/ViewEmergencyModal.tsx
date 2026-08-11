@@ -237,9 +237,9 @@ export function ViewEmergencyModal({ open, onClose, selectedDoc }: ViewEmergency
 
   return (
     <Modal open={open} onClose={onClose} title={`ເບິ່ງຂໍ້ມູນ: ແຈ້ງການມອດໄຟສຸກເສີນ`} size="2xl">
-      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 h-[75vh] max-h-[75vh] overflow-hidden" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 h-auto max-h-[80vh] lg:h-[75vh] lg:max-h-[75vh] overflow-y-auto lg:overflow-hidden pr-1 lg:pr-0 scrollbar-thin" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
         {/* Left Side: Data info */}
-        <div className="flex-1 lg:col-span-5 flex flex-col gap-5 overflow-y-auto pr-2 scrollbar-thin">
+        <div className="w-full lg:col-span-5 flex flex-col gap-5 overflow-y-visible lg:overflow-y-auto pr-0 lg:pr-2 scrollbar-thin">
 
           {/* Title & Description */}
           <div className="flex flex-col gap-2">
@@ -272,7 +272,7 @@ export function ViewEmergencyModal({ open, onClose, selectedDoc }: ViewEmergency
                 <Clock className="w-5 h-5 text-amber-500 shrink-0" />
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs text-slate-400 font-medium">ເວລາ</span>
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-350 truncate">
+                  <span className="text-sm font-semibold text-slate-750 dark:text-slate-350 truncate">
                     {selectedDoc?.startTime && selectedDoc?.endTime ? `${selectedDoc.startTime} - ${selectedDoc.endTime}` : "-"}
                   </span>
                 </div>
@@ -383,9 +383,9 @@ export function ViewEmergencyModal({ open, onClose, selectedDoc }: ViewEmergency
         </div>
 
         {/* Right Side: Map & File Preview */}
-        <div className="flex-1 lg:col-span-7 h-[70vh] lg:h-full flex flex-col gap-4 overflow-hidden">
+        <div className="w-full lg:col-span-7 h-auto lg:h-full flex flex-col gap-4 overflow-visible lg:overflow-hidden">
           {/* Top: Map */}
-          <div className="flex-[1.5] min-h-[250px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 relative">
+          <div className="h-[280px] lg:h-auto lg:flex-[1.5] lg:min-h-[250px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 relative shrink-0 lg:shrink">
             {selectedDoc?.lat && selectedDoc?.lng ? (
               <>
                 <div id="view-map-container" className="w-full h-full z-10" />
@@ -442,7 +442,7 @@ export function ViewEmergencyModal({ open, onClose, selectedDoc }: ViewEmergency
           </div>
 
           {/* Bottom: File Preview */}
-          <div className="flex-1 min-h-[150px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 flex flex-col">
+          <div className="h-[220px] lg:h-auto lg:flex-1 lg:min-h-[150px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 flex flex-col shrink-0 lg:shrink">
             {viewUrl ? (
               <div className="w-full h-full overflow-auto flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-900">
                 <img
