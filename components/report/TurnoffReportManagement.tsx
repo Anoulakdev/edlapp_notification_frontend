@@ -24,10 +24,6 @@ import {
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
 import moment from "moment";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { notoSansLaoBase64 } from "@/lib/notoSansLaoBase64";
 
 interface Province {
   id: number;
@@ -273,11 +269,13 @@ export function TurnoffReportManagement() {
   };
 
   // Export to Excel (.xlsx) using SheetJS 'xlsx' library
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (reportData.length === 0) {
       toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
       return;
     }
+
+    const XLSX = await import("xlsx");
 
     const exportRows = reportData.map((d, index) => {
       const villagesWithUsers =
@@ -338,6 +336,12 @@ export function TurnoffReportManagement() {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ PDF");
       return;
     }
+
+    const [{ default: jsPDF }, { default: autoTable }, { notoSansLaoBase64 }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+      import("@/lib/notoSansLaoBase64"),
+    ]);
 
     // ── 1. Fetch ALL records (no pagination limit) ──────────────────────────
     let allData: TurnoffDocReportItem[] = [];

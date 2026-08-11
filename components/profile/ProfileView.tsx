@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { User, Mail, Phone, Loader2, Building, Info } from "lucide-react";
+import { getImageUrl } from "@/lib/utils";
 
 export default function ProfileView() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -29,7 +31,8 @@ export default function ProfileView() {
   const lastName = user?.employee?.last_name || "";
   const fullName = `${firstName} ${lastName}`.trim() || "ບໍ່ມີຊື່";
   const initial = firstName.charAt(0).toUpperCase() || "U";
-  const empimg = user?.employee?.empimg;
+  const empimg = getImageUrl(user?.employee?.empimg);
+  const showImage = empimg && !imgError;
   const empCode = user?.employee?.emp_code || user?.username || "-";
   const gender = user?.employee?.gender || "-";
   const tel = user?.employee?.tel || "-";
@@ -79,8 +82,13 @@ export default function ProfileView() {
                   className="w-20 h-20 rounded-xl flex items-center justify-center text-3xl font-bold text-white shadow-sm overflow-hidden"
                   style={{ background: "rgb(var(--brand))" }}
                 >
-                  {empimg ? (
-                    <img src={empimg} alt="profile" className="w-full h-full object-cover object-top" />
+                  {showImage ? (
+                    <img
+                      src={empimg}
+                      alt="profile"
+                      onError={() => setImgError(true)}
+                      className="w-full h-full object-cover object-top"
+                    />
                   ) : (
                     initial
                   )}

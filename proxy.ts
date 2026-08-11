@@ -32,6 +32,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyreport",
     "/cutpowerreport",
     "/registermeterreport",
+    "/problemreport",
     "/ratingreport",
   ],
   3: [
@@ -51,6 +52,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyreport",
     "/cutpowerreport",
     "/registermeterreport",
+    "/problemreport",
   ],
   4: [
     "/turnoff",
@@ -69,6 +71,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyreport",
     "/cutpowerreport",
     "/registermeterreport",
+    "/problemreport",
   ],
   5: [
     "/turnoff",
@@ -83,6 +86,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyreport",
     "/cutpowerreport",
     "/registermeterreport",
+    "/problemreport",
   ],
   6: [
     "/turnoff",
@@ -97,6 +101,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/emergencyreport",
     "/cutpowerreport",
     "/registermeterreport",
+    "/problemreport",
   ],
 };
 
@@ -110,8 +115,7 @@ const ROLE_DEFAULT_PAGES: Record<number, string> = {
   6: "/turnoff",
 };
 
-// 3. Define routes that require authentication
-const GUARDED_ROUTES = [
+const GUARDED_ROUTES_SET = new Set([
   "/dashboard",
   "/users",
   "/role",
@@ -138,11 +142,15 @@ const GUARDED_ROUTES = [
   "/emergencyreport",
   "/cutpowerreport",
   "/registermeterreport",
+  "/problemreport",
   "/ratingreport",
-];
+]);
 
-// 4. Define auth routes (public but redirects to default page if logged in)
-const AUTH_ROUTES = ["/signin", "/signup", "/resetpassword"];
+const ROLE_ALLOWED_ROUTES_SET: Record<number, Set<string>> = Object.fromEntries(
+  Object.entries(ROLE_ALLOWED_ROUTES).map(([role, routes]) => [role, new Set(routes)])
+);
+
+const AUTH_ROUTES_SET = new Set(["/signin", "/signup", "/resetpassword"]);
 
 // Helper function to decode JWT payload without external libraries (fully Edge compatible)
 function getJwtPayload(token: string) {
@@ -165,6 +173,7 @@ function getJwtPayload(token: string) {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const baseSegment = "/" + (pathname.split("/")[1] || "");
 
   // Retrieve the JWT token from the HTTP-only cookie
   const token = request.cookies.get("token")?.value;
@@ -183,8 +192,7 @@ export function proxy(request: NextRequest) {
   const roleId = payload?.roleId ? Number(payload.roleId) : null;
 
   // 1. Handle auth routes (/signin, /signup, /resetpassword)
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname === route);
-  if (isAuthRoute) {
+  if (AUTH_ROUTES_SET.has(pathname)) {
     if (isAuthenticated && roleId && ROLE_DEFAULT_PAGES[roleId]) {
       // Redirect logged-in users away from signin/signup/resetpassword to their default homepage
       return NextResponse.redirect(
@@ -205,16 +213,13 @@ export function proxy(request: NextRequest) {
   }
 
   // 3. Handle guarded routes
-  const isGuardedRoute = GUARDED_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  );
-  if (isGuardedRoute) {
+  if (GUARDED_ROUTES_SET.has(baseSegment)) {
     if (!isAuthenticated) {
       // Not logged in -> redirect to /signin
       return NextResponse.redirect(new URL("/signin", request.url));
     }
 
-    if (roleId === null || !ROLE_ALLOWED_ROUTES[roleId]) {
+    if (roleId === null || !ROLE_ALLOWED_ROUTES_SET[roleId]) {
       // Logged in but has invalid/no role -> clear session / redirect to signin
       const response = NextResponse.redirect(new URL("/signin", request.url));
       response.cookies.delete("token");
@@ -222,10 +227,7 @@ export function proxy(request: NextRequest) {
     }
 
     // Check if user's role is allowed on this specific route prefix
-    const isAllowed = ROLE_ALLOWED_ROUTES[roleId].some(
-      (route) => pathname === route || pathname.startsWith(route + "/"),
-    );
-    if (!isAllowed) {
+    if (!ROLE_ALLOWED_ROUTES_SET[roleId].has(baseSegment)) {
       // Unauthorized -> redirect to standard unauthorized page
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }

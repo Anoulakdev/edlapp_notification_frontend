@@ -27,10 +27,7 @@ import {
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
 import moment from "moment";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { notoSansLaoBase64 } from "@/lib/notoSansLaoBase64";
+import type jsPDF from "jspdf";
 
 // Interface definitions
 interface AgentEmployee {
@@ -368,6 +365,8 @@ export function RatingReportManagement() {
       return;
     }
 
+    const XLSX = await import("xlsx");
+
     let allData: RatingDataItem[] = [];
     let countData: RatingCountItem[] = [];
 
@@ -461,6 +460,12 @@ export function RatingReportManagement() {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ PDF");
       return;
     }
+
+    const [{ default: jsPDF }, { default: autoTable }, { notoSansLaoBase64 }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+      import("@/lib/notoSansLaoBase64"),
+    ]);
 
     let allData: RatingDataItem[] = [];
     let countData: RatingCountItem[] = [];

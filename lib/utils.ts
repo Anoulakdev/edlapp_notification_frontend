@@ -55,3 +55,18 @@ export const ASSET_BASE_URL = (() => {
     : defaultUrl;
 })();
 
+export function getImageUrl(url?: string | null): string | null {
+  if (!url || typeof url !== "string" || !url.trim()) return null;
+  const trimmed = url.trim();
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("data:")
+  ) {
+    return trimmed;
+  }
+  const cleanPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${ASSET_BASE_URL}${cleanPath}`;
+}
+
+

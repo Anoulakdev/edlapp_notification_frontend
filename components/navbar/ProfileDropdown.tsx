@@ -3,7 +3,7 @@
 import { ChevronDown, User, LogOut, KeyRound, ShieldCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, getImageUrl } from "@/lib/utils";
 
 interface UserProfile {
   username: string;
@@ -38,6 +38,7 @@ const getAvatarGradient = (username: string) => {
 export function ProfileDropdown() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [userData, setUserData] = useState<UserProfile | null>(null);
+  const [imageError, setImageError] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export function ProfileDropdown() {
         if (res.ok) {
           const data = await res.json();
           setUserData(data);
+          setImageError(false);
         } else if (res.status === 401) {
           router.push("/signin");
         }
@@ -70,6 +72,9 @@ export function ProfileDropdown() {
     }
   }, [profileOpen]);
 
+  const avatarUrl = getImageUrl(userData?.employee?.empimg);
+  const showImage = avatarUrl && !imageError;
+
   return (
     <div className="relative select-none" data-profile-button style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
       {/* Navbar Profile Trigger Button */}
@@ -92,11 +97,16 @@ export function ProfileDropdown() {
           <div
             className={cn(
               "w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shadow-inner transition-transform duration-300 group-hover:scale-105 overflow-hidden shrink-0 ring-2 ring-white/40 dark:ring-slate-700/50",
-              userData?.employee?.empimg ? "" : `bg-gradient-to-br ${getAvatarGradient(userData?.username || "A")}`
+              showImage ? "" : `bg-gradient-to-br ${getAvatarGradient(userData?.username || "A")}`
             )}
           >
-            {userData?.employee?.empimg ? (
-              <img src={userData.employee.empimg} alt="profile" className="w-full h-full object-cover object-top" />
+            {showImage ? (
+              <img
+                src={avatarUrl}
+                alt="profile"
+                onError={() => setImageError(true)}
+                className="w-full h-full object-cover object-top"
+              />
             ) : (
               userData ? userData.username.charAt(0).toUpperCase() : "A"
             )}
@@ -153,11 +163,16 @@ export function ProfileDropdown() {
               <div
                 className={cn(
                   "w-11 h-11 rounded-2xl flex items-center justify-center text-base font-black shadow-lg overflow-hidden shrink-0 ring-2 ring-white/30",
-                  userData?.employee?.empimg ? "" : `bg-gradient-to-br ${getAvatarGradient(userData?.username || "A")}`
+                  showImage ? "" : `bg-gradient-to-br ${getAvatarGradient(userData?.username || "A")}`
                 )}
               >
-                {userData?.employee?.empimg ? (
-                  <img src={userData.employee.empimg} alt="profile" className="w-full h-full object-cover object-top" />
+                {showImage ? (
+                  <img
+                    src={avatarUrl}
+                    alt="profile"
+                    onError={() => setImageError(true)}
+                    className="w-full h-full object-cover object-top"
+                  />
                 ) : (
                   userData ? userData.username.charAt(0).toUpperCase() : "A"
                 )}

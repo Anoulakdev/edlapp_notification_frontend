@@ -64,7 +64,7 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
-  // { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
+  { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   { label: "ສົນທະນາ (Chat)", href: "/chat", icon: MessageSquare },
   { label: "ປະຫວັດການສົນທະນາ", href: "/chathistory", icon: History },
@@ -95,6 +95,11 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
         icon: Zap,
       },
       {
+        label: "ລາຍງານການແຈ້ງບັນຫາ",
+        href: "/problemreport",
+        icon: AlertTriangle,
+      },
+      {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
         href: "/registermeterreport",
         icon: FileText,
@@ -113,7 +118,7 @@ const ROLE_3_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
-  // { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
+  { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   {
     label: "ຈັດການຂໍ້ມູນ",
     icon: FolderCog,
@@ -139,6 +144,11 @@ const ROLE_3_NAV_ITEMS: NavItem[] = [
         icon: Zap,
       },
       {
+        label: "ລາຍງານການແຈ້ງບັນຫາ",
+        href: "/problemreport",
+        icon: AlertTriangle,
+      },
+      {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
         href: "/registermeterreport",
         icon: FileText,
@@ -151,7 +161,7 @@ const ROLE_4_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
-  // { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
+  { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   { label: "ສົນທະນາ (Chat)", href: "/chat", icon: MessageSquare },
   {
@@ -179,6 +189,11 @@ const ROLE_4_NAV_ITEMS: NavItem[] = [
         icon: Zap,
       },
       {
+        label: "ລາຍງານການແຈ້ງບັນຫາ",
+        href: "/problemreport",
+        icon: AlertTriangle,
+      },
+      {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
         href: "/registermeterreport",
         icon: FileText,
@@ -191,7 +206,7 @@ const ROLE_5_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
-  // { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
+  { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   {
     label: "ລາຍງານ",
@@ -207,6 +222,11 @@ const ROLE_5_NAV_ITEMS: NavItem[] = [
         label: "ລາຍງານແຈ້ງການຕັດໄຟ",
         href: "/cutpowerreport",
         icon: Zap,
+      },
+      {
+        label: "ລາຍງານການແຈ້ງບັນຫາ",
+        href: "/problemreport",
+        icon: AlertTriangle,
       },
       {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
@@ -221,7 +241,7 @@ const ROLE_6_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
-  // { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
+  { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   {
     label: "ລາຍງານ",
@@ -239,6 +259,11 @@ const ROLE_6_NAV_ITEMS: NavItem[] = [
         icon: Zap,
       },
       {
+        label: "ລາຍງານການແຈ້ງບັນຫາ",
+        href: "/problemreport",
+        icon: AlertTriangle,
+      },
+      {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
         href: "/registermeterreport",
         icon: FileText,
@@ -248,6 +273,26 @@ const ROLE_6_NAV_ITEMS: NavItem[] = [
 ];
 
 export const navItems: NavItem[] = [];
+
+let authMePromise: Promise<any> | null = null;
+
+function getAuthMeDeduplicated() {
+  if (!authMePromise) {
+    authMePromise = fetch("/api/auth/me")
+      .then(async (res) => {
+        authMePromise = null;
+        if (!res.ok) {
+          return null;
+        }
+        return res.json();
+      })
+      .catch(() => {
+        authMePromise = null;
+        return null;
+      });
+  }
+  return authMePromise;
+}
 
 export function useNavItems() {
   const [navItemsState, setNavItemsState] = useState<NavItem[]>([]);
@@ -277,12 +322,11 @@ export function useNavItems() {
       setLoading(false);
     }
 
-    // 2. Fetch from server to validate/revalidate
+    // 2. Fetch from server to validate/revalidate (deduplicated)
     const fetchRole = async () => {
       try {
-        const res = await fetch("/api/auth/me");
-        if (res.ok) {
-          const data = await res.json();
+        const data = await getAuthMeDeduplicated();
+        if (data) {
           const roleId = data?.roleId;
 
           if (roleId !== undefined && roleId !== null) {

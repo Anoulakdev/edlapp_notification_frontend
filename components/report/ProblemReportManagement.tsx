@@ -9,17 +9,17 @@ import {
   MapPin,
   RefreshCw,
   AlertCircle,
-  FileX,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Users,
   Building2,
+  Home,
   FileSpreadsheet,
   FileType,
   Sparkles,
+  Layers,
+  Component,
   AlertTriangle,
-  Clock,
   Timer,
 } from "lucide-react";
 import { toast } from "react-toastify";
@@ -38,47 +38,75 @@ interface District {
   district_code: string;
 }
 
-interface EmergencyAddress {
+interface Village {
   id: number;
-  villageId: number;
-  userCount?: number | null;
-  village?: {
-    id: number;
-    village_name: string;
-  };
+  village_name: string;
 }
 
-interface EmergencyDocReportItem {
+interface ProblemType {
   id: number;
-  title: string;
+  name: string;
+}
+
+interface ProblemStatus {
+  id: number;
+  callcenter: string;
+  edlapp?: string;
+}
+
+interface SourceType {
+  id: number;
+  name: string;
+}
+
+interface ProblemReportItem {
+  id: number;
+  fullName: string;
+  tel: string;
   description?: string | null;
-  emergencyDate: string;
-  startTime?: string | null;
-  endTime?: string | null;
-  useTime?: number | null;
-  emergencyFile?: string | null;
-  provinceId?: number | null;
+  lat?: number | null;
+  lng?: number | null;
+  problemImg?: string | null;
+  provinceId: number;
   province?: Province | null;
-  districtId?: number | null;
+  districtId: number;
   district?: District | null;
+  villageId: number;
+  village?: Village | null;
+  problemtypeId: number;
+  problemtype?: ProblemType | null;
+  problemstatusId: number;
+  problemstatus?: ProblemStatus | null;
+  sourcetypeId: number;
+  sourcetype?: SourceType | null;
+  branch?: { id: number; name: string } | null;
+  repairDistrict?: { id: number; name: string } | null;
+  totalTime?: number | null;
   createdAt: string;
   updatedAt: string;
-  emergencyAddresses?: EmergencyAddress[];
 }
 
-export function EmergencyReportManagement() {
+export function ProblemReportManagement() {
   // Filter States
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [provinceId, setProvinceId] = useState<string>("all");
   const [districtId, setDistrictId] = useState<string>("all");
+  const [villageId, setVillageId] = useState<string>("all");
+  const [problemtypeId, setProblemtypeId] = useState<string>("all");
+  const [problemstatusId, setProblemstatusId] = useState<string>("all");
+  const [sourcetypeId, setSourcetypeId] = useState<string>("all");
 
   // Dropdown Options States
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
+  const [villages, setVillages] = useState<Village[]>([]);
+  const [problemTypes, setProblemTypes] = useState<ProblemType[]>([]);
+  const [problemStatuses, setProblemStatuses] = useState<ProblemStatus[]>([]);
+  const [sourceTypes, setSourceTypes] = useState<SourceType[]>([]);
 
   // Report Data States
-  const [reportData, setReportData] = useState<EmergencyDocReportItem[]>([]);
+  const [reportData, setReportData] = useState<ProblemReportItem[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(10);
@@ -107,6 +135,24 @@ export function EmergencyReportManagement() {
     return districtId;
   }, [currentUserRoleId, currentUserDistrictId, districtId]);
 
+  // Compute summary stats
+  const stats = useMemo(() => {
+    const totalDocs = total;
+    const uniqueVillages = new Set(reportData.map((d) => d.villageId)).size;
+    let totalUseTimeMinutes = 0;
+    reportData.forEach((doc) => {
+      if (doc.totalTime) {
+        totalUseTimeMinutes += Number(doc.totalTime);
+      }
+    });
+    const hours = Math.floor(totalUseTimeMinutes / 60);
+    const mins = totalUseTimeMinutes % 60;
+    const formattedDuration =
+      hours > 0 ? `${hours} ຊົ່ວໂມງ ${mins} ນາທີ` : `${mins} ນາທີ`;
+
+    return { totalDocs, uniqueVillages, totalUseTimeMinutes, formattedDuration };
+  }, [reportData, total]);
+
   // Fetch Current Logged-in User Profile on mount
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -122,19 +168,37 @@ export function EmergencyReportManagement() {
     fetchCurrentUser();
   }, []);
 
-  // 1. Fetch Provinces list on mount
+  // 1. Fetch Provinces, ProblemTypes, ProblemStatuses, SourceTypes on mount
   useEffect(() => {
-    const fetchProvinces = async () => {
+    const fetchInitialData = async () => {
       try {
-        const res = await axiosInstance.get("/provinces/selectprovince");
-        if (Array.isArray(res.data)) {
-          setProvinces(res.data);
-        }
+        const [provRes, pTypesRes, pStatusRes, sTypesRes] = await Promise.all([
+          axiosInstance.get("/provinces/selectprovince"),
+          axiosInstance.get("/problemtypes/selectproblemtype"),
+          axiosInstance.get("/problemstatus/selectstatus"),
+          axiosInstance.get("/sourcetypes/selectsource"),
+        ]);
+        setProvinces(provRes.data || []);
+        setProblemTypes(
+          Array.isArray(pTypesRes.data)
+            ? pTypesRes.data
+            : pTypesRes.data?.data || []
+        );
+        setProblemStatuses(
+          Array.isArray(pStatusRes.data)
+            ? pStatusRes.data
+            : pStatusRes.data?.data || []
+        );
+        setSourceTypes(
+          Array.isArray(sTypesRes.data)
+            ? sTypesRes.data
+            : sTypesRes.data?.data || []
+        );
       } catch (err) {
-        console.error("Failed to load provinces:", err);
+        console.error("Failed to load initial dropdowns:", err);
       }
     };
-    fetchProvinces();
+    fetchInitialData();
   }, []);
 
   // 2. Fetch Districts list when effectiveProvinceId changes
@@ -142,12 +206,16 @@ export function EmergencyReportManagement() {
     if (!effectiveProvinceId || effectiveProvinceId === "all" || provinces.length === 0) {
       setDistricts([]);
       setDistrictId("all");
+      setVillages([]);
+      setVillageId("all");
       return;
     }
     const selectedProv = provinces.find((p) => String(p.id) === effectiveProvinceId);
     if (!selectedProv) {
       setDistricts([]);
       setDistrictId("all");
+      setVillages([]);
+      setVillageId("all");
       return;
     }
 
@@ -166,12 +234,48 @@ export function EmergencyReportManagement() {
         setDistricts([]);
       }
       setDistrictId("all");
+      setVillages([]);
+      setVillageId("all");
     };
 
     fetchDistricts();
   }, [effectiveProvinceId, provinces]);
 
-  // 3. Fetch Emergency Report Data
+  // 3. Fetch Villages list when effectiveDistrictId changes
+  useEffect(() => {
+    if (!effectiveDistrictId || effectiveDistrictId === "all" || districts.length === 0) {
+      setVillages([]);
+      setVillageId("all");
+      return;
+    }
+    const selectedDist = districts.find((d) => String(d.id) === effectiveDistrictId);
+    if (!selectedDist) {
+      setVillages([]);
+      setVillageId("all");
+      return;
+    }
+
+    const fetchVillages = async () => {
+      try {
+        const res = await axiosInstance.get(
+          `/villages/selectvillage?districtCode=${selectedDist.district_code}`
+        );
+        if (Array.isArray(res.data)) {
+          setVillages(res.data);
+        } else {
+          setVillages([]);
+        }
+      } catch (err) {
+        console.error("Failed to load villages:", err);
+        setVillages([]);
+      }
+      setVillageId("all");
+    };
+
+    fetchVillages();
+  }, [effectiveDistrictId, districts]);
+
+  // 4. Fetch Problem Report Data
   const fetchReportData = async (
     targetPage = page,
     targetLimit = limit,
@@ -197,8 +301,20 @@ export function EmergencyReportManagement() {
       if (effectiveDistrictId && effectiveDistrictId !== "all") {
         params.districtId = Number(effectiveDistrictId);
       }
+      if (villageId && villageId !== "all") {
+        params.villageId = Number(villageId);
+      }
+      if (problemtypeId && problemtypeId !== "all") {
+        params.problemtypeId = Number(problemtypeId);
+      }
+      if (problemstatusId && problemstatusId !== "all") {
+        params.problemstatusId = Number(problemstatusId);
+      }
+      if (sourcetypeId && sourcetypeId !== "all") {
+        params.sourcetypeId = Number(sourcetypeId);
+      }
 
-      const res = await axiosInstance.get("/reports/emergency", { params });
+      const res = await axiosInstance.get("/reports/problem", { params });
 
       if (res.data && typeof res.data === "object") {
         if (Array.isArray(res.data.data)) {
@@ -221,7 +337,7 @@ export function EmergencyReportManagement() {
       }
       setHasSearched(true);
     } catch (err) {
-      console.error("Failed to fetch emergency report:", err);
+      console.error("Failed to fetch problem report:", err);
       toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍງານໄດ້");
     } finally {
       setLoading(false);
@@ -250,25 +366,43 @@ export function EmergencyReportManagement() {
     fetchReportData(1, limit, s, e);
   };
 
-  // Handle Search Click
   const handleSearch = () => {
     setPage(1);
     fetchReportData(1, limit);
   };
 
-  // Handle Reset Filters
   const handleReset = () => {
     setStartDate("");
     setEndDate("");
     setProvinceId("all");
     setDistrictId("all");
+    setVillageId("all");
+    setProblemtypeId("all");
+    setProblemstatusId("all");
+    setSourcetypeId("all");
     setReportData([]);
     setTotal(0);
     setPage(1);
     setHasSearched(false);
   };
 
-  // Export to Excel (.xlsx) using SheetJS 'xlsx' library
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+    if (hasSearched) {
+      fetchReportData(newPage, limit);
+    }
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+    if (hasSearched) {
+      fetchReportData(1, newLimit);
+    }
+  };
+
+  // Export to Excel (.xlsx) using SheetJS 'xlsx' library dynamically
   const handleExportExcel = async () => {
     if (reportData.length === 0) {
       toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
@@ -278,40 +412,28 @@ export function EmergencyReportManagement() {
     const XLSX = await import("xlsx");
 
     const exportRows = reportData.map((d, index) => {
-      const villagesWithUsers =
-        d.emergencyAddresses
-          ?.map(
-            (a) =>
-              `${a.village?.village_name || `Village #${a.villageId}`}${a.userCount ? ` (${a.userCount} ທ່ານ)` : ""
-              }`
-          )
-          .join(", ") || "-";
-
-      const totalUsers =
-        d.emergencyAddresses?.reduce(
-          (acc, a) => acc + (Number(a.userCount) || 0),
-          0
-        ) || 0;
-
       return {
         "ລຳດັບ": index + 1,
-        "ຫົວຂໍ້": d.title || "",
-        "ລາຍລະອຽດ": d.description || "",
-        "ວັນທີແຈ້ງເຫດ": d.emergencyDate ? moment(d.emergencyDate).format("DD/MM/YYYY") : "",
-        "ເວລາ": `${d.startTime || "--:--"} - ${d.endTime || "--:--"}`,
-        "ເວລາທີ່ໃຊ້ (ນາທີ)": d.useTime !== null && d.useTime !== undefined ? d.useTime : "-",
+        "ວັນທີແຈ້ງ": d.createdAt ? moment(d.createdAt).format("DD/MM/YYYY HH:mm") : "-",
+        "ຊື່ ແລະ ນາມສະກຸນ": d.fullName || "",
+        "ເບີໂທ": d.tel || "",
+        "ປະເພດບັນຫາ": d.problemtype?.name || "-",
+        "ຊ່ອງທາງ": d.sourcetype?.name || "-",
+        "ສະຖານະ": d.problemstatus?.callcenter || "-",
+        "ເວລາທີ່ໃຊ້ (ນາທີ)": d.totalTime ?? "-",
         "ແຂວງ": d.province?.province_name || "-",
         "ເມືອງ": d.district?.district_name || "-",
-        "ບ້ານທີ່ຈະມອດໄຟ": villagesWithUsers,
-        "ຜູ້ໃຊ້ໄຟທີ່ໄດ້ຮັບການແຈ້ງເຕືອນ": totalUsers,
+        "ບ້ານ": d.village?.village_name || "-",
+        "ສາຂາແຂວງ": d.branch?.name || "-",
+        "ສູນສ້ອມແປງເມືອງ": d.repairDistrict?.name || "-",
+        "ລາຍລະອຽດ": d.description || "-",
       };
     });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Emergency Outage Report");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Problem Report");
 
-    // Calculate dynamic column widths for all columns
     const keys = Object.keys(exportRows[0] || {});
     worksheet["!cols"] = keys.map((key) => {
       let maxLen = Math.max(key.length * 2, 16);
@@ -324,11 +446,11 @@ export function EmergencyReportManagement() {
       return { wch: Math.min(maxLen, 60) };
     });
 
-    XLSX.writeFile(workbook, `emergency_report_${startDate}_to_${endDate}.xlsx`);
+    XLSX.writeFile(workbook, `problem_report_${startDate}_to_${endDate}.xlsx`);
     toast.success("ສົ່ງອອກຂໍ້ມູນ Excel (.xlsx) ສຳເລັດແລ້ວ");
   };
 
-  // Export to PDF (.pdf) — Full professional layout with smart multi-language font rendering.
+  // Export to PDF (.pdf) using jsPDF & autoTable with Lao font support
   const handleExportPDF = async () => {
     if (!startDate || !endDate) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ PDF");
@@ -341,8 +463,7 @@ export function EmergencyReportManagement() {
       import("@/lib/notoSansLaoBase64"),
     ]);
 
-    // ── 1. Fetch ALL records (no pagination limit) ──────────────────────────
-    let allData: EmergencyDocReportItem[] = [];
+    let allData: ProblemReportItem[] = [];
     try {
       const params: Record<string, any> = {
         page: 1,
@@ -352,8 +473,12 @@ export function EmergencyReportManagement() {
       };
       if (effectiveProvinceId && effectiveProvinceId !== "all") params.provinceId = Number(effectiveProvinceId);
       if (effectiveDistrictId && effectiveDistrictId !== "all") params.districtId = Number(effectiveDistrictId);
+      if (villageId && villageId !== "all") params.villageId = Number(villageId);
+      if (problemtypeId && problemtypeId !== "all") params.problemtypeId = Number(problemtypeId);
+      if (problemstatusId && problemstatusId !== "all") params.problemstatusId = Number(problemstatusId);
+      if (sourcetypeId && sourcetypeId !== "all") params.sourcetypeId = Number(sourcetypeId);
 
-      const res = await axiosInstance.get("/reports/emergency", { params });
+      const res = await axiosInstance.get("/reports/problem", { params });
       if (res.data && Array.isArray(res.data.data)) {
         allData = res.data.data;
       } else if (Array.isArray(res.data)) {
@@ -369,42 +494,26 @@ export function EmergencyReportManagement() {
       return;
     }
 
-    // ── 2. Compute summary stats ────────────────────────────────────────────
-    let sumVillages = 0;
-    let sumUsers = 0;
-    let sumMinutes = 0;
-    allData.forEach((d) => {
-      if (d.useTime) sumMinutes += Number(d.useTime);
-      if (d.emergencyAddresses) {
-        sumVillages += d.emergencyAddresses.length;
-        d.emergencyAddresses.forEach((a) => { sumUsers += Number(a.userCount) || 0; });
-      }
-    });
-    const sumHours = Math.floor(sumMinutes / 60);
-    const sumMins = sumMinutes % 60;
+    const uniqueVillages = new Set(allData.map((d) => d.villageId)).size;
 
-    // ── 3. Initialise jsPDF (A4 Landscape) ──────────────────────────────────
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();   // 297 mm
-    const pageH = doc.internal.pageSize.getHeight();  // 210 mm
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
     const marginL = 5;
     const marginR = 5;
     const contentW = pageW - marginL - marginR;
     const printedAt = moment().format("DD/MM/YYYY HH:mm:ss");
 
-    // Register Lao font
     if (notoSansLaoBase64) {
       doc.addFileToVFS("NotoSansLao-Regular.ttf", notoSansLaoBase64);
       doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "normal");
     }
 
-    // ── Helper: detect Lao Unicode block (U+0E80–U+0EFF) ───────────────────
     const isLaoChar = (ch: string) => {
       const code = ch.charCodeAt(0);
       return code >= 0x0e80 && code <= 0x0eff;
     };
 
-    // ── Helper: split text into [{text, isLao}] segments ───────────────────
     type Segment = { text: string; isLao: boolean };
     const splitSegments = (text: string): Segment[] => {
       if (!text) return [];
@@ -425,7 +534,6 @@ export function EmergencyReportManagement() {
       return segs;
     };
 
-    // ── Helper: measure text width respecting segment fonts ─────────────────
     const mixedTextWidth = (text: string, size: number): number => {
       let w = 0;
       for (const seg of splitSegments(text)) {
@@ -436,7 +544,6 @@ export function EmergencyReportManagement() {
       return w;
     };
 
-    // ── Helper: render mixed-script text at (x, y), return ending x ─────────
     const drawMixed = (
       text: string,
       x: number,
@@ -459,58 +566,60 @@ export function EmergencyReportManagement() {
       return curX;
     };
 
-    const setLao = (size: number) => { doc.setFont("NotoSansLao", "normal"); doc.setFontSize(size); };
+    const setLao = (size: number) => {
+      doc.setFont("NotoSansLao", "normal");
+      doc.setFontSize(size);
+    };
 
-    // ── 4. Draw Header ───────────────────────────────────────────────────────
+    // Header Line Accent
     doc.setFillColor(37, 99, 235);
     doc.rect(marginL, 8, contentW, 1.2, "F");
 
     doc.setTextColor(15, 23, 42);
     setLao(15);
-    doc.text("ລາຍງານແຈ້ງການມອດໄຟສຸກເສີນ", marginL, 20);
+    doc.text("ລາຍງານການແຈ້ງບັນຫາ", marginL, 20);
 
-    const filterProvince = effectiveProvinceId && effectiveProvinceId !== "all"
-      ? (provinces.find((p) => String(p.id) === effectiveProvinceId)?.province_name ?? "ທຸກແຂວງ")
-      : "ທຸກແຂວງ";
-    const filterDistrict = effectiveDistrictId && effectiveDistrictId !== "all"
-      ? (districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ")
-      : "ທຸກເມືອງ";
+    const filterProvince =
+      effectiveProvinceId && effectiveProvinceId !== "all"
+        ? provinces.find((p) => String(p.id) === effectiveProvinceId)?.province_name ?? "ທຸກແຂວງ"
+        : "ທຸກແຂວງ";
+    const filterDistrict =
+      effectiveDistrictId && effectiveDistrictId !== "all"
+        ? districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ"
+        : "ທຸກເມືອງ";
+    const filterVillage =
+      villageId !== "all"
+        ? villages.find((v) => String(v.id) === villageId)?.village_name ?? "ທຸກບ້ານ"
+        : "ທຸກບ້ານ";
 
     doc.setTextColor(100, 116, 139);
     drawMixed(
       `ຊ່ວງວັນທີ: ${moment(startDate).format("DD/MM/YYYY")} – ${moment(endDate).format("DD/MM/YYYY")}`,
-      pageW - marginR, 20, 8, "right"
+      pageW - marginR,
+      20,
+      8,
+      "right"
     );
-    drawMixed(`ແຂວງ: ${filterProvince}   ເມືອງ: ${filterDistrict}`, pageW - marginR, 25, 8, "right");
+    drawMixed(`ແຂວງ: ${filterProvince}   ເມືອງ: ${filterDistrict}   ບ້ານ: ${filterVillage}`, pageW - marginR, 25, 8, "right");
     drawMixed(`ພິມວັນທີ: ${printedAt}`, pageW - marginR, 30, 8, "right");
 
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.4);
     doc.line(marginL, 33, pageW - marginR, 33);
 
-    // ── 5. Summary Stats Row ────────────────────────────────────────────────
+    // Summary Stats Row
     const statsY = 36;
-    const cardW = contentW / 4;
+    const cardW = contentW / 2;
     const statCards = [
       {
-        label: "ເອກະສານທັງໝົດ",
+        label: "ເອກະສານແຈ້ງບັນຫາທັງໝົດ",
         value: `${allData.length.toLocaleString()} ລາຍການ`,
         color: [37, 99, 235] as [number, number, number],
       },
       {
-        label: "ເວລາທີ່ໃຊ້ລວມ",
-        value: sumHours > 0 ? `${sumHours} ຊົ່ວໂມງ ${sumMins} ນາທີ (${sumMinutes.toLocaleString()} ນາທີ)` : `${sumMins} ນາທີ`,
-        color: [217, 119, 6] as [number, number, number],
-      },
-      {
-        label: "ບ້ານທີ່ຈະມອດໄຟສຸກເສີນທັງໝົດ",
-        value: `${sumVillages.toLocaleString()} ບ້ານ`,
+        label: "ບ້ານທີ່ມີການແຈ້ງບັນຫາ",
+        value: `${uniqueVillages.toLocaleString()} ບ້ານ`,
         color: [124, 58, 237] as [number, number, number],
-      },
-      {
-        label: "ຜູ້ໃຊ້ໄຟທີ່ໄດ້ຮັບການແຈ້ງເຕືອນທັງໝົດ",
-        value: `${sumUsers.toLocaleString()} ທ່ານ`,
-        color: [5, 150, 105] as [number, number, number],
       },
     ];
 
@@ -527,58 +636,49 @@ export function EmergencyReportManagement() {
       drawMixed(card.value, x + 6, statsY + 14, 9);
     });
 
-    // ── 6. Build Table Data ─────────────────────────────────────────────────
+    // Build Table Data
     const tableColumn = [
       "ລຳດັບ",
-      "ຫົວຂໍ້",
-      "ລາຍລະອຽດ",
-      "ວັນທີແຈ້ງເຫດ",
-      "ເວລາ",
-      "ເວລາໃຊ້(ນາທີ)",
+      "ວັນທີແຈ້ງ",
+      "ຊື່ ແລະ ນາມສະກຸນ",
+      "ເບີໂທ",
+      "ປະເພດບັນຫາ",
+      "ຊ່ອງທາງ",
+      "ສະຖານະ",
+      "ເວລາທີ່ໃຊ້",
       "ແຂວງ",
       "ເມືອງ",
-      "ບ້ານທີ່ຈະມອດໄຟ",
-      "ຜູ້ໃຊ້ໄຟ(ທ່ານ)",
+      "ບ້ານ",
+      "ສາຂາແຂວງ",
+      "ສູນສ້ອມແປງເມືອງ",
     ];
 
     const tableRows = allData.map((d, index) => {
-      const villagesWithUsers =
-        d.emergencyAddresses
-          ?.map(
-            (a) =>
-              `${a.village?.village_name || `Village #${a.villageId}`}${a.userCount ? ` (${a.userCount})` : ""}`
-          )
-          .join(", ") || "-";
-
-      const rowUsers =
-        d.emergencyAddresses?.reduce((acc, a) => acc + (Number(a.userCount) || 0), 0) || 0;
-
+      const timeStr = d.totalTime !== null && d.totalTime !== undefined && Number(d.totalTime) > 0 ? `${d.totalTime} ນາທີ` : "-";
       return [
         String(index + 1),
-        d.title || "",
-        d.description || "",
-        d.emergencyDate ? moment(d.emergencyDate).format("DD/MM/YYYY") : "-",
-        `${d.startTime || "--:--"} - ${d.endTime || "--:--"}`,
-        d.useTime !== null && d.useTime !== undefined ? String(d.useTime) : "-",
+        d.createdAt ? moment(d.createdAt).format("DD/MM/YYYY") : "-",
+        d.fullName || "",
+        d.tel || "",
+        d.problemtype?.name || "-",
+        d.sourcetype?.name || "-",
+        d.problemstatus?.callcenter || "-",
+        timeStr,
         d.province?.province_name || "-",
         d.district?.district_name || "-",
-        villagesWithUsers,
-        rowUsers > 0 ? rowUsers.toLocaleString() : "-",
+        d.village?.village_name || "-",
+        d.branch?.name || "-",
+        d.repairDistrict?.name || "-",
       ];
     });
 
-    // ── 7. Render autoTable ─────────────────────────────────────────────────
-    const _baseW = [10, 40, 36, 24, 24, 16, 24, 24, 52, 17]; // 10 cols, sum = 267
+    const _baseW = [8, 20, 36, 24, 25, 20, 24, 20, 20, 20, 22, 24, 25];
     const _baseSum = _baseW.reduce((a, b) => a + b, 0);
     const _scaled = _baseW.map((w, i) =>
       i < _baseW.length - 1
-        ? parseFloat((contentW * w / _baseSum).toFixed(2))
-        : 0
+        ? Math.floor((w / _baseSum) * contentW)
+        : contentW - _baseW.slice(0, -1).reduce((acc, cur) => acc + Math.floor((cur / _baseSum) * contentW), 0)
     );
-    _scaled[_scaled.length - 1] = parseFloat(
-      (contentW - _scaled.slice(0, -1).reduce((a, b) => a + b, 0)).toFixed(2)
-    );
-    const cw = (col: number) => _scaled[col];
 
     autoTable(doc, {
       startY: statsY + 21,
@@ -616,18 +716,20 @@ export function EmergencyReportManagement() {
         fillColor: [241, 245, 249],
       },
       columnStyles: {
-        0: { cellWidth: cw(0), halign: "center", fontStyle: "bold" },
-        1: { cellWidth: cw(1) },
-        2: { cellWidth: cw(2) },
-        3: { cellWidth: cw(3), halign: "center" },
-        4: { cellWidth: cw(4), halign: "center" },
-        5: { cellWidth: cw(5), halign: "center" },
-        6: { cellWidth: cw(6) },
-        7: { cellWidth: cw(7) },
-        8: { cellWidth: cw(8) },
-        9: { cellWidth: cw(9), halign: "center" },
+        0: { cellWidth: _scaled[0], halign: "center", fontStyle: "bold" },
+        1: { cellWidth: _scaled[1], halign: "center" },
+        2: { cellWidth: _scaled[2] },
+        3: { cellWidth: _scaled[3], halign: "center" },
+        4: { cellWidth: _scaled[4] },
+        5: { cellWidth: _scaled[5], halign: "center" },
+        6: { cellWidth: _scaled[6], halign: "center" },
+        7: { cellWidth: _scaled[7] },
+        8: { cellWidth: _scaled[8] },
+        9: { cellWidth: _scaled[9] },
+        10: { cellWidth: _scaled[10] },
+        11: { cellWidth: _scaled[11] },
+        12: { cellWidth: _scaled[12] },
       },
-
       didDrawCell: (data) => {
         if (data.section === "head") {
           const cellText = Array.isArray(data.cell.text)
@@ -672,9 +774,8 @@ export function EmergencyReportManagement() {
 
         if (!cellText || cellText === "-") return;
 
-        const fillRgb = data.row.index % 2 === 0
-          ? [255, 255, 255]
-          : [241, 245, 249];
+        const fillRgb =
+          data.row.index % 2 === 0 ? [255, 255, 255] : [241, 245, 249];
         doc.setFillColor(fillRgb[0], fillRgb[1], fillRgb[2]);
         doc.rect(
           data.cell.x + 0.1,
@@ -689,7 +790,8 @@ export function EmergencyReportManagement() {
         const colAlign = (data.cell.styles.halign as string) || "left";
 
         const lines = cellText.split("\n");
-        let lineY = data.cell.y + data.cell.padding("top") + fontSize * 0.352 + 0.5;
+        let lineY =
+          data.cell.y + data.cell.padding("top") + fontSize * 0.352 + 0.5;
 
         for (const line of lines) {
           const lineW = mixedTextWidth(line, fontSize);
@@ -706,7 +808,6 @@ export function EmergencyReportManagement() {
           lineY += fontSize * 0.352 * 2.2;
         }
       },
-
       didDrawPage: (data) => {
         const totalPages = (doc.internal as any).getNumberOfPages();
         const currentPage = data.pageNumber;
@@ -716,67 +817,24 @@ export function EmergencyReportManagement() {
         doc.line(marginL, pageH - 10, pageW - marginR, pageH - 10);
 
         doc.setTextColor(148, 163, 184);
-        drawMixed("ລາຍງານແຈ້ງການມອດໄຟສຸກເສີນ", marginL, pageH - 6, 6.5);
+        drawMixed("ລາຍງານການແຈ້ງບັນຫາ", marginL, pageH - 6, 6.5);
 
-        drawMixed(`Page ${currentPage} / ${totalPages}   |   ${printedAt}`, pageW - marginR, pageH - 6, 6.5, "right");
+        drawMixed(
+          `Page ${currentPage} / ${totalPages}   |   ${printedAt}`,
+          pageW - marginR,
+          pageH - 6,
+          6.5,
+          "right"
+        );
       },
     });
 
-    // ── 8. Save file ────────────────────────────────────────────────────────
-    doc.save(`emergency_report_${startDate}_to_${endDate}.pdf`);
-    toast.success(`ສົ່ງອອກ PDF ສຳເລັດ — ${allData.length} ລາຍການ`);
+    doc.save(`problem_report_${startDate}_to_${endDate}.pdf`);
+    toast.success("ສົ່ງອອກ PDF (.pdf) ສຳເລັດແລ້ວ");
   };
-
-  // Handle Page Change
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setPage(newPage);
-    if (hasSearched) {
-      fetchReportData(newPage, limit);
-    }
-  };
-
-  // Handle Limit Change
-  const handleLimitChange = (newLimit: number) => {
-    setLimit(newLimit);
-    setPage(1);
-    if (hasSearched) {
-      fetchReportData(1, newLimit);
-    }
-  };
-
-  // Calculate Summary Statistics
-  const stats = useMemo(() => {
-    let totalVillages = 0;
-    let totalUsers = 0;
-    let totalUseTimeMinutes = 0;
-
-    reportData.forEach((doc) => {
-      if (doc.useTime) totalUseTimeMinutes += Number(doc.useTime);
-      if (doc.emergencyAddresses && Array.isArray(doc.emergencyAddresses)) {
-        totalVillages += doc.emergencyAddresses.length;
-        doc.emergencyAddresses.forEach((addr) => {
-          totalUsers += addr.userCount || 0;
-        });
-      }
-    });
-
-    const hours = Math.floor(totalUseTimeMinutes / 60);
-    const mins = totalUseTimeMinutes % 60;
-    const formattedDuration =
-      hours > 0 ? `${hours} ຊົ່ວໂມງ ${mins} ນາທີ` : `${mins} ນາທີ`;
-
-    return {
-      totalDocs: total,
-      totalVillages,
-      totalUsers,
-      totalUseTimeMinutes,
-      formattedDuration,
-    };
-  }, [reportData, total]);
 
   return (
-    <div className="max-w-screen-2xl mx-auto px-4 md:px-6 py-6 font-sans text-slate-800 dark:text-slate-100 space-y-6 print:bg-white print:p-0">
+    <div className="max-w-screen-2xl mx-auto px-4 md:px-6 py-6 font-sans text-slate-800 dark:text-slate-100 space-y-6 print:bg-white print:p-0" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
       {/* Filter Card */}
       <div className="bg-white dark:bg-slate-900 p-5 md:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none space-y-5 print:hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -786,7 +844,7 @@ export function EmergencyReportManagement() {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                ຕົວກອງຂໍ້ມູນລາຍງານແຈ້ງການມອດໄຟສຸກເສີນ
+                ຕົວກອງຂໍ້ມູນລາຍງານການແຈ້ງບັນຫາ
               </h2>
               <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
                 ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ເພື່ອດຶງລາຍງານ
@@ -800,42 +858,35 @@ export function EmergencyReportManagement() {
             <button
               type="button"
               onClick={() => handleQuickDate("today")}
-              className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all"
+              className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all cursor-pointer"
             >
               ມື້ນີ້
             </button>
             <button
               type="button"
               onClick={() => handleQuickDate("7days")}
-              className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all"
+              className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all cursor-pointer"
             >
               7 ມື້ຜ່ານມາ
             </button>
             <button
               type="button"
               onClick={() => handleQuickDate("30days")}
-              className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all"
+              className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all cursor-pointer"
             >
               30 ມື້ຜ່ານມາ
             </button>
             <button
               type="button"
               onClick={() => handleQuickDate("month")}
-              className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all"
+              className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-all cursor-pointer"
             >
               ເດືອນນີ້
             </button>
           </div>
         </div>
 
-        <div
-          className={`grid grid-cols-1 ${currentUserRoleId === 6
-            ? "sm:grid-cols-2"
-            : currentUserRoleId === 5
-              ? "sm:grid-cols-3"
-              : "sm:grid-cols-2 lg:grid-cols-4"
-            } gap-4`}
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Start Date */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between min-h-[18px]">
@@ -867,6 +918,75 @@ export function EmergencyReportManagement() {
                 className="w-full pl-9 pr-3 py-2.5 h-[42px] text-xs bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 font-semibold transition-all"
               />
               <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Problem Status Select */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between min-h-[18px]">
+              <span>ສະຖານະ</span>
+            </label>
+            <div className="relative">
+              <select
+                value={problemstatusId}
+                onChange={(e) => setProblemstatusId(e.target.value)}
+                className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
+              >
+                <option value="all">-- ທຸກສະຖານະ (All Statuses) --</option>
+                {problemStatuses.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.callcenter}
+                  </option>
+                ))}
+              </select>
+              <Component className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Source Type Select */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between min-h-[18px]">
+              <span>ຊ່ອງທາງ</span>
+            </label>
+            <div className="relative">
+              <select
+                value={sourcetypeId}
+                onChange={(e) => setSourcetypeId(e.target.value)}
+                className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
+              >
+                <option value="all">-- ທຸກຊ່ອງທາງ (All Channels) --</option>
+                {sourceTypes.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+                ))}
+              </select>
+              <Layers className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Problem Type Select */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between min-h-[18px]">
+              <span>ປະເພດບັນຫາ</span>
+            </label>
+            <div className="relative">
+              <select
+                value={problemtypeId}
+                onChange={(e) => setProblemtypeId(e.target.value)}
+                className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
+              >
+                <option value="all">-- ທຸກປະເພດບັນຫາ (All Types) --</option>
+                {problemTypes.map((pt) => (
+                  <option key={pt.id} value={pt.id}>
+                    {pt.name}
+                  </option>
+                ))}
+              </select>
+              <AlertTriangle className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
             </div>
           </div>
 
@@ -920,6 +1040,30 @@ export function EmergencyReportManagement() {
               </div>
             </div>
           )}
+
+          {/* Village Select */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between min-h-[18px]">
+              <span>ບ້ານ</span>
+            </label>
+            <div className="relative">
+              <select
+                value={villageId}
+                onChange={(e) => setVillageId(e.target.value)}
+                disabled={(!effectiveDistrictId || effectiveDistrictId === "all") || villages.length === 0}
+                className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="all">-- ທຸກບ້ານ (All Villages) --</option>
+                {villages.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.village_name}
+                  </option>
+                ))}
+              </select>
+              <Home className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
         {/* Action Buttons */}
@@ -927,7 +1071,7 @@ export function EmergencyReportManagement() {
           <button
             type="button"
             onClick={handleReset}
-            className="px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all flex items-center gap-1.5"
+            className="px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>ລ້າງຕົວກອງ</span>
@@ -936,7 +1080,7 @@ export function EmergencyReportManagement() {
             type="button"
             onClick={handleSearch}
             disabled={loading}
-            className="px-6 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 rounded-xl transition-all shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50"
+            className="px-6 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:from-blue-800 active:to-indigo-800 rounded-xl transition-all shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -954,8 +1098,8 @@ export function EmergencyReportManagement() {
           <div className="absolute top-0 right-1/4 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-indigo-400/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 w-24 h-24 bg-gradient-to-br from-red-600 via-rose-600 to-red-700 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-red-500/25 border border-white/20">
-            <AlertTriangle className="w-12 h-12 text-white drop-shadow-md animate-pulse" />
+          <div className="relative z-10 w-24 h-24 bg-gradient-to-br from-blue-500 via-indigo-600 to-blue-700 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-blue-500/25 border border-white/20">
+            <FileText className="w-12 h-12 text-white drop-shadow-md" />
             <div className="absolute -top-1 -right-1 w-6 h-6 bg-amber-400 text-amber-950 rounded-full flex items-center justify-center shadow-md">
               <Sparkles className="w-3.5 h-3.5" />
             </div>
@@ -963,7 +1107,7 @@ export function EmergencyReportManagement() {
 
           <div className="relative z-10 space-y-2 max-w-lg mx-auto">
             <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              ກະລຸນາເລືອກຕົວກອງເພື່ອດຶງຂໍ້ມູນລາຍງານ
+              ກະລຸນາເລືອກຕົວກອງເພື່ອດຶງຂໍ້ມູນລາຍງານການແຈ້ງບັນຫາ
             </h3>
             <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
               ກະລຸນາເລືອກ <span className="font-bold text-blue-600 dark:text-blue-400">"ວັນທີເລີ່ມຕົ້ນ"</span> ແລະ <span className="font-bold text-blue-600 dark:text-blue-400">"ຫາວັນທີ"</span> ໃນຊ່ອງຕົວກອງດ້ານເທິງ ແລ້ວກົດປຸ່ມ <span className="font-bold text-indigo-600 dark:text-indigo-400">"ຄົ້ນຫາ / ດຶງລາຍງານ"</span> ເພື່ອສະແດງຂໍ້ມູນລາຍງານ
@@ -976,12 +1120,12 @@ export function EmergencyReportManagement() {
       {hasSearched && (
         <div className="space-y-6">
           {/* Summary Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:grid-cols-3">
             {/* Card 1: Total Docs */}
             <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:border-blue-500/40 transition-all">
               <div className="space-y-1">
                 <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  ເອກະສານແຈ້ງການມອດໄຟສຸກເສີນທັງໝົດ
+                  ເອກະສານແຈ້ງບັນຫາທັງໝົດ
                 </p>
                 <p className="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight">
                   {stats.totalDocs.toLocaleString()}{" "}
@@ -989,11 +1133,11 @@ export function EmergencyReportManagement() {
                 </p>
               </div>
               <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl group-hover:scale-110 transition-transform">
-                <AlertTriangle className="w-6 h-6" />
+                <FileText className="w-6 h-6" />
               </div>
             </div>
 
-            {/* Card 2: Total Duration */}
+            {/* Card 2: Total Duration / useTime */}
             <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:border-amber-500/40 transition-all">
               <div className="space-y-1">
                 <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
@@ -1011,35 +1155,19 @@ export function EmergencyReportManagement() {
               </div>
             </div>
 
-            {/* Card 3: Affected Villages */}
+            {/* Card 3: Villages Count */}
             <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:border-purple-500/40 transition-all">
               <div className="space-y-1">
                 <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  ບ້ານທີ່ຈະມອດໄຟສຸກເສີນທັງໝົດ
+                  ບ້ານທີ່ມີການແຈ້ງບັນຫາ
                 </p>
                 <p className="text-2xl font-black text-purple-600 dark:text-purple-400 tracking-tight">
-                  {stats.totalVillages.toLocaleString()}{" "}
+                  {stats.uniqueVillages.toLocaleString()}{" "}
                   <span className="text-xs font-normal text-slate-400">ບ້ານ</span>
                 </p>
               </div>
               <div className="p-3.5 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-2xl group-hover:scale-110 transition-transform">
-                <MapPin className="w-6 h-6" />
-              </div>
-            </div>
-
-            {/* Card 4: Affected Users */}
-            <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:border-emerald-500/40 transition-all">
-              <div className="space-y-1">
-                <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  ຜູ້ໃຊ້ໄຟທີ່ໄດ້ຮັບການແຈ້ງເຕືອນທັງໝົດ
-                </p>
-                <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
-                  {stats.totalUsers.toLocaleString()}{" "}
-                  <span className="text-xs font-normal text-slate-400">ທ່ານ</span>
-                </p>
-              </div>
-              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl group-hover:scale-110 transition-transform">
-                <Users className="w-6 h-6" />
+                <Home className="w-6 h-6" />
               </div>
             </div>
           </div>
@@ -1049,11 +1177,11 @@ export function EmergencyReportManagement() {
             {/* Table Title Bar & Export Action Buttons */}
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-2.5 h-6 bg-red-600 rounded-full" />
+                <div className="w-2.5 h-6 bg-blue-600 rounded-full" />
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  ລາຍການແຈ້ງການມອດໄຟສຸກເສີນ
+                  ລາຍການການແຈ້ງບັນຫາ
                 </h3>
-                <span className="text-xs px-3 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full font-bold">
+                <span className="text-xs px-3 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-full font-bold">
                   {total} ລາຍການ
                 </span>
               </div>
@@ -1064,7 +1192,7 @@ export function EmergencyReportManagement() {
                   <button
                     type="button"
                     onClick={handleExportExcel}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-xs font-bold rounded-xl border border-emerald-200/80 dark:border-emerald-900/50 transition-all shadow-xs"
+                    className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-xs font-bold rounded-xl border border-emerald-200/80 dark:border-emerald-900/50 transition-all shadow-xs cursor-pointer"
                     title="ສົ່ງອອກ Excel (.xlsx)"
                   >
                     <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
@@ -1074,7 +1202,7 @@ export function EmergencyReportManagement() {
                   <button
                     type="button"
                     onClick={handleExportPDF}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 text-xs font-bold rounded-xl border border-red-200/80 dark:border-red-900/50 transition-all shadow-xs"
+                    className="inline-flex items-center gap-2 px-3.5 py-2 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 text-xs font-bold rounded-xl border border-red-200/80 dark:border-red-900/50 transition-all shadow-xs cursor-pointer"
                     title="ສົ່ງອອກ PDF (.pdf)"
                   >
                     <FileType className="w-4 h-4 text-red-500" />
@@ -1090,22 +1218,25 @@ export function EmergencyReportManagement() {
                 <thead>
                   <tr className="bg-slate-50/80 dark:bg-slate-850 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 select-none">
                     <th className="py-4 px-4 w-12 text-center">#</th>
-                    <th className="py-4 px-4 min-w-[200px]">ຫົວຂໍ້</th>
-                    <th className="py-4 px-4 min-w-[140px]">ວັນທີແຈ້ງເຫດ</th>
-                    <th className="py-4 px-4 min-w-[120px]">ເວລາ</th>
-                    <th className="py-4 px-4 min-w-[130px] bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400">
-                      ເວລາທີ່ໃຊ້ (ນາທີ)
-                    </th>
+                    <th className="py-4 px-4 min-w-[120px]">ວັນທີແຈ້ງ</th>
+                    <th className="py-4 px-4 min-w-[180px]">ຊື່ ແລະ ນາມສະກຸນ</th>
+                    <th className="py-4 px-4 min-w-[110px]">ເບີໂທ</th>
+                    <th className="py-4 px-4 min-w-[130px]">ປະເພດບັນຫາ</th>
+                    <th className="py-4 px-4 min-w-[110px]">ຊ່ອງທາງ</th>
+                    <th className="py-4 px-4 min-w-[130px]">ສະຖານະ</th>
+                    <th className="py-4 px-4 min-w-[120px]">ເວລາທີ່ໃຊ້</th>
                     <th className="py-4 px-4 min-w-[110px]">ແຂວງ</th>
                     <th className="py-4 px-4 min-w-[110px]">ເມືອງ</th>
-                    <th className="py-4 px-4 min-w-[220px]">ບ້ານທີ່ຈະມອດໄຟ</th>
+                    <th className="py-4 px-4 min-w-[120px]">ບ້ານ</th>
+                    <th className="py-4 px-4 min-w-[140px]">ສາຂາແຂວງ</th>
+                    <th className="py-4 px-4 min-w-[150px]">ສູນສ້ອມແປງເມືອງ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="py-16 text-center text-slate-400">
-                        <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3 text-red-500" />
+                      <td colSpan={12} className="py-16 text-center text-slate-400">
+                        <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3 text-blue-500" />
                         <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
                           ກຳລັງໂຫຼດຂໍ້ມູນລາຍງານ...
                         </span>
@@ -1117,49 +1248,92 @@ export function EmergencyReportManagement() {
                       return (
                         <tr
                           key={item.id}
-                          className="hover:bg-red-50/40 dark:hover:bg-slate-800/50 transition-colors group"
+                          className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors group"
                         >
                           {/* # */}
-                          <td className="py-4 px-4 text-center font-bold text-slate-400 group-hover:text-red-600">
+                          <td className="py-4 px-4 text-center font-bold text-slate-400 group-hover:text-blue-600">
                             {rowNum}
-                          </td>
-
-                          {/* Title */}
-                          <td className="py-4 px-4 font-bold text-slate-900 dark:text-slate-100">
-                            <p className="line-clamp-2 leading-relaxed">{item.title}</p>
-                            {item.description && (
-                              <p className="text-[11px] text-slate-400 dark:text-slate-500 font-normal line-clamp-1 mt-0.5">
-                                {item.description}
-                              </p>
-                            )}
                           </td>
 
                           {/* Date */}
                           <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                             <div className="flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                              <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                               <span>
-                                {item.emergencyDate ? moment(item.emergencyDate).format("DD/MM/YYYY") : "-"}
+                                {item.createdAt ? moment(item.createdAt).format("DD/MM/YYYY HH:mm") : "-"}
                               </span>
                             </div>
                           </td>
 
-                          {/* Time */}
+                          {/* Full Name */}
+                          <td className="py-4 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                            {item.fullName || "-"}
+                          </td>
+
+                          {/* Phone */}
                           <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span>
-                                {item.startTime || "--:--"} - {item.endTime || "--:--"}
-                              </span>
-                            </div>
+                            {item.tel || "-"}
                           </td>
 
-                          {/* useTime (นาที) */}
+                          {/* Problem Type */}
+                          <td className="py-4 px-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-900/50">
+                              {item.problemtype?.name || "-"}
+                            </span>
+                          </td>
+
+                          {/* SourceType */}
+                          <td className="py-4 px-4 whitespace-nowrap">
+                            {(() => {
+                              let badgeClass =
+                                "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300";
+                              if (item.sourcetypeId === 1) {
+                                badgeClass =
+                                  "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+                              } else if (item.sourcetypeId === 3) {
+                                badgeClass =
+                                  "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+                              }
+                              return (
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}>
+                                  {item.sourcetype?.name || "-"}
+                                </span>
+                              );
+                            })()}
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-4 px-4 whitespace-nowrap">
+                            {(() => {
+                              let badgeClass =
+                                "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300";
+                              if (item.problemstatusId === 1) {
+                                badgeClass =
+                                  "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+                              } else if (item.problemstatusId === 2) {
+                                badgeClass =
+                                  "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+                              } else if (item.problemstatusId === 3) {
+                                badgeClass =
+                                  "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+                              } else if (item.problemstatusId === 4) {
+                                badgeClass =
+                                  "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+                              }
+                              return (
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}>
+                                  {item.problemstatus?.callcenter || "-"}
+                                </span>
+                              );
+                            })()}
+                          </td>
+
+                          {/* totalTime (นาที) */}
                           <td className="py-4 px-4 bg-amber-50/20 dark:bg-amber-950/5">
-                            {item.useTime !== null && item.useTime !== undefined ? (
+                            {item.totalTime !== null && item.totalTime !== undefined && Number(item.totalTime) > 0 ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-900/50 shadow-2xs">
                                 <Timer className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                <span>{item.useTime} ນາທີ</span>
+                                <span>{item.totalTime} ນາທີ</span>
                               </span>
                             ) : (
                               <span className="text-slate-400 font-medium">-</span>
@@ -1176,41 +1350,32 @@ export function EmergencyReportManagement() {
                             {item.district?.district_name || "-"}
                           </td>
 
-                          {/* Villages */}
-                          <td className="py-4 px-4">
-                            {item.emergencyAddresses && item.emergencyAddresses.length > 0 ? (
-                              <div className="flex flex-wrap gap-1 max-w-[280px]">
-                                {item.emergencyAddresses.slice(0, 3).map((addr) => (
-                                  <span
-                                    key={addr.id}
-                                    className="text-[10px] px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md font-semibold"
-                                  >
-                                    {addr.village?.village_name || `Village #${addr.villageId}`}
-                                    {addr.userCount ? ` (${addr.userCount} ທ່ານ)` : ""}
-                                  </span>
-                                ))}
-                                {item.emergencyAddresses.length > 3 && (
-                                  <span className="text-[10px] px-2 py-0.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-md font-bold">
-                                    +{item.emergencyAddresses.length - 3} ບ້ານ
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 font-normal">-</span>
-                            )}
+                          {/* Village */}
+                          <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                            {item.village?.village_name || "-"}
+                          </td>
+
+                          {/* Branch */}
+                          <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                            {item.branch?.name || "-"}
+                          </td>
+
+                          {/* Repair District */}
+                          <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                            {item.repairDistrict?.name || "-"}
                           </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={8} className="py-16 text-center text-slate-400">
+                      <td colSpan={13} className="py-16 text-center text-slate-400">
                         <AlertCircle className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
                         <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
                           ບໍ່ພົບຂໍ້ມູນລາຍງານຕາມຕົວກອງນີ້
                         </p>
                         <p className="text-xs mt-1 text-slate-400">
-                          ລອງປ່ຽນຊ່ວງວັນທີ ຫຼື ເລືອກແຂວງ/ເມືອງ ໃໝ່
+                          ລອງປ່ຽນຊ່ວງວັນທີ ຫຼື ເລືອກແຂວງ/ເມືອງ/ບ້ານ ໃໝ່
                         </p>
                       </td>
                     </tr>
@@ -1242,7 +1407,7 @@ export function EmergencyReportManagement() {
                     type="button"
                     onClick={() => handlePageChange(page - 1)}
                     disabled={page <= 1 || loading}
-                    className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 transition-all font-bold"
+                    className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 transition-all font-bold cursor-pointer disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -1253,7 +1418,7 @@ export function EmergencyReportManagement() {
                     type="button"
                     onClick={() => handlePageChange(page + 1)}
                     disabled={page >= totalPages || loading}
-                    className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 transition-all font-bold"
+                    className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 transition-all font-bold cursor-pointer disabled:cursor-not-allowed"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>

@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  compress: true,
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "react-toastify",
+      "chart.js",
+      "@tanstack/react-table",
+    ],
+  },
   async rewrites() {
     return [
       {
