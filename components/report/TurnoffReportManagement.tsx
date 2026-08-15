@@ -329,24 +329,16 @@ export function TurnoffReportManagement() {
     toast.success("ສົ່ງອອກຂໍ້ມູນ Excel (.xlsx) ສຳເລັດແລ້ວ");
   };
 
-  // Export to PDF (.pdf) — Full professional layout with smart multi-language font rendering.
-  // Lao script (U+0E80–U+0EFF) → NotoSansLao. Everything else (digits, Latin, symbols) → helvetica.
+  // Export to PDF (.pdf) using @react-pdf/renderer with PhetsarathOT font
   const handleExportPDF = async () => {
     if (!startDate || !endDate) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ PDF");
       return;
     }
 
-    const [{ default: jsPDF }, { default: autoTable }, { notoSansLaoBase64 }] = await Promise.all([
-      import("jspdf"),
-      import("jspdf-autotable"),
-      import("@/lib/notoSansLaoBase64"),
-    ]);
-
     // ── 1. Fetch ALL records (no pagination limit) ──────────────────────────
     let allData: TurnoffDocReportItem[] = [];
     try {
-      // toast.info("ກຳລັງດຶງຂໍ້ມູນທັງໝົດເພື່ອ Export PDF...", { autoClose: 2500 });
       const params: Record<string, any> = {
         page: 1,
         limit: 9999,
@@ -371,399 +363,35 @@ export function TurnoffReportManagement() {
       toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
       return;
     }
+    const filterProvince =
+      effectiveProvinceId && effectiveProvinceId !== "all"
+        ? provinces.find((p) => String(p.id) === effectiveProvinceId)?.province_name ?? "ທຸກແຂວງ"
+        : "ທຸກແຂວງ";
+    const filterDistrict =
+      effectiveDistrictId && effectiveDistrictId !== "all"
+        ? districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ"
+        : "ທຸກເມືອງ";
 
-    // ── 2. Compute summary stats ────────────────────────────────────────────
-    let sumVillages = 0;
-    let sumUsers = 0;
-    let sumMinutes = 0;
-    allData.forEach((d) => {
-      if (d.useTime) sumMinutes += Number(d.useTime);
-      if (d.turnoffAddresses) {
-        sumVillages += d.turnoffAddresses.length;
-        d.turnoffAddresses.forEach((a) => { sumUsers += Number(a.userCount) || 0; });
-      }
-    });
-    const sumHours = Math.floor(sumMinutes / 60);
-    const sumMins = sumMinutes % 60;
+    try {
+      const { TurnoffReportPDF } = await import("./pdf/TurnoffReportPDF");
+      const { generateAndDownloadPDF } = await import("@/lib/pdf/downloadPdf");
 
-    // ── 3. Initialise jsPDF (A4 Landscape) ──────────────────────────────────
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();   // 297 mm
-    const pageH = doc.internal.pageSize.getHeight();  // 210 mm
-    const marginL = 5;
-    const marginR = 5;
-    const contentW = pageW - marginL - marginR;
-    const printedAt = moment().format("DD/MM/YYYY HH:mm:ss");
+      await generateAndDownloadPDF(
+        <TurnoffReportPDF
+          data={allData}
+          startDate={startDate}
+          endDate={endDate}
+          provinceName={filterProvince}
+          districtName={filterDistrict}
+        />,
+        `turnoff_report_${startDate}_to_${endDate}.pdf`
+      );
 
-    // Register Lao font
-    if (notoSansLaoBase64) {
-      doc.addFileToVFS("NotoSansLao-Regular.ttf", notoSansLaoBase64);
-      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "normal");
-      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "bold");
+      toast.success(`ສົ່ງອອກ PDF ສຳເລັດ — ${allData.length} ລາຍການ`);
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      toast.error("ເກີດຂໍ້ຜິດພາດໃນການສ້າງ PDF");
     }
-
-    // ── Helper: detect Lao Unicode block (U+0E80–U+0EFF) ───────────────────
-    const isLaoChar = (ch: string) => {
-      const code = ch.charCodeAt(0);
-      return code >= 0x0e80 && code <= 0x0eff;
-    };
-
-    // ── Helper: split text into [{text, isLao}] segments ───────────────────
-    type Segment = { text: string; isLao: boolean };
-    const splitSegments = (text: string): Segment[] => {
-      if (!text) return [];
-      const segs: Segment[] = [];
-      let buf = text[0];
-      let curLao = isLaoChar(text[0]);
-      for (let i = 1; i < text.length; i++) {
-        const lao = isLaoChar(text[i]);
-        if (lao !== curLao) {
-          segs.push({ text: buf, isLao: curLao });
-          buf = text[i];
-          curLao = lao;
-        } else {
-          buf += text[i];
-        }
-      }
-      segs.push({ text: buf, isLao: curLao });
-      return segs;
-    };
-
-    // ── Helper: measure text width respecting segment fonts ─────────────────
-    const mixedTextWidth = (text: string, size: number): number => {
-      let w = 0;
-      for (const seg of splitSegments(text)) {
-        doc.setFont(seg.isLao ? "NotoSansLao" : "helvetica", "normal");
-        doc.setFontSize(size);
-        w += doc.getTextWidth(seg.text);
-      }
-      return w;
-    };
-
-    // ── Helper: render mixed-script text at (x, y), return ending x ─────────
-    const drawMixed = (
-      text: string,
-      x: number,
-      y: number,
-      size: number,
-      align: "left" | "right" = "left"
-    ): number => {
-      const segs = splitSegments(text);
-      // For right-align, compute total width first then shift x
-      if (align === "right") {
-        const totalW = mixedTextWidth(text, size);
-        x = x - totalW;
-      }
-      let curX = x;
-      for (const seg of segs) {
-        doc.setFont(seg.isLao ? "NotoSansLao" : "helvetica", "normal");
-        doc.setFontSize(size);
-        doc.text(seg.text, curX, y);
-        curX += doc.getTextWidth(seg.text);
-      }
-      return curX;
-    };
-
-    // Convenience wrappers
-    const setLao = (size: number) => { doc.setFont("NotoSansLao", "normal"); doc.setFontSize(size); };
-    const setLatin = (size: number) => { doc.setFont("helvetica", "normal"); doc.setFontSize(size); };
-
-    // ── 4. Draw Header ───────────────────────────────────────────────────────
-    // Top accent bar
-    doc.setFillColor(37, 99, 235);
-    doc.rect(marginL, 8, contentW, 1.2, "F");
-
-    // Report title (all Lao)
-    doc.setTextColor(15, 23, 42);
-    setLao(15);
-    doc.text("ລາຍງານແຈ້ງການມອດໄຟ", marginL, 20);
-
-    // Right-side filter summary
-    const filterProvince = effectiveProvinceId && effectiveProvinceId !== "all"
-      ? (provinces.find((p) => String(p.id) === effectiveProvinceId)?.province_name ?? "ທຸກແຂວງ")
-      : "ທຸກແຂວງ";
-    const filterDistrict = effectiveDistrictId && effectiveDistrictId !== "all"
-      ? (districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ")
-      : "ທຸກເມືອງ";
-
-    doc.setTextColor(100, 116, 139);
-    drawMixed(
-      `ຊ່ວງວັນທີ: ${moment(startDate).format("DD/MM/YYYY")} – ${moment(endDate).format("DD/MM/YYYY")}`,
-      pageW - marginR, 20, 8, "right"
-    );
-    drawMixed(`ແຂວງ: ${filterProvince}   ເມືອງ: ${filterDistrict}`, pageW - marginR, 25, 8, "right");
-    drawMixed(`ພິມວັນທີ: ${printedAt}`, pageW - marginR, 30, 8, "right");
-
-    // Divider line
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(0.4);
-    doc.line(marginL, 33, pageW - marginR, 33);
-
-    // ── 5. Summary Stats Row ────────────────────────────────────────────────
-    const statsY = 36;
-    const cardW = contentW / 4;
-    const statCards = [
-      {
-        label: "ເອກະສານທັງໝົດ",
-        value: `${allData.length.toLocaleString()} ລາຍການ`,
-        color: [37, 99, 235] as [number, number, number],
-      },
-      {
-        label: "ເວລາທີ່ໃຊ້ລວມ",
-        value: sumHours > 0 ? `${sumHours} ຊົ່ວໂມງ ${sumMins} ນາທີ (${sumMinutes.toLocaleString()} ນາທີ)` : `${sumMins} ນາທີ`,
-        color: [217, 119, 6] as [number, number, number],
-      },
-      {
-        label: "ບ້ານທີ່ຈະມອດໄຟທັງໝົດ",
-        value: `${sumVillages.toLocaleString()} ບ້ານ`,
-        color: [124, 58, 237] as [number, number, number],
-      },
-      {
-        label: "ຜູ້ໃຊ້ໄຟທີ່ໄດ້ຮັບການແຈ້ງເຕືອນທັງໝົດ",
-        value: `${sumUsers.toLocaleString()} ທ່ານ`,
-        color: [5, 150, 105] as [number, number, number],
-      },
-    ];
-
-    statCards.forEach((card, i) => {
-      const x = marginL + i * cardW;
-      // Card bg
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(x + 1, statsY, cardW - 2, 18, 2, 2, "F");
-      // Left accent
-      doc.setFillColor(...card.color);
-      doc.roundedRect(x + 1, statsY, 2.5, 18, 1, 1, "F");
-      // Label — pure Lao text
-      setLao(6.5);
-      doc.setTextColor(100, 116, 139);
-      doc.text(card.label, x + 6, statsY + 7);
-      // Value — mixed (number + Lao unit) via drawMixed
-      doc.setTextColor(...card.color);
-      drawMixed(card.value, x + 6, statsY + 14, 9);
-    });
-
-    // ── 6. Build Table Data ─────────────────────────────────────────────────
-    const tableColumn = [
-      "ລຳດັບ",
-      "ຫົວຂໍ້",
-      "ລາຍລະອຽດ",
-      "ວັນທີມອດໄຟ",       // merged: startDate – endDate
-      "ເວລາ",
-      "ເວລາໃຊ້",
-      "ແຂວງ",
-      "ເມືອງ",
-      "ບ້ານທີ່ຈະມອດໄຟ",
-      "ຜູ້ໃຊ້ໄຟທີ່ໄດ້ຮັບການແຈ້ງເຕືອນ",
-    ];
-
-    const tableRows = allData.map((d, index) => {
-      const villagesWithUsers =
-        d.turnoffAddresses
-          ?.map(
-            (a) =>
-              `${a.village?.village_name || `Village #${a.villageId}`}${a.userCount ? ` (${a.userCount})` : ""}`
-          )
-          .join(", ") || "-";
-
-      const rowUsers =
-        d.turnoffAddresses?.reduce((acc, a) => acc + (Number(a.userCount) || 0), 0) || 0;
-
-      // Merge start/end date: show range only when dates differ
-      const fmtStart = d.startDate ? moment(d.startDate).format("DD/MM/YYYY") : "";
-      const fmtEnd = d.endDate ? moment(d.endDate).format("DD/MM/YYYY") : "";
-      const dateRange = fmtStart && fmtEnd && fmtStart !== fmtEnd
-        ? `${fmtStart} – ${fmtEnd}`
-        : fmtStart || fmtEnd || "-";
-
-      return [
-        String(index + 1),
-        d.title || "",
-        d.description || "",
-        dateRange,                                                          // col 3: ວັນທີມອດໄຟ
-        `${d.startTime || "--:--"} - ${d.endTime || "--:--"}`,            // col 4: ເວລາ
-        d.useTime !== null && d.useTime !== undefined ? String(d.useTime) : "-", // col 5: ເວລາໃຊ້
-        d.province?.province_name || "-",                                  // col 6: ແຂວງ
-        d.district?.district_name || "-",                                  // col 7: ເມືອງ
-        villagesWithUsers,                                                  // col 8: ບ້ານ
-        rowUsers > 0 ? rowUsers.toLocaleString() : "-",                    // col 9: ຜູ້ໃຊ້ໄຟ
-      ];
-    });
-
-    // ── 7. Render autoTable ─────────────────────────────────────────────────
-    // Column widths are defined as proportional bases then scaled so their
-    // total always equals contentW (= pageW - marginL - marginR) exactly.
-    const _baseW = [10, 40, 36, 36, 24, 16, 24, 24, 52, 17]; // 10 cols, sum = 279
-    const _baseSum = _baseW.reduce((a, b) => a + b, 0);
-    // Scale each column; last column absorbs any rounding remainder.
-    const _scaled = _baseW.map((w, i) =>
-      i < _baseW.length - 1
-        ? parseFloat((contentW * w / _baseSum).toFixed(2))
-        : 0
-    );
-    _scaled[_scaled.length - 1] = parseFloat(
-      (contentW - _scaled.slice(0, -1).reduce((a, b) => a + b, 0)).toFixed(2)
-    );
-    const cw = (col: number) => _scaled[col];
-
-    autoTable(doc, {
-      startY: statsY + 21,
-      margin: { top: statsY + 21, left: marginL, right: marginR, bottom: 16 },
-      head: [tableColumn],
-      body: tableRows,
-      styles: {
-        font: "NotoSansLao",
-        fontStyle: "normal",
-        fontSize: 7,
-        cellPadding: { top: 2.5, right: 2, bottom: 2.5, left: 2 },
-        overflow: "linebreak",
-        lineColor: [226, 232, 240],
-        lineWidth: 0.2,
-        textColor: [30, 41, 59],
-      },
-      headStyles: {
-        font: "NotoSansLao",
-        fontStyle: "normal",
-        fillColor: [37, 99, 235],
-        textColor: [255, 255, 255],
-        fontSize: 7,
-        halign: "center",
-        valign: "middle",
-        cellPadding: { top: 3, right: 2, bottom: 3, left: 2 },
-        lineColor: [29, 78, 216],
-        lineWidth: 0.3,
-      },
-      bodyStyles: {
-        font: "NotoSansLao",
-        fontStyle: "normal",
-        valign: "top",
-      },
-      alternateRowStyles: {
-        fillColor: [241, 245, 249],
-      },
-      columnStyles: {
-        0: { cellWidth: cw(0), halign: "center", fontStyle: "bold" }, // ລຳດັບ
-        1: { cellWidth: cw(1) },                                        // ຫົວຂໍ້
-        2: { cellWidth: cw(2) },                                        // ລາຍລະອຽດ
-        3: { cellWidth: cw(3), halign: "center" },                     // ວັນທີມອດໄຟ
-        4: { cellWidth: cw(4), halign: "center" },                     // ເວລາ
-        5: { cellWidth: cw(5), halign: "center" },                     // ເວລາໃຊ້
-        6: { cellWidth: cw(6) },                                        // ແຂວງ
-        7: { cellWidth: cw(7) },                                        // ເມືອງ
-        8: { cellWidth: cw(8) },                                        // ບ້ານ
-        9: { cellWidth: cw(9), halign: "center" },                     // ຜູ້ໃຊ້ໄຟ
-      },
-
-      // ── Smart multi-language rendering per cell via didDrawCell ─────────────
-      // Covers both head and body: erases autoTable's own text and redraws using
-      // the mixed-font helper so every character gets the correct font.
-      didDrawCell: (data) => {
-        // ── HEAD: blue background, white text ──────────────────────────────
-        if (data.section === "head") {
-          const cellText = Array.isArray(data.cell.text)
-            ? data.cell.text.join("\n")
-            : String(data.cell.text ?? "");
-
-          if (!cellText) return;
-
-          // Erase autotable's head text with the header fill colour
-          doc.setFillColor(37, 99, 235);
-          doc.rect(
-            data.cell.x + 0.1,
-            data.cell.y + 0.1,
-            data.cell.width - 0.2,
-            data.cell.height - 0.2,
-            "F"
-          );
-
-          const headFontSize = 7;
-          const pad = 2;
-          const lines = cellText.split("\n");
-          const totalH = lines.length * headFontSize * 0.352 * 2.2;
-          // Vertically centre multi-line text in the cell
-          let lineY =
-            data.cell.y +
-            (data.cell.height - totalH) / 2 +
-            headFontSize * 0.352 +
-            0.3;
-
-          for (const line of lines) {
-            const lineW = mixedTextWidth(line, headFontSize);
-            // Headers are always centre-aligned
-            const lineX = data.cell.x + (data.cell.width - lineW) / 2;
-            doc.setTextColor(255, 255, 255);
-            drawMixed(line, lineX, lineY, headFontSize);
-            lineY += headFontSize * 0.352 * 2.2;
-          }
-          return;
-        }
-
-        // ── BODY: alternating background, dark text ─────────────────────────
-        if (data.section !== "body") return;
-
-        const cellText = Array.isArray(data.cell.text)
-          ? data.cell.text.join("\n")
-          : String(data.cell.text ?? "");
-
-        if (!cellText || cellText === "-") return;
-
-        // Erase autoTable's own text by painting the row fill colour on top
-        const fillRgb = data.row.index % 2 === 0
-          ? [255, 255, 255]   // white row
-          : [241, 245, 249];  // alternate slate-100
-        doc.setFillColor(fillRgb[0], fillRgb[1], fillRgb[2]);
-        doc.rect(
-          data.cell.x + 0.1,
-          data.cell.y + 0.1,
-          data.cell.width - 0.2,
-          data.cell.height - 0.2,
-          "F"
-        );
-
-        const fontSize = 7;
-        const pad = 2;
-        const colAlign = (data.cell.styles.halign as string) || "left";
-
-        // Split multi-line text and draw each line with the mixed-font helper
-        const lines = cellText.split("\n");
-        let lineY = data.cell.y + data.cell.padding("top") + fontSize * 0.352 + 0.5;
-
-        for (const line of lines) {
-          const lineW = mixedTextWidth(line, fontSize);
-          let lineX = data.cell.x + pad;
-
-          if (colAlign === "center") {
-            lineX = data.cell.x + (data.cell.width - lineW) / 2;
-          } else if (colAlign === "right") {
-            lineX = data.cell.x + data.cell.width - pad - lineW;
-          }
-
-          doc.setTextColor(30, 41, 59);
-          drawMixed(line, lineX, lineY, fontSize);
-          lineY += fontSize * 0.352 * 2.2; // line-height
-        }
-      },
-
-      // ── Per-page footer ─────────────────────────────────────────────────────
-      didDrawPage: (data) => {
-        const totalPages = (doc.internal as any).getNumberOfPages();
-        const currentPage = data.pageNumber;
-
-        doc.setDrawColor(203, 213, 225);
-        doc.setLineWidth(0.3);
-        doc.line(marginL, pageH - 10, pageW - marginR, pageH - 10);
-
-        // Left: Lao system name
-        doc.setTextColor(148, 163, 184);
-        drawMixed("ລາຍງານການແຈ້ງມອດໄຟ", marginL, pageH - 6, 6.5);
-
-        // Right: page info (mixed date + numbers)
-        drawMixed(`Page ${currentPage} / ${totalPages}   |   ${printedAt}`, pageW - marginR, pageH - 6, 6.5, "right");
-      },
-    });
-
-    // ── 8. Save file ────────────────────────────────────────────────────────
-    doc.save(`turnoff_report_${startDate}_to_${endDate}.pdf`);
-    toast.success(`ສົ່ງອອກ PDF ສຳເລັດ — ${allData.length} ລາຍການ`);
   };
 
   // Handle Page Change

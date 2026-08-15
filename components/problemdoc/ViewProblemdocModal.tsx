@@ -207,8 +207,15 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
                     ? `https://router.project-osrm.org/route/v1/driving/${currentLng},${currentLat};${waypointStrings};${initialLng},${initialLat}?overview=full&geometries=geojson`
                     : `https://router.project-osrm.org/route/v1/driving/${currentLng},${currentLat};${initialLng},${initialLat}?overview=full&geometries=geojson`;
 
-                  fetch(routeUrl)
-                    .then((res) => res.json())
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                  fetch(routeUrl, { signal: controller.signal })
+                    .then((res) => {
+                      clearTimeout(timeoutId);
+                      if (!res.ok) throw new Error(`OSRM status ${res.status}`);
+                      return res.json();
+                    })
                     .then((data) => {
                       if (!mapActive) return;
                       if (data.routes && data.routes[0]) {
@@ -229,10 +236,27 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
                         setHasRoute(true);
                       }
                     })
-                    .catch((err) => {
-                      if (mapActive) {
-                        console.error("Error fetching route from OSRM:", err);
+                    .catch(() => {
+                      clearTimeout(timeoutId);
+                      // Graceful fallback to direct dashed line if OSRM is blocked or unavailable
+                      if (!mapActive) return;
+                      if (routePolylineRef.current) {
+                        mapInstance.removeLayer(routePolylineRef.current);
                       }
+                      routePolylineRef.current = L.polyline(
+                        [
+                          [currentLat, currentLng],
+                          [initialLat, initialLng],
+                        ],
+                        {
+                          color: "#3b82f6",
+                          weight: 4,
+                          opacity: 0.7,
+                          dashArray: "8, 8",
+                          lineJoin: "round",
+                        }
+                      ).addTo(mapInstance);
+                      setHasRoute(true);
                     });
                 },
                 (error) => {
@@ -286,6 +310,8 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
       return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
     } else if (statusId === 4) {
       return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+    } else if (statusId === 5) {
+      return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
     }
     return "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300";
   };

@@ -210,8 +210,15 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
                     ? `https://router.project-osrm.org/route/v1/driving/${currentLng},${currentLat};${waypointStrings};${initialLng},${initialLat}?overview=full&geometries=geojson`
                     : `https://router.project-osrm.org/route/v1/driving/${currentLng},${currentLat};${initialLng},${initialLat}?overview=full&geometries=geojson`;
 
-                  fetch(routeUrl)
-                    .then((res) => res.json())
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                  fetch(routeUrl, { signal: controller.signal })
+                    .then((res) => {
+                      clearTimeout(timeoutId);
+                      if (!res.ok) throw new Error(`OSRM status ${res.status}`);
+                      return res.json();
+                    })
                     .then((data) => {
                       if (!mapActive) return;
                       if (data.routes && data.routes[0]) {
@@ -232,10 +239,27 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
                         setHasRoute(true);
                       }
                     })
-                    .catch((err) => {
-                      if (mapActive) {
-                        console.error("Error fetching route from OSRM:", err);
+                    .catch(() => {
+                      clearTimeout(timeoutId);
+                      // Graceful fallback to direct dashed line if OSRM is blocked or unavailable
+                      if (!mapActive) return;
+                      if (routePolylineRef.current) {
+                        mapInstance.removeLayer(routePolylineRef.current);
                       }
+                      routePolylineRef.current = L.polyline(
+                        [
+                          [currentLat, currentLng],
+                          [initialLat, initialLng],
+                        ],
+                        {
+                          color: "#3b82f6",
+                          weight: 4,
+                          opacity: 0.7,
+                          dashArray: "8, 8",
+                          lineJoin: "round",
+                        }
+                      ).addTo(mapInstance);
+                      setHasRoute(true);
                     });
                 },
                 (error) => {

@@ -20,61 +20,67 @@ export function AssignProblemdocModal({ open, onClose, selectedDoc, onRefresh }:
 
   const [branches, setBranches] = useState<{ id: number; name: string; code: string }[]>([]);
   const [repairDistricts, setRepairDistricts] = useState<{ id: number; name: string; code: string }[]>([]);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Load initial branch dropdown on open
-  useEffect(() => {
-    if (open) {
-      setError("");
-
-      if (selectedDoc) {
-        setBranchId(selectedDoc.branchId ? String(selectedDoc.branchId) : "");
-        setRepairDistrictId(selectedDoc.repairDistrictId ? String(selectedDoc.repairDistrictId) : "");
-      } else {
-        setBranchId("");
-        setRepairDistrictId("");
-      }
-
-      const fetchBranches = async () => {
-        try {
-          const res = await axiosInstance.get("/branchs/selectbranch");
-          setBranches(res.data || []);
-        } catch (err) {
-          console.error("Failed to load branches for assign modal:", err);
-        }
-      };
-      fetchBranches();
-    }
-  }, [open, selectedDoc]);
-
-  // Load repair districts when branchId changes
+  // Load initial branch list and repair districts when modal opens
   useEffect(() => {
     if (!open) return;
-    if (!branchId) {
-      setRepairDistricts([]);
-      setRepairDistrictId("");
-      return;
-    }
 
-    const fetchRepairDistricts = async () => {
+    setError("");
+    const initialBranchId = selectedDoc?.branchId ? String(selectedDoc.branchId) : "";
+    const initialRepairDistrictId = selectedDoc?.repairDistrictId ? String(selectedDoc.repairDistrictId) : "";
+
+    setBranchId(initialBranchId);
+    setRepairDistrictId(initialRepairDistrictId);
+
+    const fetchInitialData = async () => {
       try {
-        const res = await axiosInstance.get(`/repairdistricts/selectrepairdistrict?branchId=${branchId}`);
-        setRepairDistricts(res.data || []);
+        const branchRes = await axiosInstance.get("/branchs/selectbranch");
+        setBranches(branchRes.data || []);
+
+        if (initialBranchId) {
+          setLoadingDistricts(true);
+          try {
+            const rdRes = await axiosInstance.get(`/repairdistricts/selectrepairdistrict?branchId=${initialBranchId}`);
+            setRepairDistricts(rdRes.data || []);
+          } finally {
+            setLoadingDistricts(false);
+          }
+        } else {
+          setRepairDistricts([]);
+        }
       } catch (err) {
-        console.error("Failed to load repair districts:", err);
-        setRepairDistricts([]);
+        console.error("Failed to load initial data for assign modal:", err);
       }
     };
 
-    fetchRepairDistricts();
-  }, [open, branchId]);
+    fetchInitialData();
+  }, [open, selectedDoc]);
 
-  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  // When user manually changes branch dropdown
+  const handleBranchChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setBranchId(val);
-    setRepairDistrictId(""); // reset repair district when branch changes
+    setRepairDistrictId(""); // only reset repair district when user manually selects another branch
+
+    if (!val) {
+      setRepairDistricts([]);
+      return;
+    }
+
+    setLoadingDistricts(true);
+    try {
+      const res = await axiosInstance.get(`/repairdistricts/selectrepairdistrict?branchId=${val}`);
+      setRepairDistricts(res.data || []);
+    } catch (err) {
+      console.error("Failed to load repair districts:", err);
+      setRepairDistricts([]);
+    } finally {
+      setLoadingDistricts(false);
+    }
   };
 
   const handleAssign = async () => {
@@ -162,10 +168,19 @@ export function AssignProblemdocModal({ open, onClose, selectedDoc, onRefresh }:
         <Select
           label="ສູນສ້ອມແປງເມືອງ *"
           value={repairDistrictId}
-          disabled={!branchId}
+          disabled={!branchId || loadingDistricts}
           onChange={(e) => setRepairDistrictId(e.target.value)}
           options={[
-            { value: "", label: branchId ? "-- ເລືອກສູນສ້ອມແປງ --" : "-- ກະລຸນາເລືອກສາຂາແຂວງກ່ອນ --" },
+            {
+              value: "",
+              label: !branchId
+                ? "-- ກະລຸນາເລືອກສາຂາແຂວງກ່ອນ --"
+                : loadingDistricts
+                ? "-- ກຳລັງໂຫຼດສູນສ້ອມແປງ... --"
+                : repairDistricts.length === 0
+                ? "-- ບໍ່ມີຂໍ້ມູນສູນສ້ອມແປງ --"
+                : "-- ເລືອກສູນສ້ອມແປງ --",
+            },
             ...repairDistricts.map((rd) => ({ value: String(rd.id), label: `${rd.name}` })),
           ]}
         />
@@ -183,3 +198,4 @@ export function AssignProblemdocModal({ open, onClose, selectedDoc, onRefresh }:
     </Modal>
   );
 }
+

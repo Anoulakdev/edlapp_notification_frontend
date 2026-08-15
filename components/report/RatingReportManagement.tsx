@@ -27,7 +27,6 @@ import {
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
 import moment from "moment";
-import type jsPDF from "jspdf";
 
 // Interface definitions
 interface AgentEmployee {
@@ -333,30 +332,6 @@ export function RatingReportManagement() {
     );
   };
 
-  // Helper function to process text into multiline Lao PDF chunks
-  const formatLaoPdfText = (doc: jsPDF, text: string, maxLineWidth: number): string[] => {
-    if (!text) return ["-"];
-
-    const words = text.split(/(\s+)/);
-    const lines: string[] = [];
-    let currentLine = "";
-
-    for (const word of words) {
-      const testLine = currentLine + word;
-      const testWidth = doc.getTextWidth(testLine);
-      if (testWidth > maxLineWidth && currentLine.trim() !== "") {
-        lines.push(currentLine.trim());
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    }
-    if (currentLine.trim() !== "") {
-      lines.push(currentLine.trim());
-    }
-
-    return lines.length > 0 ? lines : ["-"];
-  };
 
   // Export Excel — Combined 2 Worksheets in 1 File
   const handleExportExcel = async () => {
@@ -454,18 +429,12 @@ export function RatingReportManagement() {
     toast.success("ສົ່ງອອກ Excel ສຳເລັດແລ້ວ");
   };
 
-  // Export PDF — Combined 2 Sections/Tables in 1 File with Lao font support
+  // Export PDF — Combined 2 Sections/Tables in 1 File using @react-pdf/renderer with PhetsarathOT font
   const handleExportPDF = async () => {
     if (!startDate || !endDate) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ PDF");
       return;
     }
-
-    const [{ default: jsPDF }, { default: autoTable }, { notoSansLaoBase64 }] = await Promise.all([
-      import("jspdf"),
-      import("jspdf-autotable"),
-      import("@/lib/notoSansLaoBase64"),
-    ]);
 
     let allData: RatingDataItem[] = [];
     let countData: RatingCountItem[] = [];
@@ -499,465 +468,27 @@ export function RatingReportManagement() {
       return;
     }
 
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth(); // 297 mm
-    const pageH = doc.internal.pageSize.getHeight(); // 210 mm
-    const marginL = 8;
-    const marginR = 8;
-    const contentW = pageW - marginL - marginR;
-    const printedAt = moment().format("DD/MM/YYYY HH:mm:ss");
+    try {
+      const { RatingReportPDF } = await import("./pdf/RatingReportPDF");
+      const { generateAndDownloadPDF } = await import("@/lib/pdf/downloadPdf");
 
-    if (notoSansLaoBase64) {
-      doc.addFileToVFS("NotoSansLao-Regular.ttf", notoSansLaoBase64);
-      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "normal");
-      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "bold");
+      await generateAndDownloadPDF(
+        <RatingReportPDF
+          data={allData}
+          countData={countData}
+          startDate={startDate}
+          endDate={endDate}
+        />,
+        `rating_report_${startDate}_to_${endDate}.pdf`
+      );
+
+      toast.success("ສົ່ງອອກ PDF ສຳເລັດແລ້ວ");
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      toast.error("ເກີດຂໍ້ຜິດພາດໃນການສ້າງ PDF");
     }
-
-    const isLaoChar = (ch: string) => {
-      const code = ch.charCodeAt(0);
-      return code >= 0x0e80 && code <= 0x0eff;
-    };
-
-    type Segment = { text: string; isLao: boolean };
-    const splitSegments = (text: string): Segment[] => {
-      if (!text) return [];
-      const segs: Segment[] = [];
-      let buf = text[0];
-      let curLao = isLaoChar(text[0]);
-      for (let i = 1; i < text.length; i++) {
-        const lao = isLaoChar(text[i]);
-        if (lao !== curLao) {
-          segs.push({ text: buf, isLao: curLao });
-          buf = text[i];
-          curLao = lao;
-        } else {
-          buf += text[i];
-        }
-      }
-      segs.push({ text: buf, isLao: curLao });
-      return segs;
-    };
-
-    const mixedTextWidth = (text: string, size: number): number => {
-      let w = 0;
-      for (const seg of splitSegments(text)) {
-        doc.setFont(seg.isLao ? "NotoSansLao" : "helvetica", "normal");
-        doc.setFontSize(size);
-        w += doc.getTextWidth(seg.text);
-      }
-      return w;
-    };
-
-    const drawMixed = (
-      text: string,
-      x: number,
-      y: number,
-      size: number,
-      align: "left" | "right" = "left"
-    ): number => {
-      const segs = splitSegments(text);
-      if (align === "right") {
-        const totalW = mixedTextWidth(text, size);
-        x = x - totalW;
-      }
-      let curX = x;
-      for (const seg of segs) {
-        doc.setFont(seg.isLao ? "NotoSansLao" : "helvetica", "normal");
-        doc.setFontSize(size);
-        doc.text(seg.text, curX, y);
-        curX += doc.getTextWidth(seg.text);
-      }
-      return curX;
-    };
-
-    const setLao = (size: number) => {
-      doc.setFont("NotoSansLao", "normal");
-      doc.setFontSize(size);
-    };
-
-    // ── SECTION 1: Rating Details Table ──────────────────────────────────────
-    if (allData.length > 0) {
-      doc.setFillColor(37, 99, 235);
-      doc.rect(marginL, 8, contentW, 1.2, "F");
-
-      doc.setTextColor(15, 23, 42);
-      setLao(14);
-      doc.text("ລາຍງານລາຍລະອຽດການປະເມິນຄວາມພໍໃຈ", marginL, 20);
-
-      doc.setTextColor(100, 116, 139);
-      drawMixed(
-        `ຊ່ວງວັນທີ: ${moment(startDate).format("DD/MM/YYYY")} – ${moment(endDate).format("DD/MM/YYYY")}`,
-        pageW - marginR,
-        20,
-        8,
-        "right"
-      );
-      drawMixed(`ພິມວັນທີ: ${printedAt}`, pageW - marginR, 25, 8, "right");
-
-      doc.setDrawColor(203, 213, 225);
-      doc.setLineWidth(0.4);
-      doc.line(marginL, 28, pageW - marginR, 28);
-
-      const tableColumn1 = ["ລຳດັບ", "ວັນທີປະເມີນ", "ຜູ້ປະເມີນ", "ພະນັກງານ", "ຫົວຂໍ້", "ຄະແນນ", "ຄຳຄິດເຫັນ"];
-      const tableRows1 = allData.map((item, idx) => {
-        const dateStr = item.createdAt ? moment(item.createdAt).format("DD/MM/YYYY HH:mm") : "-";
-        const agentStr =
-          `${item.agent?.employee?.first_name || ""} ${item.agent?.employee?.last_name || ""}`.trim() ||
-          `Agent #${item.agentId}`;
-        const customerStr = item.externalUser?.customerName || item.externalUser?.name || "ບໍ່ລະບຸຊື່";
-        const phoneStr = item.externalUser?.msisdn || item.externalUser?.phone || "";
-        const topicStr = item.topic?.name || "-";
-        const ratingStr = `${item.rating} ດາວ`;
-        const commentStr = item.comment || "-";
-
-        return [
-          String(idx + 1),
-          dateStr,
-          phoneStr ? `${customerStr}\n(${phoneStr})` : customerStr,
-          agentStr,
-          topicStr,
-          ratingStr,
-          commentStr,
-        ];
-      });
-
-      const _baseW1 = [12, 32, 48, 48, 40, 22, 79];
-      const _baseSum1 = _baseW1.reduce((a, b) => a + b, 0);
-      const _scaled1 = _baseW1.map((w, i) =>
-        i < _baseW1.length - 1 ? parseFloat(((contentW * w) / _baseSum1).toFixed(2)) : 0
-      );
-      _scaled1[_scaled1.length - 1] = parseFloat(
-        (contentW - _scaled1.slice(0, -1).reduce((a, b) => a + b, 0)).toFixed(2)
-      );
-
-      const cw1 = (col: number) => _scaled1[col];
-
-      autoTable(doc, {
-        startY: 32,
-        margin: { top: 15, left: marginL, right: marginR, bottom: 16 },
-        head: [tableColumn1],
-        body: tableRows1,
-        styles: {
-          font: "NotoSansLao",
-          fontStyle: "normal",
-          fontSize: 7.5,
-          cellPadding: { top: 2.5, right: 2, bottom: 2.5, left: 2 },
-          overflow: "linebreak",
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2,
-          textColor: [30, 41, 59],
-        },
-        headStyles: {
-          font: "NotoSansLao",
-          fontStyle: "normal",
-          fillColor: [37, 99, 235],
-          textColor: [255, 255, 255],
-          fontSize: 8,
-          halign: "center",
-          valign: "middle",
-          cellPadding: { top: 3, right: 2, bottom: 3, left: 2 },
-          lineColor: [29, 78, 216],
-          lineWidth: 0.3,
-        },
-        bodyStyles: {
-          font: "NotoSansLao",
-          fontStyle: "normal",
-          valign: "top",
-        },
-        alternateRowStyles: {
-          fillColor: [241, 245, 249],
-        },
-        columnStyles: {
-          0: { cellWidth: cw1(0), halign: "center" },
-          1: { cellWidth: cw1(1), halign: "center" },
-          2: { cellWidth: cw1(2) },
-          3: { cellWidth: cw1(3) },
-          4: { cellWidth: cw1(4) },
-          5: { cellWidth: cw1(5), halign: "center" },
-          6: { cellWidth: cw1(6) },
-        },
-        didDrawCell: (data) => {
-          if (data.section === "head") {
-            const cellText = Array.isArray(data.cell.text)
-              ? data.cell.text.join("\n")
-              : String(data.cell.text ?? "");
-            if (!cellText) return;
-
-            doc.setFillColor(37, 99, 235);
-            doc.rect(
-              data.cell.x + 0.1,
-              data.cell.y + 0.1,
-              data.cell.width - 0.2,
-              data.cell.height - 0.2,
-              "F"
-            );
-
-            const headFontSize = 8;
-            const lines = cellText.split("\n");
-            const totalH = lines.length * headFontSize * 0.352 * 2.2;
-            let lineY =
-              data.cell.y + (data.cell.height - totalH) / 2 + headFontSize * 0.352 + 0.3;
-
-            for (const line of lines) {
-              const lineW = mixedTextWidth(line, headFontSize);
-              const lineX = data.cell.x + (data.cell.width - lineW) / 2;
-              doc.setTextColor(255, 255, 255);
-              drawMixed(line, lineX, lineY, headFontSize);
-              lineY += headFontSize * 0.352 * 2.2;
-            }
-            return;
-          }
-
-          if (data.section !== "body") return;
-
-          const cellText = Array.isArray(data.cell.text)
-            ? data.cell.text.join("\n")
-            : String(data.cell.text ?? "");
-          if (!cellText || cellText === "-") return;
-
-          const fillRgb = data.row.index % 2 === 0 ? [255, 255, 255] : [241, 245, 249];
-          doc.setFillColor(fillRgb[0], fillRgb[1], fillRgb[2]);
-          doc.rect(
-            data.cell.x + 0.1,
-            data.cell.y + 0.1,
-            data.cell.width - 0.2,
-            data.cell.height - 0.2,
-            "F"
-          );
-
-          const fontSize = 7.5;
-          const pad = 2;
-          const colAlign = (data.cell.styles.halign as string) || "left";
-          const lines = cellText.split("\n");
-          let lineY = data.cell.y + data.cell.padding("top") + fontSize * 0.352 + 0.5;
-
-          for (const line of lines) {
-            const lineW = mixedTextWidth(line, fontSize);
-            let lineX = data.cell.x + pad;
-            if (colAlign === "center") {
-              lineX = data.cell.x + (data.cell.width - lineW) / 2;
-            } else if (colAlign === "right") {
-              lineX = data.cell.x + data.cell.width - pad - lineW;
-            }
-
-            doc.setTextColor(30, 41, 59);
-            drawMixed(line, lineX, lineY, fontSize);
-            lineY += fontSize * 0.352 * 2.2;
-          }
-        },
-      });
-    }
-
-    // ── SECTION 2: Rating Summary Table (New Page) ───────────────────────────
-    if (countData.length > 0) {
-      if (allData.length > 0) {
-        doc.addPage();
-      }
-
-      doc.setFillColor(37, 99, 235);
-      doc.rect(marginL, 8, contentW, 1.2, "F");
-
-      doc.setTextColor(15, 23, 42);
-      setLao(14);
-      doc.text("ລາຍງານສະຫຼຸບຈຳນວນດາວຕາມພະນັກງານ", marginL, 20);
-
-      doc.setTextColor(100, 116, 139);
-      drawMixed(
-        `ຊ່ວງວັນທີ: ${moment(startDate).format("DD/MM/YYYY")} – ${moment(endDate).format("DD/MM/YYYY")}`,
-        pageW - marginR,
-        20,
-        8,
-        "right"
-      );
-      drawMixed(`ພິມວັນທີ: ${printedAt}`, pageW - marginR, 25, 8, "right");
-
-      doc.setDrawColor(203, 213, 225);
-      doc.setLineWidth(0.4);
-      doc.line(marginL, 28, pageW - marginR, 28);
-
-      const tableColumn2 = [
-        "ລຳດັບ",
-        "ຊື່ພະນັກງານ",
-        "1 ດາວ",
-        "2 ດາວ",
-        "3 ດາວ",
-        "4 ດາວ",
-        "5 ດາວ",
-        "ລວມທັງໝົດ",
-        "ຄະແນນສະເລ່ຍ",
-      ];
-      const tableRows2 = countData.map((item, idx) => {
-        const agentStr =
-          `${item.agent?.employee?.first_name || ""} ${item.agent?.employee?.last_name || ""}`.trim() ||
-          `Agent #${item.agentId}`;
-        const empCode = item.agent?.employee?.emp_code ? `(${item.agent.employee.emp_code})` : "";
-
-        return [
-          String(idx + 1),
-          `${agentStr} ${empCode}`,
-          String(item.rating1),
-          String(item.rating2),
-          String(item.rating3),
-          String(item.rating4),
-          String(item.rating5),
-          String(item.totalRatings),
-          `${item.averageRating}`,
-        ];
-      });
-
-      const _baseW2 = [14, 85, 22, 22, 22, 22, 22, 30, 30];
-      const _baseSum2 = _baseW2.reduce((a, b) => a + b, 0);
-      const _scaled2 = _baseW2.map((w, i) =>
-        i < _baseW2.length - 1 ? parseFloat(((contentW * w) / _baseSum2).toFixed(2)) : 0
-      );
-      _scaled2[_scaled2.length - 1] = parseFloat(
-        (contentW - _scaled2.slice(0, -1).reduce((a, b) => a + b, 0)).toFixed(2)
-      );
-
-      const cw2 = (col: number) => _scaled2[col];
-
-      autoTable(doc, {
-        startY: 32,
-        margin: { top: 15, left: marginL, right: marginR, bottom: 16 },
-        head: [tableColumn2],
-        body: tableRows2,
-        styles: {
-          font: "NotoSansLao",
-          fontStyle: "normal",
-          fontSize: 8,
-          cellPadding: { top: 2.5, right: 2, bottom: 2.5, left: 2 },
-          overflow: "linebreak",
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2,
-          textColor: [30, 41, 59],
-        },
-        headStyles: {
-          font: "NotoSansLao",
-          fontStyle: "normal",
-          fillColor: [37, 99, 235],
-          textColor: [255, 255, 255],
-          fontSize: 8.5,
-          halign: "center",
-          valign: "middle",
-          cellPadding: { top: 3, right: 2, bottom: 3, left: 2 },
-          lineColor: [29, 78, 216],
-          lineWidth: 0.3,
-        },
-        bodyStyles: {
-          font: "NotoSansLao",
-          fontStyle: "normal",
-          valign: "middle",
-        },
-        alternateRowStyles: {
-          fillColor: [241, 245, 249],
-        },
-        columnStyles: {
-          0: { cellWidth: cw2(0), halign: "center" },
-          1: { cellWidth: cw2(1) },
-          2: { cellWidth: cw2(2), halign: "center" },
-          3: { cellWidth: cw2(3), halign: "center" },
-          4: { cellWidth: cw2(4), halign: "center" },
-          5: { cellWidth: cw2(5), halign: "center" },
-          6: { cellWidth: cw2(6), halign: "center" },
-          7: { cellWidth: cw2(7), halign: "center" },
-          8: { cellWidth: cw2(8), halign: "center" },
-        },
-        didDrawCell: (data) => {
-          if (data.section === "head") {
-            const cellText = Array.isArray(data.cell.text)
-              ? data.cell.text.join("\n")
-              : String(data.cell.text ?? "");
-            if (!cellText) return;
-
-            doc.setFillColor(37, 99, 235);
-            doc.rect(
-              data.cell.x + 0.1,
-              data.cell.y + 0.1,
-              data.cell.width - 0.2,
-              data.cell.height - 0.2,
-              "F"
-            );
-
-            const headFontSize = 8.5;
-            const lines = cellText.split("\n");
-            const totalH = lines.length * headFontSize * 0.352 * 2.2;
-            let lineY =
-              data.cell.y + (data.cell.height - totalH) / 2 + headFontSize * 0.352 + 0.3;
-
-            for (const line of lines) {
-              const lineW = mixedTextWidth(line, headFontSize);
-              const lineX = data.cell.x + (data.cell.width - lineW) / 2;
-              doc.setTextColor(255, 255, 255);
-              drawMixed(line, lineX, lineY, headFontSize);
-              lineY += headFontSize * 0.352 * 2.2;
-            }
-            return;
-          }
-
-          if (data.section !== "body") return;
-
-          const cellText = Array.isArray(data.cell.text)
-            ? data.cell.text.join("\n")
-            : String(data.cell.text ?? "");
-          if (!cellText || cellText === "-") return;
-
-          const fillRgb = data.row.index % 2 === 0 ? [255, 255, 255] : [241, 245, 249];
-          doc.setFillColor(fillRgb[0], fillRgb[1], fillRgb[2]);
-          doc.rect(
-            data.cell.x + 0.1,
-            data.cell.y + 0.1,
-            data.cell.width - 0.2,
-            data.cell.height - 0.2,
-            "F"
-          );
-
-          const fontSize = 8;
-          const pad = 2;
-          const colAlign = (data.cell.styles.halign as string) || "left";
-          const lines = cellText.split("\n");
-          let lineY = data.cell.y + data.cell.padding("top") + fontSize * 0.352 + 0.5;
-
-          for (const line of lines) {
-            const lineW = mixedTextWidth(line, fontSize);
-            let lineX = data.cell.x + pad;
-            if (colAlign === "center") {
-              lineX = data.cell.x + (data.cell.width - lineW) / 2;
-            } else if (colAlign === "right") {
-              lineX = data.cell.x + data.cell.width - pad - lineW;
-            }
-
-            doc.setTextColor(30, 41, 59);
-            drawMixed(line, lineX, lineY, fontSize);
-            lineY += fontSize * 0.352 * 2.2;
-          }
-        },
-      });
-    }
-
-    // ── 2-Pass Page Footer Rendering ──────────────────────────────────────────
-    const totalPages = (doc.internal as any).getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-
-      doc.setDrawColor(203, 213, 225);
-      doc.setLineWidth(0.3);
-      doc.line(marginL, pageH - 10, pageW - marginR, pageH - 10);
-
-      doc.setTextColor(148, 163, 184);
-      drawMixed("ລາຍງານການປະເມີນຄວາມພໍໃຈ", marginL, pageH - 6, 6.5);
-
-      drawMixed(
-        `Page ${i} / ${totalPages}   |   ${printedAt}`,
-        pageW - marginR,
-        pageH - 6,
-        6.5,
-        "right"
-      );
-    }
-
-    doc.save(`rating_report_${startDate}_to_${endDate}.pdf`);
-    toast.success("ສົ່ງອອກ PDF ສຳເລັດແລ້ວ");
   };
+
 
   const isLoading = loadingData || loadingCount;
 

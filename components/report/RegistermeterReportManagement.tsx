@@ -385,18 +385,12 @@ export function RegistermeterReportManagement() {
     toast.success("ສົ່ງອອກຂໍ້ມູນ Excel (.xlsx) ສຳເລັດແລ້ວ");
   };
 
-  // Export to PDF (.pdf)
+  // Export to PDF (.pdf) using @react-pdf/renderer with PhetsarathOT font
   const handleExportPDF = async () => {
     if (!startDate || !endDate) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ PDF");
       return;
     }
-
-    const [{ default: jsPDF }, { default: autoTable }, { notoSansLaoBase64 }] = await Promise.all([
-      import("jspdf"),
-      import("jspdf-autotable"),
-      import("@/lib/notoSansLaoBase64"),
-    ]);
 
     let allData: RegisterMeterReportItem[] = [];
     try {
@@ -428,330 +422,40 @@ export function RegistermeterReportManagement() {
       return;
     }
 
-    // ── Compute summary stats ────────────────────────────────────────────
-    const uniqueVillages = new Set(allData.map((d) => d.villageId)).size;
+    const filterProvince =
+      effectiveProvinceId && effectiveProvinceId !== "all"
+        ? provinces.find((p) => String(p.id) === effectiveProvinceId)?.province_name ?? "ທຸກແຂວງ"
+        : "ທຸກແຂວງ";
+    const filterDistrict =
+      effectiveDistrictId && effectiveDistrictId !== "all"
+        ? districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ"
+        : "ທຸກເມືອງ";
+    const filterVillage =
+      villageId !== "all"
+        ? villages.find((v) => String(v.id) === villageId)?.village_name ?? "ທຸກບ້ານ"
+        : "ທຸກບ້ານ";
 
-    // ── Initialise jsPDF (A4 Landscape) ──────────────────────────────────
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();   // 297 mm
-    const pageH = doc.internal.pageSize.getHeight();  // 210 mm
-    const marginL = 5;
-    const marginR = 5;
-    const contentW = pageW - marginL - marginR;
-    const printedAt = moment().format("DD/MM/YYYY HH:mm:ss");
+    try {
+      const { RegistermeterReportPDF } = await import("./pdf/RegistermeterReportPDF");
+      const { generateAndDownloadPDF } = await import("@/lib/pdf/downloadPdf");
 
-    // Register Lao font
-    if (notoSansLaoBase64) {
-      doc.addFileToVFS("NotoSansLao-Regular.ttf", notoSansLaoBase64);
-      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "normal");
-      doc.addFont("NotoSansLao-Regular.ttf", "NotoSansLao", "bold");
+      await generateAndDownloadPDF(
+        <RegistermeterReportPDF
+          data={allData}
+          startDate={startDate}
+          endDate={endDate}
+          provinceName={filterProvince}
+          districtName={filterDistrict}
+          villageName={filterVillage}
+        />,
+        `registermeter_report_${startDate}_to_${endDate}.pdf`
+      );
+
+      toast.success(`ສົ່ງອອກ PDF ສຳເລັດ — ${allData.length} ລາຍການ`);
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      toast.error("ເກີດຂໍ້ຜິດພາດໃນການສ້າງ PDF");
     }
-
-    const isLaoChar = (ch: string) => {
-      const code = ch.charCodeAt(0);
-      return code >= 0x0e80 && code <= 0x0eff;
-    };
-
-    type Segment = { text: string; isLao: boolean };
-    const splitSegments = (text: string): Segment[] => {
-      if (!text) return [];
-      const segs: Segment[] = [];
-      let buf = text[0];
-      let curLao = isLaoChar(text[0]);
-      for (let i = 1; i < text.length; i++) {
-        const lao = isLaoChar(text[i]);
-        if (lao !== curLao) {
-          segs.push({ text: buf, isLao: curLao });
-          buf = text[i];
-          curLao = lao;
-        } else {
-          buf += text[i];
-        }
-      }
-      segs.push({ text: buf, isLao: curLao });
-      return segs;
-    };
-
-    const mixedTextWidth = (text: string, size: number): number => {
-      let w = 0;
-      for (const seg of splitSegments(text)) {
-        doc.setFont(seg.isLao ? "NotoSansLao" : "helvetica", "normal");
-        doc.setFontSize(size);
-        w += doc.getTextWidth(seg.text);
-      }
-      return w;
-    };
-
-    const drawMixed = (
-      text: string,
-      x: number,
-      y: number,
-      size: number,
-      align: "left" | "right" = "left"
-    ): number => {
-      const segs = splitSegments(text);
-      if (align === "right") {
-        const totalW = mixedTextWidth(text, size);
-        x = x - totalW;
-      }
-      let curX = x;
-      for (const seg of segs) {
-        doc.setFont(seg.isLao ? "NotoSansLao" : "helvetica", "normal");
-        doc.setFontSize(size);
-        doc.text(seg.text, curX, y);
-        curX += doc.getTextWidth(seg.text);
-      }
-      return curX;
-    };
-
-    const setLao = (size: number) => { doc.setFont("NotoSansLao", "normal"); doc.setFontSize(size); };
-
-    // ── Header ───────────────────────────────────────────────────────
-    doc.setFillColor(37, 99, 235);
-    doc.rect(marginL, 8, contentW, 1.2, "F");
-
-    doc.setTextColor(15, 23, 42);
-    setLao(15);
-    doc.text("ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່", marginL, 20);
-
-    const filterProvince = effectiveProvinceId && effectiveProvinceId !== "all"
-      ? (provinces.find((p) => String(p.id) === effectiveProvinceId)?.province_name ?? "ທຸກແຂວງ")
-      : "ທຸກແຂວງ";
-    const filterDistrict = effectiveDistrictId && effectiveDistrictId !== "all"
-      ? (districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ")
-      : "ທຸກເມືອງ";
-    const filterVillage = villageId !== "all"
-      ? (villages.find((v) => String(v.id) === villageId)?.village_name ?? "ທຸກບ້ານ")
-      : "ທຸກບ້ານ";
-
-    doc.setTextColor(100, 116, 139);
-    drawMixed(
-      `ຊ່ວງວັນທີ: ${moment(startDate).format("DD/MM/YYYY")} – ${moment(endDate).format("DD/MM/YYYY")}`,
-      pageW - marginR, 20, 8, "right"
-    );
-    drawMixed(`ແຂວງ: ${filterProvince}   ເມືອງ: ${filterDistrict}   ບ້ານ: ${filterVillage}`, pageW - marginR, 25, 8, "right");
-    drawMixed(`ພິມວັນທີ: ${printedAt}`, pageW - marginR, 30, 8, "right");
-
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(0.4);
-    doc.line(marginL, 33, pageW - marginR, 33);
-
-    // ── Summary Stats Row ────────────────────────────────────────────────
-    const statsY = 36;
-    const cardW = contentW / 2;
-    const statCards = [
-      {
-        label: "ເອກະສານຂໍໝໍ້ນັບໄຟທັງໝົດ",
-        value: `${allData.length.toLocaleString()} ລາຍການ`,
-        color: [37, 99, 235] as [number, number, number],
-      },
-      {
-        label: "ບ້ານທີ່ມີການຂໍໝໍ້ນັບໄຟ",
-        value: `${uniqueVillages.toLocaleString()} ບ້ານ`,
-        color: [124, 58, 237] as [number, number, number],
-      },
-    ];
-
-    statCards.forEach((card, i) => {
-      const x = marginL + i * cardW;
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(x + 1, statsY, cardW - 2, 18, 2, 2, "F");
-      doc.setFillColor(...card.color);
-      doc.roundedRect(x + 1, statsY, 2.5, 18, 1, 1, "F");
-      setLao(6.5);
-      doc.setTextColor(100, 116, 139);
-      doc.text(card.label, x + 6, statsY + 7);
-      doc.setTextColor(...card.color);
-      drawMixed(card.value, x + 6, statsY + 14, 9);
-    });
-
-    // ── Build Table Data ─────────────────────────────────────────────────
-    const tableColumn = [
-      "ລຳດັບ",
-      "ວັນທີແຈ້ງ",
-      "ຊື່ ແລະ ນາມສະກຸນ",
-      "ເບີໂທ",
-      "ບັນຊີໄກ້ກຽງ",
-      "ສະຖານະ",
-      "ຊ່ອງທາງ",
-      "ແຂວງ",
-      "ເມືອງ",
-      "ບ້ານ",
-    ];
-
-    const tableRows = allData.map((d, index) => {
-      return [
-        String(index + 1),
-        d.createdAt ? moment(d.createdAt).format("DD/MM/YYYY") : "-",
-        d.fullName || "",
-        d.phone || "",
-        d.accountNear || "",
-        d.meterStatus?.callcenter || "-",
-        d.sourcetype?.name || "-",
-        d.province?.province_name || "-",
-        d.district?.district_name || "-",
-        d.village?.village_name || "-",
-      ];
-    });
-
-    // ── Render autoTable ─────────────────────────────────────────────────
-    const _baseW = [10, 25, 45, 28, 30, 30, 25, 26, 26, 30]; // 10 cols, sum = 275
-    const _baseSum = _baseW.reduce((a, b) => a + b, 0);
-    const _scaled = _baseW.map((w, i) =>
-      i < _baseW.length - 1
-        ? parseFloat((contentW * w / _baseSum).toFixed(2))
-        : 0
-    );
-    _scaled[_scaled.length - 1] = parseFloat(
-      (contentW - _scaled.slice(0, -1).reduce((a, b) => a + b, 0)).toFixed(2)
-    );
-    const cw = (col: number) => _scaled[col];
-
-    autoTable(doc, {
-      startY: statsY + 21,
-      margin: { top: statsY + 21, left: marginL, right: marginR, bottom: 16 },
-      head: [tableColumn],
-      body: tableRows,
-      styles: {
-        font: "NotoSansLao",
-        fontStyle: "normal",
-        fontSize: 7,
-        cellPadding: { top: 2.5, right: 2, bottom: 2.5, left: 2 },
-        overflow: "linebreak",
-        lineColor: [226, 232, 240],
-        lineWidth: 0.2,
-        textColor: [30, 41, 59],
-      },
-      headStyles: {
-        font: "NotoSansLao",
-        fontStyle: "normal",
-        fillColor: [37, 99, 235],
-        textColor: [255, 255, 255],
-        fontSize: 7,
-        halign: "center",
-        valign: "middle",
-        cellPadding: { top: 3, right: 2, bottom: 3, left: 2 },
-        lineColor: [29, 78, 216],
-        lineWidth: 0.3,
-      },
-      bodyStyles: {
-        font: "NotoSansLao",
-        fontStyle: "normal",
-        valign: "top",
-      },
-      alternateRowStyles: {
-        fillColor: [241, 245, 249],
-      },
-      columnStyles: {
-        0: { cellWidth: cw(0), halign: "center", fontStyle: "bold" },
-        1: { cellWidth: cw(1), halign: "center" },
-        2: { cellWidth: cw(2) },
-        3: { cellWidth: cw(3), halign: "center" },
-        4: { cellWidth: cw(4) },
-        5: { cellWidth: cw(5) },
-        6: { cellWidth: cw(6) },
-        7: { cellWidth: cw(7) },
-        8: { cellWidth: cw(8) },
-        9: { cellWidth: cw(9) },
-      },
-
-      didDrawCell: (data) => {
-        if (data.section === "head") {
-          const cellText = Array.isArray(data.cell.text)
-            ? data.cell.text.join("\n")
-            : String(data.cell.text ?? "");
-
-          if (!cellText) return;
-
-          doc.setFillColor(37, 99, 235);
-          doc.rect(
-            data.cell.x + 0.1,
-            data.cell.y + 0.1,
-            data.cell.width - 0.2,
-            data.cell.height - 0.2,
-            "F"
-          );
-
-          const headFontSize = 7;
-          const lines = cellText.split("\n");
-          const totalH = lines.length * headFontSize * 0.352 * 2.2;
-          let lineY =
-            data.cell.y +
-            (data.cell.height - totalH) / 2 +
-            headFontSize * 0.352 +
-            0.3;
-
-          for (const line of lines) {
-            const lineW = mixedTextWidth(line, headFontSize);
-            const lineX = data.cell.x + (data.cell.width - lineW) / 2;
-            doc.setTextColor(255, 255, 255);
-            drawMixed(line, lineX, lineY, headFontSize);
-            lineY += headFontSize * 0.352 * 2.2;
-          }
-          return;
-        }
-
-        if (data.section !== "body") return;
-
-        const cellText = Array.isArray(data.cell.text)
-          ? data.cell.text.join("\n")
-          : String(data.cell.text ?? "");
-
-        if (!cellText || cellText === "-") return;
-
-        const fillRgb = data.row.index % 2 === 0
-          ? [255, 255, 255]
-          : [241, 245, 249];
-        doc.setFillColor(fillRgb[0], fillRgb[1], fillRgb[2]);
-        doc.rect(
-          data.cell.x + 0.1,
-          data.cell.y + 0.1,
-          data.cell.width - 0.2,
-          data.cell.height - 0.2,
-          "F"
-        );
-
-        const fontSize = 7;
-        const pad = 2;
-        const colAlign = (data.cell.styles.halign as string) || "left";
-
-        const lines = cellText.split("\n");
-        let lineY = data.cell.y + data.cell.padding("top") + fontSize * 0.352 + 0.5;
-
-        for (const line of lines) {
-          const lineW = mixedTextWidth(line, fontSize);
-          let lineX = data.cell.x + pad;
-
-          if (colAlign === "center") {
-            lineX = data.cell.x + (data.cell.width - lineW) / 2;
-          } else if (colAlign === "right") {
-            lineX = data.cell.x + data.cell.width - pad - lineW;
-          }
-
-          doc.setTextColor(30, 41, 59);
-          drawMixed(line, lineX, lineY, fontSize);
-          lineY += fontSize * 0.352 * 2.2;
-        }
-      },
-
-      didDrawPage: (data) => {
-        const totalPages = (doc.internal as any).getNumberOfPages();
-        const currentPage = data.pageNumber;
-
-        doc.setDrawColor(203, 213, 225);
-        doc.setLineWidth(0.3);
-        doc.line(marginL, pageH - 10, pageW - marginR, pageH - 10);
-
-        doc.setTextColor(148, 163, 184);
-        drawMixed("ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່", marginL, pageH - 6, 6.5);
-
-        drawMixed(`Page ${currentPage} / ${totalPages}   |   ${printedAt}`, pageW - marginR, pageH - 6, 6.5, "right");
-      },
-    });
-
-    // ── Save file ────────────────────────────────────────────────────────
-    doc.save(`registermeter_report_${startDate}_to_${endDate}.pdf`);
-    toast.success(`ສົ່ງອອກ PDF ສຳເລັດ — ${allData.length} ລາຍການ`);
   };
 
   // Handle Page Change

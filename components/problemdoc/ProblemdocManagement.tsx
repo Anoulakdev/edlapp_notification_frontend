@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Forward,
   CheckSquare,
+  CheckCheck,
   Wrench,
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
@@ -35,6 +36,7 @@ import { EditProblemdocModal } from "./EditProblemdocModal";
 import { DeleteProblemdocModal } from "./DeleteProblemdocModal";
 import { ViewProblemdocModal } from "./ViewProblemdocModal";
 import { AssignProblemdocModal } from "./AssignProblemdocModal";
+import { AlreadyReportedModal } from "./AlreadyReportedModal";
 
 const ROWS_PER_PAGE = 10;
 
@@ -55,8 +57,10 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
 
   // Filter lists
   const [problemTypes, setProblemTypes] = useState<{ id: number; name: string }[]>([]);
+  const [problemStatuses, setProblemStatuses] = useState<{ id: number; callcenter?: string; name?: string; edlapp?: string }[]>([]);
   const [sourceTypes, setSourceTypes] = useState<{ id: number; name: string }[]>([]);
   const [selectedProblemTypeId, setSelectedProblemTypeId] = useState("");
+  const [selectedProblemStatusId, setSelectedProblemStatusId] = useState("");
   const [selectedSourceTypeId, setSelectedSourceTypeId] = useState("");
 
   // Pagination State
@@ -98,6 +102,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [alreadyReportedOpen, setAlreadyReportedOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<ProblemDoc | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
@@ -121,14 +126,16 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [provRes, pTypesRes, sTypesRes] = await Promise.all([
+        const [provRes, pTypesRes, sTypesRes, pStatusRes] = await Promise.all([
           axiosInstance.get("/provinces/selectprovince"),
           axiosInstance.get("/problemtypes/selectproblemtype"),
-          axiosInstance.get("/sourcetypes/selectsource")
+          axiosInstance.get("/sourcetypes/selectsource"),
+          axiosInstance.get("/problemstatus/selectstatus"),
         ]);
         setProvinces(provRes.data || []);
         setProblemTypes(Array.isArray(pTypesRes.data) ? pTypesRes.data : pTypesRes.data?.data || []);
         setSourceTypes(Array.isArray(sTypesRes.data) ? sTypesRes.data : sTypesRes.data?.data || []);
+        setProblemStatuses(Array.isArray(pStatusRes.data) ? pStatusRes.data : pStatusRes.data?.data || []);
       } catch (err) {
         console.error("Failed to load initial dropdowns:", err);
       }
@@ -218,12 +225,45 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
         effectiveDistrictId,
         selectedVillageId,
         selectedProblemTypeId,
+        selectedProblemStatusId,
         selectedSourceTypeId,
         filterMyDocs
       );
     } catch (err: any) {
       console.error("Failed to receive work:", err);
       const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການຮັບວຽກ";
+      toast.error(errMsg);
+    }
+  };
+
+  const openAlreadyReported = (doc: ProblemDoc) => {
+    setSelectedDoc(doc);
+    setAlreadyReportedOpen(true);
+  };
+
+  const handleConfirmAlreadyReported = async () => {
+    if (!selectedDoc) return;
+    try {
+      await axiosInstance.put(`/problemdocs/updatestatus/${selectedDoc.id}`, {
+        problemstatusId: 5,
+      });
+      toast.success("ອັບເດດສະຖານະເປັນ 'ຈຸດນີ້ໄດ້ຖືກແຈ້ງແລ້ວ' ສຳເລັດ");
+      setAlreadyReportedOpen(false);
+      setSelectedDoc(null);
+      fetchDocs(
+        search,
+        problemDate,
+        effectiveProvinceId,
+        effectiveDistrictId,
+        selectedVillageId,
+        selectedProblemTypeId,
+        selectedProblemStatusId,
+        selectedSourceTypeId,
+        filterMyDocs
+      );
+    } catch (err: any) {
+      console.error("Failed to update status:", err);
+      const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະ";
       toast.error(errMsg);
     }
   };
@@ -244,6 +284,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     distId = "",
     villId = "",
     pTypeId = "",
+    pStatusId = "",
     sTypeId = "",
     myDocsOnly = false
   ) => {
@@ -257,6 +298,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
           districtId: distId || undefined,
           villageId: villId || undefined,
           problemtypeId: pTypeId || undefined,
+          problemstatusId: pStatusId || undefined,
           sourcetypeId: sTypeId || undefined,
           filterMyDocs: myDocsOnly || undefined,
         },
@@ -281,6 +323,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       effectiveDistrictId,
       selectedVillageId,
       selectedProblemTypeId,
+      selectedProblemStatusId,
       selectedSourceTypeId,
       filterMyDocs
     );
@@ -291,6 +334,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     effectiveDistrictId,
     selectedVillageId,
     selectedProblemTypeId,
+    selectedProblemStatusId,
     selectedSourceTypeId,
     filterMyDocs,
     fetchDocs
@@ -304,6 +348,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     effectiveDistrictId,
     selectedVillageId,
     selectedProblemTypeId,
+    selectedProblemStatusId,
     selectedSourceTypeId,
     filterMyDocs
   });
@@ -315,6 +360,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       effectiveDistrictId,
       selectedVillageId,
       selectedProblemTypeId,
+      selectedProblemStatusId,
       selectedSourceTypeId,
       filterMyDocs
     };
@@ -325,6 +371,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     effectiveDistrictId,
     selectedVillageId,
     selectedProblemTypeId,
+    selectedProblemStatusId,
     selectedSourceTypeId,
     filterMyDocs
   ]);
@@ -354,6 +401,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
           filters.effectiveDistrictId,
           filters.selectedVillageId,
           filters.selectedProblemTypeId,
+          filters.selectedProblemStatusId,
           filters.selectedSourceTypeId,
           filters.filterMyDocs
         );
@@ -373,6 +421,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     setSelectedDistrictId("");
     setSelectedVillageId("");
     setSelectedProblemTypeId("");
+    setSelectedProblemStatusId("");
     setSelectedSourceTypeId("");
     setFilterMyDocs(false);
   };
@@ -386,10 +435,11 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       effectiveDistrictId,
       selectedVillageId,
       selectedProblemTypeId,
+      selectedProblemStatusId,
       selectedSourceTypeId,
       filterMyDocs
     );
-  }, [fetchDocs, search, problemDate, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedProblemTypeId, selectedSourceTypeId, filterMyDocs]);
+  }, [fetchDocs, search, problemDate, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedProblemTypeId, selectedProblemStatusId, selectedSourceTypeId, filterMyDocs]);
 
   // Handlers
   const openAdd = () => setAddOpen(true);
@@ -532,6 +582,8 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
             badgeClass = "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
           } else if (doc.problemstatusId === 4) {
             badgeClass = "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+          } else if (doc.problemstatusId === 5) {
+            badgeClass = "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
           }
           return (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}>
@@ -548,6 +600,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
           const isCreator = currentUserId !== null && Number(currentUserId) === Number(doc.createdById);
           const canAssign = currentUserRoleId === 3 && (doc.problemstatusId === 1 || doc.problemstatusId === 2);
           const isAssigned = Boolean(doc.branchId && doc.repairDistrictId);
+          const canMarkAlreadyReported = currentUserRoleId === 3 && (doc.problemstatusId === 1);
           const canReceiveWork = currentUserRoleId === 6 && doc.problemstatusId === 2;
           const canRepairWork = currentUserRoleId === 6 && doc.problemstatusId === 3;
 
@@ -566,11 +619,21 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
                   <button
                     onClick={() => openAssign(doc)}
                     className={`p-2 rounded-xl transition-colors shrink-0 ${isAssigned
-                        ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
-                        : "text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20"
+                      ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
+                      : "text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20"
                       }`}
                   >
                     <Forward className="w-4 h-4" />
+                  </button>
+                </ButtonTooltip>
+              )}
+              {canMarkAlreadyReported && (
+                <ButtonTooltip text="ຈຸດນີ້ໄດ້ຖືກແຈ້ງແລ້ວ">
+                  <button
+                    onClick={() => openAlreadyReported(doc)}
+                    className="p-2 rounded-xl text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-colors shrink-0"
+                  >
+                    <CheckCheck className="w-4 h-4" />
                   </button>
                 </ButtonTooltip>
               )}
@@ -845,6 +908,26 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
               </div>
 
               <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase">ສະຖານະ</label>
+                <div className="relative w-full">
+                  <select
+                    value={selectedProblemStatusId}
+                    onChange={(e) => setSelectedProblemStatusId(e.target.value)}
+                    className="w-full pl-3 pr-8 py-2 rounded-xl border outline-none text-xs appearance-none cursor-pointer"
+                    style={{ fontFamily: "'Noto Sans Lao', sans-serif", background: "rgb(var(--card))", color: "rgb(var(--text-primary))", borderColor: "rgb(var(--border))" }}
+                  >
+                    <option value="">ເລືອກສະຖານະ</option>
+                    {problemStatuses.map((s) => (
+                      <option key={s.id} value={s.id}>{s.callcenter || (s as any).name || s.edlapp}</option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase">ຊ່ອງທາງຮັບແຈ້ງ</label>
                 <div className="relative w-full">
                   <select
@@ -1022,6 +1105,16 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         onDelete={handleDelete}
+        selectedDoc={selectedDoc}
+      />
+
+      <AlreadyReportedModal
+        open={alreadyReportedOpen}
+        onClose={() => {
+          setAlreadyReportedOpen(false);
+          setSelectedDoc(null);
+        }}
+        onConfirm={handleConfirmAlreadyReported}
         selectedDoc={selectedDoc}
       />
 
