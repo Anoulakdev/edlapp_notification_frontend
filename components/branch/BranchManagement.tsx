@@ -120,7 +120,7 @@ export function BranchManagement() {
         cell: ({ row }) => {
           return (
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              {row.index + 1 + pagination.pageIndex * pagination.pageSize}
+              {row.index + 1}
             </span>
           );
         },
@@ -211,7 +211,7 @@ export function BranchManagement() {
         },
       },
     ],
-    [pagination]
+    []
   );
 
   // Client-side filtering
@@ -279,7 +279,7 @@ export function BranchManagement() {
             ສາຂາແຂວງ
           </h1>
         </div>
-        <div className="sm:ml-auto flex items-center">
+        {/* <div className="sm:ml-auto flex items-center">
           <button
             onClick={openAdd}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity"
@@ -287,7 +287,7 @@ export function BranchManagement() {
             <Plus className="w-4 h-4" strokeWidth={2.5} />
             ເພີ່ມຂໍ້ມູນ
           </button>
-        </div>
+        </div> */}
       </div>
 
       {/* Table Card Container */}

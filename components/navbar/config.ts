@@ -32,6 +32,7 @@ import {
   FolderCog,
   Bot,
   Star,
+  CreditCard,
 } from "lucide-react";
 
 export type NavChild = {
@@ -208,6 +209,7 @@ const ROLE_5_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
   { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
+  { label: "ລາຍການຊຳລະເງິນ", href: "/payment", icon: CreditCard },
   {
     label: "ລາຍງານ",
     icon: BarChart3,

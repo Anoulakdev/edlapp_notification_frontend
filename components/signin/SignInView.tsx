@@ -311,16 +311,15 @@ export default function SignInView() {
 
           {/* Middle Main Content */}
           <div className="relative z-10 text-white my-auto pr-4">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-semibold mb-6 animate-float">
-              <Bell className="w-3.5 h-3.5 text-cyan-300 fill-cyan-300/20" />
-              <span>ລະບົບແຈ້ງເຕືອນສະຖານະໄຟຟ້າ (Electricity Status Notification)</span>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-sm font-semibold mb-6 animate-float">
+              <Bell className="w-4 h-4 text-cyan-300 fill-cyan-300/20" />
+              <span>ລະບົບຕິດຕາມ ແລະ ຄຸ້ມຄອງລູກຄ້າ</span>
             </div>
             <h2 className="text-3xl font-extrabold mb-5 leading-normal tracking-tight text-white py-1">
-              ບໍລິການສົ່ງແຈ້ງເຕືອນມອດໄຟ, ມອດໄຟສຸກເສີນ ແລະ ອື່ນໆ
+              ບໍລິການຄຸ້ມຄອງ ແລະ ສົ່ງແຈ້ງເຕືອນຂ່າວສານໄຟຟ້າແບບຄົບວົງຈອນ
             </h2>
             <p className="text-sm text-white/80 font-medium leading-relaxed max-w-sm">
-              ລະບົບຈັດການເອກະສານແຈ້ງການຕ່າງໆ ແລະ ສົ່ງແຈ້ງເຕືອນແບບທັນເຫດການ ໄປຍັງແອັບພລິເຄຊັນໂທລະສັບມືຖືຂອງຜູ້ໃຊ້ບໍລິການ.
-
+              ລະບົບຈັດການຂໍ້ມູນ, ຕິດຕາມການບໍລິການລູກຄ້າ ແລະ ສົ່ງແຈ້ງເຕືອນແບບທັນເຫດການ ຜ່ານແອັບພລິເຄຊັນມືຖື.
             </p>
           </div>
 
