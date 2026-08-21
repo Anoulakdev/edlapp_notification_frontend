@@ -223,14 +223,64 @@ interface PaymentReportPDFProps {
   startDate?: string;
   endDate?: string;
   accountNo?: string;
+  status?: string;
   totalAmount?: number;
 }
+
+const getStatusPdfBadge = (status?: string) => {
+  const st = (status || "SUCCESS").toUpperCase();
+  switch (st) {
+    case "SUCCESS":
+      return {
+        bg: "#ecfdf5",
+        border: "#a7f3d0",
+        text: "#059669",
+        label: "SUCCESS",
+      };
+    case "BANK_SUCCESS":
+      return {
+        bg: "#eff6ff",
+        border: "#bfdbfe",
+        text: "#1d4ed8",
+        label: "BANK_SUCCESS",
+      };
+    case "EXPIRED":
+      return {
+        bg: "#f1f5f9",
+        border: "#cbd5e1",
+        text: "#475569",
+        label: "EXPIRED",
+      };
+    case "BS_FAILED":
+      return {
+        bg: "#fffbeb",
+        border: "#fde68a",
+        text: "#b45309",
+        label: "BS_FAILED",
+      };
+    case "BS_PERMANENT_FAILED":
+      return {
+        bg: "#fef2f2",
+        border: "#fecaca",
+        text: "#dc2626",
+        label: "BS_PERMANENT_FAILED",
+      };
+    default:
+      return {
+        bg: "#f1f5f9",
+        border: "#cbd5e1",
+        text: "#475569",
+        label: status || "SUCCESS",
+      };
+  }
+};
 
 export function PaymentReportPDF({
   data = [],
   startDate,
   endDate,
   accountNo,
+  status,
   totalAmount,
 }: PaymentReportPDFProps) {
   const generatedAt = moment().format("DD/MM/YYYY HH:mm:ss");
@@ -274,6 +324,11 @@ export function PaymentReportPDF({
               <Text style={styles.metaItemText}>
                 ວັນທີ & ເວລາອອກລາຍງານ: <Text style={styles.metaItemTextBold}>{generatedAt}</Text>
               </Text>
+              {status ? (
+                <Text style={styles.metaItemText}>
+                  ສະຖານະ: <Text style={styles.metaItemTextBold}>{status}</Text>
+                </Text>
+              ) : null}
             </View>
           </View>
         </View>
@@ -302,31 +357,34 @@ export function PaymentReportPDF({
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "3%" }]}>
               #
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: "11%" }]}>
+            <Text style={[styles.tableHeaderCell, { width: "10%" }]}>
               ວັນທີ
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: "9%" }]}>
+            <Text style={[styles.tableHeaderCell, { width: "8.5%" }]}>
               ເລກບັນຊີ
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: "12%" }]}>
+            <Text style={[styles.tableHeaderCell, { width: "11%" }]}>
               ຊື່ເຈົ້າຂອງບັນຊີ
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: "12%" }]}>
+            <Text style={[styles.tableHeaderCell, { width: "11%" }]}>
               ຜູ້ຊຳລະ / ເບີໂທ
             </Text>
-            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "6%" }]}>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "5.5%" }]}>
               ບິນເດືອນ
             </Text>
-            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "6.5%" }]}>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "5.5%" }]}>
               ຊ່ອງທາງ
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: "14%" }]}>
+            <Text style={[styles.tableHeaderCell, { width: "12.5%" }]}>
               Tx ID / Bill ID
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: "13.5%" }]}>
+            <Text style={[styles.tableHeaderCell, { width: "12%" }]}>
               Bank Tx / Ticket
             </Text>
-            <Text style={[styles.tableHeaderCell, styles.textRight, { width: "13%" }]}>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "9%" }]}>
+              ສະຖານະ
+            </Text>
+            <Text style={[styles.tableHeaderCell, styles.textRight, { width: "12%" }]}>
               ຍອດຊຳລະ (ກີບ)
             </Text>
           </View>
@@ -369,7 +427,7 @@ export function PaymentReportPDF({
                   </Text>
 
                   {/* 2. Paid Date */}
-                  <Text style={[styles.tableCell, { width: "11%" }]}>
+                  <Text style={[styles.tableCell, { width: "10%" }]}>
                     {item.paid_at || formatDate(item.created_at)}
                   </Text>
 
@@ -378,19 +436,19 @@ export function PaymentReportPDF({
                     style={[
                       styles.tableCell,
                       styles.tableCellBold,
-                      { width: "9%" },
+                      { width: "8.5%" },
                     ]}
                   >
                     {item.account_no || "-"}
                   </Text>
 
                   {/* 4. Account Name */}
-                  <Text style={[styles.tableCell, { width: "12%" }]}>
+                  <Text style={[styles.tableCell, { width: "11%" }]}>
                     {item.account_name || "-"}
                   </Text>
 
                   {/* 5. Customer Paid & Phone */}
-                  <View style={[styles.tableCell, { width: "12%" }]}>
+                  <View style={[styles.tableCell, { width: "11%" }]}>
                     <Text style={{ fontSize: 5.8, color: "#0f172a" }}>
                       {item.customer_paid || "-"}
                     </Text>
@@ -400,7 +458,7 @@ export function PaymentReportPDF({
                   </View>
 
                   {/* 6. Bill Month */}
-                  <View style={[styles.tableCell, { width: "6%" }]}>
+                  <View style={[styles.tableCell, { width: "5.5%" }]}>
                     {item.bill_month ? (
                       <View style={styles.monthBadge}>
                         <Text style={styles.monthBadgeText}>{item.bill_month}</Text>
@@ -411,7 +469,7 @@ export function PaymentReportPDF({
                   </View>
 
                   {/* 7. Provider Code */}
-                  <View style={[styles.tableCell, { width: "6.5%" }]}>
+                  <View style={[styles.tableCell, { width: "5.5%" }]}>
                     <View style={styles.providerBadge}>
                       <Text style={styles.providerBadgeText}>
                         {item.provider_code || "BCEL"}
@@ -420,7 +478,7 @@ export function PaymentReportPDF({
                   </View>
 
                   {/* 8. EDL Transaction ID & Bill ID */}
-                  <View style={[styles.tableCell, { width: "14%" }]}>
+                  <View style={[styles.tableCell, { width: "12.5%" }]}>
                     <Text style={styles.codeCell}>
                       <Text style={styles.codeLabel}>Tx: </Text>
                       {item.transaction_id || "-"}
@@ -432,7 +490,7 @@ export function PaymentReportPDF({
                   </View>
 
                   {/* 9. Bank Transaction ID & Ticket */}
-                  <View style={[styles.tableCell, { width: "13.5%" }]}>
+                  <View style={[styles.tableCell, { width: "12%" }]}>
                     <Text style={styles.codeCell}>
                       <Text style={styles.codeLabel}>Tx: </Text>
                       {item.bank_transaction_id ? String(item.bank_transaction_id) : "-"}
@@ -443,12 +501,43 @@ export function PaymentReportPDF({
                     </Text>
                   </View>
 
-                  {/* 10. Paid Amount */}
+                  {/* 10. Status */}
+                  <View style={[styles.tableCell, styles.textCenter, { width: "9%" }]}>
+                    {(() => {
+                      const stBadge = getStatusPdfBadge(item.status);
+                      return (
+                        <View
+                          style={{
+                            backgroundColor: stBadge.bg,
+                            borderWidth: 0.5,
+                            borderColor: stBadge.border,
+                            borderRadius: 2,
+                            paddingVertical: 1,
+                            paddingHorizontal: 2,
+                            alignSelf: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 4.8,
+                              fontWeight: "bold",
+                              color: stBadge.text,
+                              textAlign: "center",
+                            }}
+                          >
+                            {stBadge.label}
+                          </Text>
+                        </View>
+                      );
+                    })()}
+                  </View>
+
+                  {/* 11. Paid Amount */}
                   <Text
                     style={[
                       styles.tableCell,
                       styles.textRight,
-                      { width: "13%", fontWeight: "bold", color: "#047857", fontSize: 6.5 },
+                      { width: "12%", fontWeight: "bold", color: "#047857", fontSize: 6.5 },
                     ]}
                   >
                     {formatMoney(item.paid_amount)}
@@ -473,7 +562,7 @@ export function PaymentReportPDF({
               <Text
                 style={[
                   styles.tableCell,
-                  { width: "84%", fontWeight: "bold", color: "#065f46", fontSize: 6.5 },
+                  { width: "85%", fontWeight: "bold", color: "#065f46", fontSize: 6.5 },
                 ]}
               >
                 ຍອດລວມທັງໝົດ ({data.length.toLocaleString()} ລາຍການ)
@@ -482,7 +571,7 @@ export function PaymentReportPDF({
                 style={[
                   styles.tableCell,
                   styles.textRight,
-                  { width: "13%", fontWeight: "bold", color: "#047857", fontSize: 7.0 },
+                  { width: "12%", fontWeight: "bold", color: "#047857", fontSize: 7.0 },
                 ]}
               >
                 {formatMoney(totalPaid)}

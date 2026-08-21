@@ -354,7 +354,7 @@ export function EmergencyAssign() {
               >
                 <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-emerald-500" />
-                  ບ້ານທີ່ຖືກເລືອກ ({selectedVillages.length} ບ້ាន)
+                  ບ້ານທີ່ຖືກເລືອກ ({selectedVillages.length} ບ້ານ)
                 </h3>
 
                 {/* Selected Location */}

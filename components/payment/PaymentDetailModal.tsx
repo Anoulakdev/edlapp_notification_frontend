@@ -72,7 +72,43 @@ export function PaymentDetailModal({
     return m.isValid() ? m.format("DD/MM/YYYY HH:mm:ss") : dateStr;
   };
 
-  const isSuccess = item.status === "SUCCESS";
+  const getStatusBadge = (statusStr?: string) => {
+    const st = (statusStr || "SUCCESS").toUpperCase();
+    switch (st) {
+      case "SUCCESS":
+        return {
+          badgeClass: "bg-emerald-500/30 text-emerald-200 border-emerald-400/40",
+          dotColor: "bg-emerald-400 animate-pulse",
+        };
+      case "BANK_SUCCESS":
+        return {
+          badgeClass: "bg-blue-500/30 text-blue-200 border-blue-400/40",
+          dotColor: "bg-blue-400",
+        };
+      case "EXPIRED":
+        return {
+          badgeClass: "bg-slate-500/30 text-slate-200 border-slate-400/40",
+          dotColor: "bg-slate-400",
+        };
+      case "BS_FAILED":
+        return {
+          badgeClass: "bg-amber-500/30 text-amber-200 border-amber-400/40",
+          dotColor: "bg-amber-400",
+        };
+      case "BS_PERMANENT_FAILED":
+        return {
+          badgeClass: "bg-rose-500/30 text-rose-200 border-rose-400/40",
+          dotColor: "bg-rose-400",
+        };
+      default:
+        return {
+          badgeClass: "bg-slate-500/30 text-slate-200 border-slate-400/40",
+          dotColor: "bg-slate-400",
+        };
+    }
+  };
+
+  const statusBadge = getStatusBadge(item.status);
 
   return (
     <div
@@ -126,17 +162,9 @@ export function PaymentDetailModal({
                   ຍອດເງິນທີ່ຊຳລະແລ້ວ (PAID AMOUNT)
                 </span>
                 <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                    isSuccess
-                      ? "bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 shadow-xs"
-                      : "bg-amber-500/30 text-amber-200 border border-amber-400/40 shadow-xs"
-                  }`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-xs ${statusBadge.badgeClass}`}
                 >
-                  {isSuccess ? (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  ) : (
-                    <AlertCircle className="w-3 h-3 text-amber-300" />
-                  )}
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dotColor}`} />
                   {item.status || "SUCCESS"}
                 </span>
               </div>

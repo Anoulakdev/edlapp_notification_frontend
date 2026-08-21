@@ -53,6 +53,7 @@ export function PaymentManagement() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [paymentDateFrom, setPaymentDateFrom] = useState("");
   const [paymentDateTo, setPaymentDateTo] = useState("");
+  const [status, setStatus] = useState("");
   const [activeDateQuick, setActiveDateQuick] = useState<"today" | "thisMonth" | "all">("all");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(8);
@@ -116,6 +117,10 @@ export function PaymentManagement() {
         params.paymentDateTo = paymentDateTo;
       }
 
+      if (status) {
+        params.status = status;
+      }
+
       const res = await axiosInstance.get<PaymentApiResponse>("/payments", {
         params,
       });
@@ -142,7 +147,7 @@ export function PaymentManagement() {
     } finally {
       setLoading(false);
     }
-  }, [pageIndex, pageSize, debouncedSearch, paymentDateFrom, paymentDateTo]);
+  }, [pageIndex, pageSize, debouncedSearch, paymentDateFrom, paymentDateTo, status]);
 
   useEffect(() => {
     if (authorized) {
@@ -160,6 +165,7 @@ export function PaymentManagement() {
     setDebouncedSearch("");
     setPaymentDateFrom("");
     setPaymentDateTo("");
+    setStatus("");
     setActiveDateQuick("all");
     setPageIndex(0);
   };
@@ -198,6 +204,7 @@ export function PaymentManagement() {
       if (debouncedSearch.trim()) params.accountNo = debouncedSearch.trim();
       if (paymentDateFrom) params.paymentDateFrom = paymentDateFrom;
       if (paymentDateTo) params.paymentDateTo = paymentDateTo;
+      if (status) params.status = status;
 
       const res = await axiosInstance.get<PaymentApiResponse>("/payments", {
         params,
@@ -319,6 +326,7 @@ export function PaymentManagement() {
           startDate={paymentDateFrom}
           endDate={paymentDateTo}
           accountNo={debouncedSearch}
+          status={status}
           totalAmount={totalAmount}
         />,
         `payment_report_${fileDateSuffix}.pdf`
@@ -490,19 +498,39 @@ export function PaymentManagement() {
         header: "ສະຖານະ",
         cell: ({ row }) => {
           const doc = row.original;
-          const isSuccess = doc.status === "SUCCESS";
+          const st = (doc.status || "SUCCESS").toUpperCase();
+
+          let badgeStyles = "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30";
+          let dotColor = "bg-slate-400";
+          let isPulse = false;
+
+          if (st === "SUCCESS") {
+            badgeStyles = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
+            dotColor = "bg-emerald-500";
+            isPulse = true;
+          } else if (st === "BANK_SUCCESS") {
+            badgeStyles = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30";
+            dotColor = "bg-blue-500";
+          } else if (st === "EXPIRED") {
+            badgeStyles = "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30";
+            dotColor = "bg-slate-400";
+          } else if (st === "BS_FAILED") {
+            badgeStyles = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30";
+            dotColor = "bg-amber-500";
+          } else if (st === "BS_PERMANENT_FAILED") {
+            badgeStyles = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30";
+            dotColor = "bg-rose-500";
+          }
+
           return (
             <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${isSuccess
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all ${badgeStyles}`}
             >
-              {isSuccess ? (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              ) : (
-                <AlertCircle className="w-3 h-3" />
-              )}
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${dotColor} ${
+                  isPulse ? "animate-pulse" : ""
+                }`}
+              />
               {doc.status || "SUCCESS"}
             </span>
           );
@@ -815,10 +843,10 @@ export function PaymentManagement() {
                 ທັງໝົດ
               </button>
 
-              {(search || paymentDateFrom || paymentDateTo) && (
+              {(search || paymentDateFrom || paymentDateTo || status) && (
                 <button
                   onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all ml-1"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all ml-1 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   ລ້າງຕົວກັ່ນຕອງ
@@ -827,7 +855,7 @@ export function PaymentManagement() {
             </div>
           </div>
 
-          {/* Date Pickers & Page Size */}
+          {/* Date Pickers, Status Filter & Page Size */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/60">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
@@ -870,6 +898,33 @@ export function PaymentManagement() {
                     color: "rgb(var(--text-primary))",
                   }}
                 />
+              </div>
+
+              {/* Status Select Dropdown */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  ສະຖານະ:
+                </span>
+                <select
+                  value={status}
+                  onChange={(e) => {
+                    setStatus(e.target.value);
+                    setPageIndex(0);
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold outline-none cursor-pointer transition-all"
+                  style={{
+                    background: "rgb(var(--bg))",
+                    border: "1px solid rgb(var(--border))",
+                    color: "rgb(var(--text-primary))",
+                  }}
+                >
+                  <option value="">ສະຖານະທັງໝົດ</option>
+                  <option value="EXPIRED">EXPIRED</option>
+                  <option value="SUCCESS">SUCCESS</option>
+                  <option value="BANK_SUCCESS">BANK_SUCCESS</option>
+                  <option value="BS_FAILED">BS_FAILED</option>
+                  <option value="BS_PERMANENT_FAILED">BS_PERMANENT_FAILED</option>
+                </select>
               </div>
             </div>
 
