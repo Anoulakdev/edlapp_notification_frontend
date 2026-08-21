@@ -51,10 +51,10 @@ export function PaymentManagement() {
   // Filters & Pagination State
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [paymentDateFrom, setPaymentDateFrom] = useState("");
-  const [paymentDateTo, setPaymentDateTo] = useState("");
-  const [status, setStatus] = useState("");
-  const [activeDateQuick, setActiveDateQuick] = useState<"today" | "thisMonth" | "all">("all");
+  const [paymentDateFrom, setPaymentDateFrom] = useState(moment().format("YYYY-MM-DD"));
+  const [paymentDateTo, setPaymentDateTo] = useState(moment().format("YYYY-MM-DD"));
+  const [status, setStatus] = useState("SUCCESS");
+  const [activeDateQuick, setActiveDateQuick] = useState<"today" | "thisMonth" | "all">("today");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(8);
   const [totalCount, setTotalCount] = useState(0);
@@ -163,10 +163,11 @@ export function PaymentManagement() {
   const handleResetFilters = () => {
     setSearch("");
     setDebouncedSearch("");
-    setPaymentDateFrom("");
-    setPaymentDateTo("");
-    setStatus("");
-    setActiveDateQuick("all");
+    const today = moment().format("YYYY-MM-DD");
+    setPaymentDateFrom(today);
+    setPaymentDateTo(today);
+    setStatus("SUCCESS");
+    setActiveDateQuick("today");
     setPageIndex(0);
   };
 
@@ -527,9 +528,8 @@ export function PaymentManagement() {
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all ${badgeStyles}`}
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${dotColor} ${
-                  isPulse ? "animate-pulse" : ""
-                }`}
+                className={`w-1.5 h-1.5 rounded-full ${dotColor} ${isPulse ? "animate-pulse" : ""
+                  }`}
               />
               {doc.status || "SUCCESS"}
             </span>
@@ -843,15 +843,18 @@ export function PaymentManagement() {
                 ທັງໝົດ
               </button>
 
-              {(search || paymentDateFrom || paymentDateTo || status) && (
-                <button
-                  onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all ml-1 cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  ລ້າງຕົວກັ່ນຕອງ
-                </button>
-              )}
+              {(search ||
+                paymentDateFrom !== moment().format("YYYY-MM-DD") ||
+                paymentDateTo !== moment().format("YYYY-MM-DD") ||
+                status !== "SUCCESS") && (
+                  <button
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all ml-1 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    ລ້າງຕົວກັ່ນຕອງ
+                  </button>
+                )}
             </div>
           </div>
 
@@ -919,9 +922,9 @@ export function PaymentManagement() {
                   }}
                 >
                   <option value="">ສະຖານະທັງໝົດ</option>
-                  <option value="EXPIRED">EXPIRED</option>
                   <option value="SUCCESS">SUCCESS</option>
                   <option value="BANK_SUCCESS">BANK_SUCCESS</option>
+                  <option value="EXPIRED">EXPIRED</option>
                   <option value="BS_FAILED">BS_FAILED</option>
                   <option value="BS_PERMANENT_FAILED">BS_PERMANENT_FAILED</option>
                 </select>
