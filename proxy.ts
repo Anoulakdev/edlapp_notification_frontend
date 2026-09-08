@@ -172,8 +172,28 @@ function getJwtPayload(token: string) {
   }
 }
 
+const PUBLIC_EXEMPT_ROUTES = new Set([
+  "/sw.js",
+  "/manifest.json",
+  "/manifest.webmanifest",
+  "/offline",
+  "/favicon.ico",
+  "/icon.png",
+  "/ECC.png",
+]);
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 0. Allow public PWA assets, offline page, and static asset folders
+  if (
+    PUBLIC_EXEMPT_ROUTES.has(pathname) ||
+    pathname.startsWith("/icons/") ||
+    pathname.startsWith("/fonts/")
+  ) {
+    return NextResponse.next();
+  }
+
   const baseSegment = "/" + (pathname.split("/")[1] || "");
 
   // Retrieve the JWT token from the HTTP-only cookie
@@ -254,9 +274,12 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - icon.png (system icons)
-     * - png/svg/jpg/jpeg/gif/webp/ico/woff/woff2 (common static files)
+     * - icon.png, ECC.png (branding)
+     * - sw.js, manifest.json, manifest.webmanifest (PWA essentials)
+     * - offline (PWA offline fallback)
+     * - icons/ (PWA icons directory)
+     * - common static files
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.png|.*\\.(?:png|svg|jpg|jpeg|gif|webp|ico/woff/woff2)$).*)",
+    "/((?!api|_next/static|_next/image|favicon\\.ico|icon\\.png|ECC\\.png|sw\\.js|manifest\\.json|manifest\\.webmanifest|offline|icons/|.*\\.(?:png|svg|jpg|jpeg|gif|webp|ico|woff|woff2)$).*)",
   ],
 };
