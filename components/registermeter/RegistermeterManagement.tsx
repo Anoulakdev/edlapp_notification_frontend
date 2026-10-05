@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -16,6 +17,7 @@ import {
   ArrowRight,
   Forward,
   FileCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
@@ -31,6 +33,157 @@ import { EditRegistermeterModal } from "./EditRegistermeterModal";
 import { DeleteRegistermeterModal } from "./DeleteRegistermeterModal";
 import { ViewRegistermeterModal } from "./ViewRegistermeterModal";
 import { ForwardRegistermeterModal } from "./ForwardRegistermeterModal";
+import { RejectRegistermeterModal } from "./RejectRegistermeterModal";
+import { RegistermeterPdfModal } from "./RegistermeterPdfModal";
+
+function ForwardActionDropdown({
+  doc,
+  openForward,
+  openReject,
+}: {
+  doc: RegisterMeter;
+  openForward: (doc: RegisterMeter, mode: "create" | "update") => void;
+  openReject: (doc: RegisterMeter) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
+  const toggleOpen = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPos({
+        top: rect.bottom + 6,
+        left: Math.max(12, rect.right - 256),
+      });
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleScroll = () => {
+      setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="relative shrink-0">
+      <ButtonTooltip text="ເລືອກດຳເນີນການ">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={toggleOpen}
+          className={`group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-medium transition-all duration-200 cursor-pointer ${
+            isOpen
+              ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/30 scale-105"
+              : "bg-indigo-500/10 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 hover:bg-gradient-to-r hover:from-indigo-600 hover:to-violet-600 hover:text-white hover:shadow-md hover:shadow-indigo-500/25 active:scale-95"
+          }`}
+        >
+          <Forward
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              isOpen ? "translate-x-0.5" : "group-hover:translate-x-0.5"
+            }`}
+          />
+          <ChevronDown
+            className={`w-3 h-3 transition-transform duration-200 ${
+              isOpen ? "rotate-180 opacity-100" : "opacity-60 group-hover:opacity-100"
+            }`}
+          />
+        </button>
+      </ButtonTooltip>
+
+      {isOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-[9999] w-64 p-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] border border-slate-200/80 dark:border-white/10 animate-in fade-in zoom-in-95 duration-150"
+            style={{
+              fontFamily: "'Noto Sans Lao', sans-serif",
+              top: menuPos.top,
+              left: menuPos.left,
+            }}
+          >
+            {/* Forward Option */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                openForward(doc, "create");
+              }}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all duration-200 group hover:bg-gradient-to-r hover:from-indigo-50 hover:to-violet-50/50 dark:hover:from-indigo-950/40 dark:hover:to-violet-950/20 cursor-pointer active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/25 group-hover:scale-105 group-hover:shadow-indigo-500/40 transition-all shrink-0">
+                  <Forward className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
+                    ຮັບເລື່ອງ &amp; ສົ່ງຕໍ່
+                  </div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                    ສົ່ງຕໍ່ໃຫ້ສາຂາ/ເມືອງ
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+            </button>
+
+            <div className="my-1.5 border-t border-slate-100 dark:border-slate-800/80" />
+
+            {/* Reject Option */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                openReject(doc);
+              }}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all duration-200 group hover:bg-gradient-to-r hover:from-rose-50 hover:to-orange-50/50 dark:hover:from-rose-950/40 dark:hover:to-orange-950/20 cursor-pointer active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 text-white flex items-center justify-center shadow-md shadow-rose-500/25 group-hover:scale-105 group-hover:shadow-rose-500/40 transition-all shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                    ເອກະສານບໍ່ຄົບ
+                  </div>
+                  <div className="text-[10px] text-rose-500/80 dark:text-rose-400/70">
+                    ສົ່ງເລື່ອງກັບຄືນແກ້ໄຂ
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-rose-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+            </button>
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+}
 
 const ROWS_PER_PAGE = 10;
 
@@ -91,6 +244,8 @@ export function RegistermeterManagement() {
   const [viewOpen, setViewOpen] = useState(false);
   const [forwardOpen, setForwardOpen] = useState(false);
   const [forwardMode, setForwardMode] = useState<"create" | "update">("create");
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   const [selectedDoc, setSelectedDoc] = useState<RegisterMeter | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -183,6 +338,11 @@ export function RegistermeterManagement() {
   const openViewFile = (doc: RegisterMeter) => {
     setSelectedDoc(doc);
     setViewOpen(true);
+  };
+
+  const openPdfFile = (doc: RegisterMeter) => {
+    setSelectedDoc(doc);
+    setPdfOpen(true);
   };
 
   // Debounce search input
@@ -354,6 +514,11 @@ export function RegistermeterManagement() {
     setForwardOpen(true);
   };
 
+  const openReject = (doc: RegisterMeter) => {
+    setSelectedDoc(doc);
+    setRejectOpen(true);
+  };
+
   const handleDelete = async () => {
     if (!selectedDoc) return;
     try {
@@ -494,9 +659,20 @@ export function RegistermeterManagement() {
           const hasUserAccept = !!doc.userAcceptMeters;
           const canForward = [2, 3].includes(currentUserRoleId || 0);
           const isRole6 = currentUserRoleId === 6;
+          const isRole4 = currentUserRoleId === 4;
 
           return (
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* PDF Preview Button - placed in front of view button */}
+              <ButtonTooltip text="ເບິ່ງຂໍ້ມູນ(PDF)">
+                <button
+                  onClick={() => openPdfFile(doc)}
+                  className="p-2 rounded-xl text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 transition-colors shrink-0"
+                >
+                  <FileText className="w-4 h-4" />
+                </button>
+              </ButtonTooltip>
+
               <ButtonTooltip text="ເບິ່ງຂໍ້ມູນ">
                 <button
                   onClick={() => openViewFile(doc)}
@@ -506,20 +682,17 @@ export function RegistermeterManagement() {
                 </button>
               </ButtonTooltip>
 
-              {/* Accept & forward action for Roles 2, 3, and 4 */}
-              {canForward && !hasUserAccept && (
-                <ButtonTooltip text="ຮັບເລື່ອງ & ສົ່ງຕໍ່">
-                  <button
-                    onClick={() => openForward(doc, "create")}
-                    className="p-2 rounded-xl text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors shrink-0"
-                  >
-                    <Forward className="w-4 h-4" />
-                  </button>
-                </ButtonTooltip>
+              {/* Accept & forward / Incomplete doc select for Roles 2, 3 */}
+              {canForward && !hasUserAccept && doc.meterStatusId === 1 && (
+                <ForwardActionDropdown
+                  doc={doc}
+                  openForward={openForward}
+                  openReject={openReject}
+                />
               )}
 
               {/* Accept document action for Role 6 */}
-              {isRole6 && hasUserAccept && !doc.userAcceptMeters?.userProvinceId && (
+              {isRole6 && hasUserAccept && !doc.userAcceptMeters?.userProvinceId && doc.meterStatusId === 2 && (
                 <ButtonTooltip text="ຮັບເອກະສານ">
                   <button
                     onClick={() => openForward(doc, "update")}
@@ -530,31 +703,38 @@ export function RegistermeterManagement() {
                 </ButtonTooltip>
               )}
 
-              <ButtonTooltip text={isCreator ? "ແກ້ໄຂ" : "ບໍ່ມີສິດແກ້ໄຂ"}>
-                <button
-                  onClick={() => openEdit(doc)}
-                  disabled={!isCreator}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${!isCreator
-                    ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
-                    : "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
-                    }`}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-              </ButtonTooltip>
+              {/* Edit & Delete actions for Role 4 */}
+              {isRole4 && (
+                <>
+                  <ButtonTooltip text={isCreator ? "ແກ້ໄຂ" : "ບໍ່ມີສິດແກ້ໄຂ"}>
+                    <button
+                      onClick={() => openEdit(doc)}
+                      disabled={!isCreator}
+                      className={`p-2 rounded-xl transition-colors shrink-0 ${
+                        !isCreator
+                          ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
+                          : "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                      }`}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </ButtonTooltip>
 
-              <ButtonTooltip text={isCreator ? "ລົບ" : "ບໍ່ມີສິດລົບ"}>
-                <button
-                  onClick={() => openDelete(doc)}
-                  disabled={!isCreator}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${!isCreator
-                    ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
-                    : "text-red-500 bg-red-500/10 hover:bg-red-500/20"
-                    }`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </ButtonTooltip>
+                  <ButtonTooltip text={isCreator ? "ລົບ" : "ບໍ່ມີສິດລົບ"}>
+                    <button
+                      onClick={() => openDelete(doc)}
+                      disabled={!isCreator}
+                      className={`p-2 rounded-xl transition-colors shrink-0 ${
+                        !isCreator
+                          ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
+                          : "text-red-500 bg-red-500/10 hover:bg-red-500/20"
+                      }`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </ButtonTooltip>
+                </>
+              )}
             </div>
           );
         },
@@ -963,6 +1143,19 @@ export function RegistermeterManagement() {
         selectedDoc={selectedDoc}
         mode={forwardMode}
         onRefresh={() => fetchDocs(search, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedStatusId, selectedSourceTypeId, filterMyDocs)}
+      />
+
+      <RejectRegistermeterModal
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        selectedDoc={selectedDoc}
+        onRefresh={() => fetchDocs(search, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedStatusId, selectedSourceTypeId, filterMyDocs)}
+      />
+
+      <RegistermeterPdfModal
+        open={pdfOpen}
+        onClose={() => setPdfOpen(false)}
+        selectedDoc={selectedDoc}
       />
     </div>
   );

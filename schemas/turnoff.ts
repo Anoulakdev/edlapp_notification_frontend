@@ -7,6 +7,7 @@ export const turnoffBaseSchema = z.object({
   endDate: z.string().min(1, "ກະລຸນາໃສ່ວັນທີສິ້ນສຸດ"),
   startTime: z.string().min(1, "ກະລຸນາໃສ່ເວລາເລີ່ມຕົ້ນ"),
   endTime: z.string().min(1, "ກະລຸນາໃສ່ເວລາສິ້ນສຸດ"),
+  voltageId: z.coerce.number().optional().nullable(),
 });
 
 export const createTurnoffSchema = turnoffBaseSchema.extend({
@@ -35,6 +36,14 @@ export const turnoffDocSchema = z.object({
   turnoffFile: z.string(),
   provinceId: z.number().nullable().optional(),
   districtId: z.number().nullable().optional(),
+  voltageId: z.number().nullable().optional(),
+  voltage: z
+    .object({
+      id: z.number(),
+      name: z.string(),
+    })
+    .nullable()
+    .optional(),
   createdById: z.number().nullable().optional(),
   province: z
     .object({

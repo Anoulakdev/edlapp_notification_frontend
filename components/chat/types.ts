@@ -38,6 +38,7 @@ export interface Message {
   lng: number | null;
   status: "sent" | "delivered" | "seen";
   seenAt: string | null;
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   edlappUser?: { id: number; name: string } | null;

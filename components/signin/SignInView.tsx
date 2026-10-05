@@ -25,15 +25,15 @@ export default function SignInView() {
           if (roleId === 1) {
             window.location.href = "/dashboard";
           } else if (roleId === 2) {
-            window.location.href = "/users";
+            window.location.href = "/dashboard";
           } else if (roleId === 3) {
-            window.location.href = "/turnoff";
+            window.location.href = "/dashboard";
           } else if (roleId === 4) {
-            window.location.href = "/turnoff";
+            window.location.href = "/dashboard";
           } else if (roleId === 5) {
-            window.location.href = "/turnoff";
+            window.location.href = "/dashboard";
           } else if (roleId === 6) {
-            window.location.href = "/turnoff";
+            window.location.href = "/dashboard";
           } else {
             try {
               await fetch("/api/auth/logout", { method: "POST" });
@@ -97,15 +97,15 @@ export default function SignInView() {
         if (roleId === 1) {
           window.location.href = "/dashboard";
         } else if (roleId === 2) {
-          window.location.href = "/users";
+          window.location.href = "/dashboard";
         } else if (roleId === 3) {
-          window.location.href = "/turnoff";
+          window.location.href = "/dashboard";
         } else if (roleId === 4) {
-          window.location.href = "/turnoff";
+          window.location.href = "/dashboard";
         } else if (roleId === 5) {
-          window.location.href = "/turnoff";
+          window.location.href = "/dashboard";
         } else if (roleId === 6) {
-          window.location.href = "/turnoff";
+          window.location.href = "/dashboard";
         } else {
           try {
             await fetch("/api/auth/logout", { method: "POST" });

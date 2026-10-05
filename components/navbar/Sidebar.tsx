@@ -6,6 +6,8 @@ import { ChevronDown, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useNavItems } from "./config";
+import { io } from "socket.io-client";
+import axiosInstance, { rawBackendUrl } from "@/lib/axiosInstance";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -16,8 +18,115 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [chatUnreadCount, setChatUnreadCount] = useState<number>(0);
+  const [meterCount, setMeterCount] = useState<number>(0);
   const pathname = usePathname();
   const { navItems: filteredNavItems, loading } = useNavItems();
+
+  // Fetch unread count & listen to real-time WebSocket updates
+  useEffect(() => {
+    if (loading) return;
+
+    const hasChat = filteredNavItems.some(
+      (item) => item.href === "/chat" || item.children?.some((c) => c.href === "/chat")
+    );
+    const hasRegisterMeter = filteredNavItems.some(
+      (item) => item.href === "/registermeter" || item.children?.some((c) => c.href === "/registermeter")
+    );
+
+    const socketUrl =
+      typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? window.location.origin
+        : rawBackendUrl;
+
+    let chatSocket: any = null;
+    let meterSocket: any = null;
+
+    if (hasChat) {
+      // 1. Fetch initial chat unread count
+      const fetchChatUnreadCount = async () => {
+        try {
+          const res = await axiosInstance.get("/conversations/unreadcount");
+          if (res.data && typeof res.data.total === "number") {
+            setChatUnreadCount(res.data.total);
+          } else if (typeof res.data === "number") {
+            setChatUnreadCount(res.data);
+          }
+        } catch (err: any) {
+          if (err?.response?.status !== 403) {
+            console.error("Failed to fetch chat unread count:", err);
+          }
+        }
+      };
+      fetchChatUnreadCount();
+
+      // Chat socket
+      chatSocket = io(`${socketUrl}/conversation`, {
+        transports: ["websocket"],
+      });
+
+      chatSocket.on("totalUnreadCountUpdate", (data: any) => {
+        const count =
+          typeof data?.total === "number"
+            ? data.total
+            : typeof data === "number"
+            ? data
+            : 0;
+        setChatUnreadCount(count);
+      });
+
+      chatSocket.on("unreadCountUpdate", (data: any) => {
+        const count =
+          typeof data?.total === "number"
+            ? data.total
+            : typeof data === "number"
+            ? data
+            : 0;
+        setChatUnreadCount(count);
+      });
+    } else {
+      setChatUnreadCount(0);
+    }
+
+    if (hasRegisterMeter) {
+      // 2. Fetch initial register meter count
+      const fetchMeterCount = async () => {
+        try {
+          const res = await axiosInstance.get("/registermeters/countmeter");
+          if (res.data && typeof res.data.total === "number") {
+            setMeterCount(res.data.total);
+          } else if (typeof res.data === "number") {
+            setMeterCount(res.data);
+          }
+        } catch (err: any) {
+          if (err?.response?.status !== 403) {
+            console.error("Failed to fetch register meter count:", err);
+          }
+        }
+      };
+      fetchMeterCount();
+
+      // Register meter socket for realtime updates
+      meterSocket = io(`${socketUrl}/registermeter`, {
+        transports: ["websocket"],
+      });
+
+      meterSocket.on("registermeterUpdated", () => {
+        fetchMeterCount();
+      });
+
+      meterSocket.on("countMeterUpdated", () => {
+        fetchMeterCount();
+      });
+    } else {
+      setMeterCount(0);
+    }
+
+    return () => {
+      if (chatSocket) chatSocket.disconnect();
+      if (meterSocket) meterSocket.disconnect();
+    };
+  }, [filteredNavItems, loading]);
 
   // Auto-expand menu groups if a child route is active (only if sidebar is not collapsed)
   useEffect(() => {
@@ -159,20 +268,31 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
                         const ChildIcon = child.icon;
                         const childActive = pathname === child.href;
 
+                        const isChildChat = child.href === "/chat";
+                        const isChildMeter = child.href === "/registermeter";
+                        const childBadgeCount = isChildChat ? chatUnreadCount : isChildMeter ? meterCount : 0;
+
                         return (
                           <Link
                             key={child.href}
                             href={child.href}
                             onClick={onClose}
                             className={cn(
-                              "flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer",
+                              "flex items-center justify-between px-3.5 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer",
                               childActive
                                 ? "text-white bg-white/20 shadow-inner font-semibold"
                                 : "text-white/70 hover:text-white hover:bg-white/10"
                             )}
                           >
-                            <ChildIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
-                            <span>{child.label}</span>
+                            <div className="flex items-center gap-3">
+                              <ChildIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                              <span>{child.label}</span>
+                            </div>
+                            {childBadgeCount > 0 && (
+                              <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-4 px-1 text-[10px] font-bold text-white bg-red-500 rounded-full shadow-sm animate-pulse">
+                                {childBadgeCount > 99 ? "99+" : childBadgeCount}
+                              </span>
+                            )}
                           </Link>
                         );
                       })}
@@ -183,13 +303,17 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
 
               // Normal plain links
               const active = pathname === item.href;
+              const isChat = item.href === "/chat";
+              const isMeter = item.href === "/registermeter";
+              const badgeCount = isChat ? chatUnreadCount : isMeter ? meterCount : 0;
+
               return (
                 <Link
                   key={item.href}
                   href={item.href!}
                   onClick={onClose}
                   className={cn(
-                    "flex items-center transition-all cursor-pointer",
+                    "flex items-center transition-all cursor-pointer relative",
                     sidebarCollapsed
                       ? "lg:justify-center lg:px-0 lg:h-11 lg:w-11 lg:mx-auto rounded-xl"
                       : "w-full px-3.5 py-2.5 rounded-xl text-sm font-medium gap-3",
@@ -197,11 +321,23 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
                       ? "text-white bg-white/20 shadow-inner font-semibold"
                       : "text-white/70 hover:text-white hover:bg-white/10"
                   )}
-                  title={sidebarCollapsed ? item.label : undefined}
+                  title={sidebarCollapsed ? `${item.label}${badgeCount > 0 ? ` (${badgeCount})` : ""}` : undefined}
                 >
-                  <Icon className={cn("w-4 h-4 shrink-0", active ? "text-white" : "text-white/70")} strokeWidth={2} />
-                  <span className={cn("transition-opacity duration-150", sidebarCollapsed && "lg:opacity-0 lg:w-0 lg:overflow-hidden lg:hidden")}>
-                    {item.label}
+                  <div className="relative shrink-0 flex items-center justify-center">
+                    <Icon className={cn("w-4 h-4 shrink-0", active ? "text-white" : "text-white/70")} strokeWidth={2} />
+                    {badgeCount > 0 && sidebarCollapsed && (
+                      <span className="hidden lg:flex absolute -top-1 -right-1.5 min-w-[15px] h-[15px] px-1 items-center justify-center text-[9px] font-bold text-white bg-red-500 rounded-full shadow ring-1 ring-white/30 animate-pulse">
+                        {badgeCount > 99 ? "99+" : badgeCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className={cn("flex-1 flex items-center justify-between transition-opacity duration-150", sidebarCollapsed && "lg:opacity-0 lg:w-0 lg:overflow-hidden lg:hidden")}>
+                    <span>{item.label}</span>
+                    {badgeCount > 0 && (
+                      <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-bold text-white bg-red-500 rounded-full shadow-sm animate-pulse">
+                        {badgeCount > 99 ? "99+" : badgeCount}
+                      </span>
+                    )}
                   </span>
                 </Link>
               );

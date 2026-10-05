@@ -155,6 +155,37 @@ export const problemDocSchema = z.object({
       commentText: z.string().nullable().optional(),
       commentAudio: z.string().nullable().optional(),
       commentImg: z.string().nullable().optional(),
+      problemEquipments: z
+        .array(
+          z.object({
+            id: z.number().optional(),
+            typeEquipmentId: z.number(),
+            equipmentId: z.number(),
+            amount: z.number(),
+            typeUnitId: z.number(),
+            comment: z.string().nullable().optional(),
+            typeEquipment: z
+              .object({
+                id: z.number(),
+                name: z.string(),
+              })
+              .optional(),
+            equipment: z
+              .object({
+                id: z.number(),
+                name: z.string(),
+              })
+              .optional(),
+            typeUnit: z
+              .object({
+                id: z.number(),
+                name: z.string(),
+              })
+              .optional(),
+          })
+        )
+        .nullable()
+        .optional(),
       createdAt: z.string(),
       updatedAt: z.string(),
       userSend: z

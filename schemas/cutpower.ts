@@ -4,6 +4,7 @@ export const cutpowerBaseSchema = z.object({
   title: z.string().trim().min(1, "ກະລຸນາໃສ່ຫົວຂໍ້"),
   description: z.string().optional(),
   cutpowerDate: z.string().min(1, "ກະລຸນາໃສ່ວັນທີ"),
+  voltageId: z.coerce.number().optional().nullable(),
 });
 
 export const createCutpowerSchema = cutpowerBaseSchema.extend({
@@ -24,6 +25,14 @@ export const cutpowerDocSchema = z.object({
   cutpowerFile: z.string(),
   provinceId: z.number().nullable().optional(),
   districtId: z.number().nullable().optional(),
+  voltageId: z.number().nullable().optional(),
+  voltage: z
+    .object({
+      id: z.number(),
+      name: z.string(),
+    })
+    .nullable()
+    .optional(),
   createdById: z.number().nullable().optional(),
   province: z
     .object({

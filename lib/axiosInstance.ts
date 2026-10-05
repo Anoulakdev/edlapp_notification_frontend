@@ -12,7 +12,7 @@ import axios from "axios";
 // On client-side (in the browser), use relative URL "/api" to route requests through Next.js rewrites proxy.
 // On server-side (if run in SSR/builds), use process.env.NEXT_PUBLIC_API_BASE_URL.
 export const rawBackendUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
 
 const API_BASE_URL =
   typeof window === "undefined" ? rawBackendUrl : "";
@@ -30,8 +30,12 @@ export const axiosInstance = axios.create({
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== "undefined") {
-      // Redirect to signin if unauthorized on the client-side
+    if (
+      error.response?.status === 401 &&
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/signin"
+    ) {
+      // Redirect to signin if unauthorized on the client-side (only when not already on /signin)
       window.location.href = "/signin";
     }
     return Promise.reject(error);

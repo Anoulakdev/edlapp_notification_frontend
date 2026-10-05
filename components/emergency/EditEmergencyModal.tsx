@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Button, Textarea } from "@/components/ui/FormElements";
+import { Input, Button, Textarea, Select } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editEmergencySchema } from "@/schemas/emergency";
 import { toast } from "react-toastify";
@@ -20,6 +20,9 @@ export function EditEmergencyModal({ open, onClose, selectedDoc, onRefresh }: Ed
   const [emergencyDate, setEmergencyDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [voltageId, setVoltageId] = useState("");
+  const [voltages, setVoltages] = useState<{ id: number; name: string }[]>([]);
+  const [loadingVoltages, setLoadingVoltages] = useState(false);
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [mapUrl, setMapUrl] = useState("");
@@ -129,6 +132,19 @@ export function EditEmergencyModal({ open, onClose, selectedDoc, onRefresh }: Ed
   // Load document details on open
   useEffect(() => {
     if (open && selectedDoc) {
+      const fetchVoltages = async () => {
+        try {
+          setLoadingVoltages(true);
+          const res = await axiosInstance.get("/voltages/selectvoltage");
+          setVoltages(res.data || []);
+        } catch (err) {
+          console.error("Failed to load voltages:", err);
+        } finally {
+          setLoadingVoltages(false);
+        }
+      };
+      fetchVoltages();
+
       const fetchDocDetails = async () => {
         try {
           setLoadingDoc(true);
@@ -140,6 +156,7 @@ export function EditEmergencyModal({ open, onClose, selectedDoc, onRefresh }: Ed
           setEmergencyDate(doc.emergencyDate ? doc.emergencyDate.split("T")[0] : "");
           setStartTime(doc.startTime || "");
           setEndTime(doc.endTime || "");
+          setVoltageId(doc.voltageId ? String(doc.voltageId) : "");
           setLat(doc.lat !== undefined && doc.lat !== null ? String(doc.lat) : "");
           setLng(doc.lng !== undefined && doc.lng !== null ? String(doc.lng) : "");
           setCurrentFileName(doc.emergencyImg || "");
@@ -299,6 +316,7 @@ export function EditEmergencyModal({ open, onClose, selectedDoc, onRefresh }: Ed
       emergencyDate,
       startTime,
       endTime,
+      voltageId: voltageId ? Number(voltageId) : null,
       lat: lat === "" ? undefined : lat,
       lng: lng === "" ? undefined : lng,
       file,
@@ -325,6 +343,7 @@ export function EditEmergencyModal({ open, onClose, selectedDoc, onRefresh }: Ed
       formData.append("emergencyDate", new Date(emergencyDate).toISOString());
       formData.append("startTime", startTime);
       formData.append("endTime", endTime);
+      formData.append("voltageId", voltageId || "");
       if (lat !== "") {
         formData.append("lat", lat);
       } else {
@@ -387,6 +406,21 @@ export function EditEmergencyModal({ open, onClose, selectedDoc, onRefresh }: Ed
                   />
                 </div>
 
+                <div className="col-span-2">
+                  <Select
+                    label="ແຮງດັນ"
+                    options={[
+                      { value: "", label: loadingVoltages ? "ກຳລັງໂຫຼດແຮງດັນ..." : "-- ເລືອກແຮງດັນ --" },
+                      ...voltages.map((v) => ({
+                        value: String(v.id),
+                        label: v.name,
+                      })),
+                    ]}
+                    value={voltageId}
+                    onChange={(e) => setVoltageId(e.target.value)}
+                    disabled={loadingVoltages}
+                  />
+                </div>
 
                 <div className="col-span-2">
                   <Textarea

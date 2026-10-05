@@ -45,6 +45,7 @@ export const registerMeterSchema = z.object({
   lng: z.number().nullable().optional(),
   billNearImg: z.string().optional().nullable(),
   idcardImg: z.string().optional().nullable(),
+  comment: z.string().optional().nullable(),
   provinceId: z.number(),
   districtId: z.number(),
   villageId: z.number(),

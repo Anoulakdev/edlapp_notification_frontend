@@ -80,6 +80,7 @@ interface RatingCountItem {
   rating4: number;
   rating5: number;
   totalRatings: number;
+  totalStars?: number;
   averageRating: number;
 }
 
@@ -299,7 +300,10 @@ export function RatingReportManagement() {
     const totalCount = ratingCountList.reduce((acc, curr) => acc + curr.totalRatings, 0);
     const total5Stars = ratingCountList.reduce((acc, curr) => acc + curr.rating5, 0);
     const totalSumScore = ratingCountList.reduce(
-      (acc, curr) => acc + curr.averageRating * curr.totalRatings,
+      (acc, curr) =>
+        acc +
+        (curr.totalStars ??
+          curr.averageRating * curr.totalRatings),
       0
     );
     const overallAvg = totalCount > 0 ? (totalSumScore / totalCount).toFixed(2) : "0.00";
@@ -308,6 +312,7 @@ export function RatingReportManagement() {
 
     return {
       totalCount,
+      totalSumScore,
       overallAvg,
       fiveStarPercent,
       agentEvaluatedCount,
@@ -409,6 +414,14 @@ export function RatingReportManagement() {
           `Agent #${c.agentId}`;
         const empCode = c.agent?.employee?.emp_code || "";
 
+        const totalStars =
+          c.totalStars ??
+          c.rating1 * 1 +
+            c.rating2 * 2 +
+            c.rating3 * 3 +
+            c.rating4 * 4 +
+            c.rating5 * 5;
+
         return {
           "ລຳດັບ": index + 1,
           "ຊື່ພະນັກງານ": agentName + (empCode ? ` (${empCode})` : ""),
@@ -417,8 +430,7 @@ export function RatingReportManagement() {
           "3 ດາວ": c.rating3,
           "4 ດາວ": c.rating4,
           "5 ດາວ": c.rating5,
-          "ລວມທັງໝົດ": c.totalRatings,
-          "ຄະແນນສະເລ່ຍ": c.averageRating,
+          "ຄະແນນດາວລວມ": totalStars,
         };
       });
       const worksheetCount = XLSX.utils.json_to_sheet(countRows);
@@ -853,8 +865,9 @@ export function RatingReportManagement() {
                       <th className="py-3.5 px-3 text-center text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20">
                         5 ດາວ
                       </th>
-                      <th className="py-3.5 px-4 text-center font-bold">ລວມທັງໝົດ</th>
-                      <th className="py-3.5 px-4 text-center">ຄະແນນສະເລ່ຍ</th>
+                      <th className="py-3.5 px-4 text-center font-bold text-amber-700 dark:text-amber-300 bg-amber-50/50 dark:bg-amber-950/20">
+                        ຄະແນນດາວລວມ
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/70 dark:divide-gray-700/70 text-sm">
@@ -864,6 +877,13 @@ export function RatingReportManagement() {
                           }`.trim() || `Agent #${item.agentId}`;
                       const empCode = item.agent?.employee?.emp_code;
                       const gender = item.agent?.employee?.gender;
+                      const totalStars =
+                        item.totalStars ??
+                        item.rating1 * 1 +
+                          item.rating2 * 2 +
+                          item.rating3 * 3 +
+                          item.rating4 * 4 +
+                          item.rating5 * 5;
 
                       return (
                         <tr
@@ -903,16 +923,11 @@ export function RatingReportManagement() {
                           <td className="py-3.5 px-3 text-center font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/10">
                             {item.rating5}
                           </td>
-                          <td className="py-3.5 px-4 text-center font-bold text-slate-800 dark:text-white">
-                            <span className="px-2.5 py-1 bg-slate-100 dark:bg-gray-700 rounded-lg text-xs">
-                              {item.totalRatings}
+                          <td className="py-3.5 px-4 text-center font-black text-amber-600 dark:text-amber-400 bg-amber-50/30 dark:bg-amber-950/10">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 rounded-lg text-xs font-bold shadow-sm">
+                              <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                              <span>{totalStars} ດາວ</span>
                             </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40 rounded-full font-bold text-xs">
-                              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                              <span>{item.averageRating.toFixed(2)}</span>
-                            </div>
                           </td>
                         </tr>
                       );

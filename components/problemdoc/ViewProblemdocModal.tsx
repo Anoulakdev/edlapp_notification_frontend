@@ -2,7 +2,24 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { AlertTriangle, FileText, MapPin, User, Clock, Phone, UserCheck, Wrench } from "lucide-react";
+import {
+  AlertTriangle,
+  FileText,
+  MapPin,
+  User,
+  Clock,
+  Phone,
+  UserCheck,
+  Wrench,
+  Send,
+  Inbox,
+  CheckCircle2,
+  ExternalLink,
+  Image as ImageIcon,
+  Volume2,
+  Activity,
+  MessageSquare,
+} from "lucide-react";
 import { loadLeaflet, ASSET_BASE_URL } from "@/lib/utils";
 import { ProblemDoc } from "@/schemas/problemdoc";
 import { axiosInstance } from "@/lib/axiosInstance";
@@ -563,262 +580,350 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
         </div>
 
         {/* Tab 2: Repair Info */}
-        <div className={activeTab === "repair" ? "flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 overflow-visible lg:overflow-hidden" : "hidden"}>
+        <div className={activeTab === "repair" ? "flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-5 overflow-visible lg:overflow-hidden" : "hidden"}>
           {displayDoc?.problemAssigns ? (
             <>
               {/* Left Side: Assignment & Action details */}
-              <div className="w-full lg:col-span-5 flex flex-col gap-2.5 overflow-y-visible lg:overflow-y-auto pr-0 lg:pr-2 scrollbar-thin">
+              <div className="w-full lg:col-span-6 flex flex-col gap-3.5 overflow-y-visible lg:overflow-y-auto pr-0 lg:pr-2 scrollbar-thin">
 
-                {/* 1. 🛡️ ຂໍ້ມູນຜູ້ມອບວຽກ */}
-                <div className="flex flex-col gap-1">
-                  <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                    ຂໍ້ມູນຜູ້ມອບວຽກ
-                  </h4>
-
-                  {/* ຜູ້ມອບວຽກ Card */}
-                  <div className="group p-2.5 rounded-xl bg-gradient-to-br from-indigo-50/60 to-slate-50/30 dark:from-indigo-950/10 dark:to-slate-900/5 border border-indigo-100/85 dark:border-indigo-900/40 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 text-white shadow-sm shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
-                        <User className="w-4 h-4" />
+                {/* 1. Workflow & Assignment Timeline */}
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3.5">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                        <Activity className="w-4 h-4" />
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">ຜູ້ມອບວຽກ</span>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                          {displayDoc.problemAssigns.userSend?.employee
-                            ? `${displayDoc.problemAssigns.userSend.employee.first_name} ${displayDoc.problemAssigns.userSend.employee.last_name}`
-                            : "-"}
-                        </span>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                          ຂະບວນການດຳເນີນງານ
+                        </h4>
+                        <p className="text-[10px] text-slate-400">ປະຫວັດການມອບ-ຮັບ ແລະ ແກ້ໄຂວຽກ</p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-indigo-100/50 dark:border-indigo-900/20 pt-2">
-                      {displayDoc.problemAssigns.userSend?.employee?.emp_code && (
-                        <div className="flex items-center gap-1.5 text-slate-650 dark:text-slate-400">
-                          <UserCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">ລະຫັດພະນັກງານ</p>
-                            <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate">{displayDoc.problemAssigns.userSend.employee.emp_code}</p>
+                    {displayDoc.problemAssigns.userActiveId ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        ແກ້ໄຂສຳເລັດ
+                      </span>
+                    ) : displayDoc.problemAssigns.userReceiverId ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40">
+                        <Clock className="w-3.5 h-3.5 text-blue-500" />
+                        ກຳລັງແກ້ໄຂ
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/40">
+                        <Send className="w-3.5 h-3.5 text-indigo-500" />
+                        ມອບວຽກແລ້ວ
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Connected Timeline */}
+                  <div className="relative pl-6 space-y-3.5 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800">
+                    {/* Step 1: ຜູ້ມອບວຽກ */}
+                    <div className="relative">
+                      <div className="absolute -left-6 top-1 w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border-2 border-indigo-500 flex items-center justify-center shrink-0 shadow-xs">
+                        <Send className="w-2.5 h-2.5" />
+                      </div>
+                      <div className="bg-slate-50/70 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 transition-colors space-y-1.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
+                              ຜູ້ມອບວຽກ
+                            </span>
+                            <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                              {displayDoc.problemAssigns.userSend?.employee
+                                ? `${displayDoc.problemAssigns.userSend.employee.first_name} ${displayDoc.problemAssigns.userSend.employee.last_name}`
+                                : "-"}
+                            </span>
+                            {displayDoc.problemAssigns.userSend?.employee?.emp_code && (
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                                ({displayDoc.problemAssigns.userSend.employee.emp_code})
+                              </span>
+                            )}
+                          </div>
+                          {displayDoc.problemAssigns.userSend?.employee?.tel && (
+                            <a
+                              href={`tel:${displayDoc.problemAssigns.userSend.employee.tel}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-indigo-600 transition-colors"
+                            >
+                              <Phone className="w-3 h-3 text-indigo-500" />
+                              <span>{displayDoc.problemAssigns.userSend.employee.tel}</span>
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+                          <div className="flex items-center gap-1 text-slate-500">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            <span>ເວລາມອບ: </span>
+                            <span className="font-medium text-slate-700 dark:text-slate-300">
+                              {displayDoc.problemAssigns.sendAt
+                                ? moment(displayDoc.problemAssigns.sendAt).format("DD/MM/YYYY HH:mm:ss")
+                                : moment(displayDoc.problemAssigns.createdAt).format("DD/MM/YYYY HH:mm:ss")}
+                            </span>
+                          </div>
+                          {displayDoc.problemAssigns.sendTime !== undefined && displayDoc.problemAssigns.sendTime !== null && (
+                            <span className="font-medium text-indigo-600 dark:text-indigo-400 text-[10px]">
+                              ໃຊ້ເວລາ {displayDoc.problemAssigns.sendTime} ນາທີ
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 2: ຜູ້ຮັບວຽກ (if present) */}
+                    {Boolean(displayDoc.problemAssigns.userReceiverId) && (
+                      <div className="relative">
+                        <div className="absolute -left-6 top-1 w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-2 border-blue-500 flex items-center justify-center shrink-0 shadow-xs">
+                          <Inbox className="w-2.5 h-2.5" />
+                        </div>
+                        <div className="bg-slate-50/70 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 transition-colors space-y-1.5">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded">
+                                ຜູ້ຮັບວຽກ
+                              </span>
+                              <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                                {displayDoc.problemAssigns.userReceiver?.employee
+                                  ? `${displayDoc.problemAssigns.userReceiver.employee.first_name} ${displayDoc.problemAssigns.userReceiver.employee.last_name}`
+                                  : "-"}
+                              </span>
+                              {displayDoc.problemAssigns.userReceiver?.employee?.emp_code && (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                                  ({displayDoc.problemAssigns.userReceiver.employee.emp_code})
+                                </span>
+                              )}
+                            </div>
+                            {displayDoc.problemAssigns.userReceiver?.employee?.tel && (
+                              <a
+                                href={`tel:${displayDoc.problemAssigns.userReceiver.employee.tel}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors"
+                              >
+                                <Phone className="w-3 h-3 text-blue-500" />
+                                <span>{displayDoc.problemAssigns.userReceiver.employee.tel}</span>
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span>ເວລາຮັບ: </span>
+                              <span className="font-medium text-slate-700 dark:text-slate-300">
+                                {displayDoc.problemAssigns.receiveAt
+                                  ? moment(displayDoc.problemAssigns.receiveAt).format("DD/MM/YYYY HH:mm:ss")
+                                  : moment(displayDoc.problemAssigns.createdAt).format("DD/MM/YYYY HH:mm:ss")}
+                              </span>
+                            </div>
+                            {displayDoc.problemAssigns.receiveTime !== undefined && displayDoc.problemAssigns.receiveTime !== null && (
+                              <span className="font-medium text-blue-600 dark:text-blue-400 text-[10px]">
+                                ໃຊ້ເວລາ {displayDoc.problemAssigns.receiveTime} ນາທີ
+                              </span>
+                            )}
                           </div>
                         </div>
-                      )}
-                      {displayDoc.problemAssigns.userSend?.employee?.tel && (
-                        <div className="flex items-center gap-1.5 text-slate-650 dark:text-slate-400">
-                          <Phone className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">ເບີໂທລະສັບ</p>
-                            <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate">{displayDoc.problemAssigns.userSend.employee.tel}</p>
+                      </div>
+                    )}
+
+                    {/* Step 3: ຜູ້ແກ້ໄຂວຽກ (if present) */}
+                    {Boolean(displayDoc.problemAssigns.userActiveId) && (
+                      <div className="relative">
+                        <div className="absolute -left-6 top-1 w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500 flex items-center justify-center shrink-0 shadow-xs">
+                          <CheckCircle2 className="w-3 h-3" />
+                        </div>
+                        <div className="bg-slate-50/70 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-900/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 transition-colors space-y-1.5">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
+                                ຜູ້ແກ້ໄຂວຽກ
+                              </span>
+                              <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                                {displayDoc.problemAssigns.userActive?.employee
+                                  ? `${displayDoc.problemAssigns.userActive.employee.first_name} ${displayDoc.problemAssigns.userActive.employee.last_name}`
+                                  : "-"}
+                              </span>
+                              {displayDoc.problemAssigns.userActive?.employee?.emp_code && (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                                  ({displayDoc.problemAssigns.userActive.employee.emp_code})
+                                </span>
+                              )}
+                            </div>
+                            {displayDoc.problemAssigns.userActive?.employee?.tel && (
+                              <a
+                                href={`tel:${displayDoc.problemAssigns.userActive.employee.tel}`}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-emerald-600 transition-colors"
+                              >
+                                <Phone className="w-3 h-3 text-emerald-500" />
+                                <span>{displayDoc.problemAssigns.userActive.employee.tel}</span>
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span>ເວລາແກ້ໄຂ: </span>
+                              <span className="font-medium text-slate-700 dark:text-slate-300">
+                                {displayDoc.problemAssigns.activeAt
+                                  ? moment(displayDoc.problemAssigns.activeAt).format("DD/MM/YYYY HH:mm:ss")
+                                  : moment(displayDoc.problemAssigns.updatedAt).format("DD/MM/YYYY HH:mm:ss")}
+                              </span>
+                            </div>
+                            {displayDoc.problemAssigns.activeTime !== undefined && displayDoc.problemAssigns.activeTime !== null && (
+                              <span className="font-medium text-emerald-600 dark:text-emerald-400 text-[10px]">
+                                ໃຊ້ເວລາ {displayDoc.problemAssigns.activeTime} ນາທີ
+                              </span>
+                            )}
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 px-2 py-1 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100/30 dark:border-indigo-900/10">
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-555 dark:text-slate-400 min-w-0">
-                        <Clock className="w-3 h-3 text-indigo-500 shrink-0" />
-                        <span className="font-medium">ເວລາມອບວຽກ: </span>
-                        <span className="font-bold text-indigo-700 dark:text-indigo-300">
-                          {displayDoc.problemAssigns.sendAt
-                            ? moment(displayDoc.problemAssigns.sendAt).format("DD/MM/YYYY HH:mm:ss")
-                            : moment(displayDoc.problemAssigns.createdAt).format("DD/MM/YYYY HH:mm:ss")}
-                        </span>
                       </div>
-                      {displayDoc.problemAssigns.sendTime !== undefined && displayDoc.problemAssigns.sendTime !== null && (
-                        <div className="text-[11px] text-slate-555 dark:text-slate-400 shrink-0">
-                          <span className="font-medium">ເວລາທີ່ໃຊ້: </span>
-                          <span className="font-bold text-indigo-700 dark:text-indigo-300">
-                            {displayDoc.problemAssigns.sendTime} ນາທີ
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
 
-                {/* 2. 🛡️ ຂໍ້ມູນຜູ້ຮັບວຽກ (แสดงเมื่อมี userReceiverId เท่านั้น) */}
-                {Boolean(displayDoc.problemAssigns.userReceiverId) && (
-                  <div className="flex flex-col gap-1">
-                    <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                      ຂໍ້ມູນຜູ້ຮັບວຽກ
-                    </h4>
-
-                    {/* ຜູ້ຮັບວຽກ Card */}
-                    <div className="group p-2.5 rounded-xl bg-gradient-to-br from-blue-50/60 to-slate-50/30 dark:from-blue-950/10 dark:to-slate-900/5 border border-blue-100/85 dark:border-blue-900/40 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-transform duration-300">
-                          <User className="w-4 h-4" />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider">ຜູ້ຮັບວຽກ</span>
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                            {displayDoc.problemAssigns.userReceiver?.employee
-                              ? `${displayDoc.problemAssigns.userReceiver.employee.first_name} ${displayDoc.problemAssigns.userReceiver.employee.last_name}`
-                              : "-"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs border-t border-blue-100/50 dark:border-blue-900/20 pt-2">
-                        {displayDoc.problemAssigns.userReceiver?.employee?.emp_code && (
-                          <div className="flex items-center gap-1.5 text-slate-650 dark:text-slate-400">
-                            <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">ລະຫັດພະນັກງານ</p>
-                              <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate">{displayDoc.problemAssigns.userReceiver.employee.emp_code}</p>
-                            </div>
-                          </div>
-                        )}
-                        {displayDoc.problemAssigns.userReceiver?.employee?.tel && (
-                          <div className="flex items-center gap-1.5 text-slate-650 dark:text-slate-400">
-                            <Phone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">ເບີໂທລະສັບ</p>
-                              <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate">{displayDoc.problemAssigns.userReceiver.employee.tel}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 px-2 py-1 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100/30 dark:border-blue-900/10">
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-555 dark:text-slate-400 min-w-0">
-                          <Clock className="w-3 h-3 text-blue-500 shrink-0" />
-                          <span className="font-medium">ເວລາຮັບວຽກ: </span>
-                          <span className="font-bold text-blue-700 dark:text-blue-300">
-                            {displayDoc.problemAssigns.receiveAt
-                              ? moment(displayDoc.problemAssigns.receiveAt).format("DD/MM/YYYY HH:mm:ss")
-                              : moment(displayDoc.problemAssigns.createdAt).format("DD/MM/YYYY HH:mm:ss")}
-                          </span>
-                        </div>
-                        {displayDoc.problemAssigns.receiveTime !== undefined && displayDoc.problemAssigns.receiveTime !== null && (
-                          <div className="text-[11px] text-slate-555 dark:text-slate-400 shrink-0">
-                            <span className="font-medium">ເວລາທີ່ໃຊ້: </span>
-                            <span className="font-bold text-blue-700 dark:text-blue-300">
-                              {displayDoc.problemAssigns.receiveTime} ນາທີ
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. 🛡️ ຂໍ້ມູນຜູ້ແກ້ໄຂວຽກ (แสดงเมื่อมี userActiveId เท่านั้น) */}
-                {Boolean(displayDoc.problemAssigns.userActiveId) && (
-                  <div className="flex flex-col gap-1">
-                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                      ຂໍ້ມູນຜູ້ແກ້ໄຂວຽກ
-                    </h4>
-
-                    {/* ຜູ້ແກ້ໄຂວຽກ Card */}
-                    <div className="group p-2.5 rounded-xl bg-gradient-to-br from-emerald-50/60 to-slate-50/30 dark:from-emerald-950/10 dark:to-slate-900/5 border border-emerald-100/85 dark:border-emerald-900/40 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 text-white shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-300">
-                          <Wrench className="w-4 h-4" />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">ຜູ້ແກ້ໄຂວຽກ</span>
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                            {displayDoc.problemAssigns.userActive?.employee
-                              ? `${displayDoc.problemAssigns.userActive.employee.first_name} ${displayDoc.problemAssigns.userActive.employee.last_name}`
-                              : "-"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs border-t border-emerald-100/50 dark:border-emerald-900/20 pt-2">
-                        {displayDoc.problemAssigns.userActive?.employee?.emp_code && (
-                          <div className="flex items-center gap-1.5 text-slate-650 dark:text-slate-400">
-                            <UserCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">ລະຫັດພະນັກງານ</p>
-                              <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate">{displayDoc.problemAssigns.userActive.employee.emp_code}</p>
-                            </div>
-                          </div>
-                        )}
-                        {displayDoc.problemAssigns.userActive?.employee?.tel && (
-                          <div className="flex items-center gap-1.5 text-slate-650 dark:text-slate-400">
-                            <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">ເບີໂທລະສັບ</p>
-                              <p className="font-bold text-xs text-slate-700 dark:text-slate-300 truncate">{displayDoc.problemAssigns.userActive.employee.tel}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 px-2 py-1 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100/30 dark:border-emerald-900/10">
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-555 dark:text-slate-400 min-w-0">
-                          <Clock className="w-3 h-3 text-emerald-500 shrink-0" />
-                          <span className="font-medium">ເວລາແກ້ໄຂວຽກ: </span>
-                          <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                            {displayDoc.problemAssigns.activeAt
-                              ? moment(displayDoc.problemAssigns.activeAt).format("DD/MM/YYYY HH:mm:ss")
-                              : moment(displayDoc.problemAssigns.updatedAt).format("DD/MM/YYYY HH:mm:ss")}
-                          </span>
-                        </div>
-                        {displayDoc.problemAssigns.activeTime !== undefined && displayDoc.problemAssigns.activeTime !== null && (
-                          <div className="text-[11px] text-slate-555 dark:text-slate-400 shrink-0">
-                            <span className="font-medium">ເວລາທີ່ໃຊ້: </span>
-                            <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                              {displayDoc.problemAssigns.activeTime} ນາທີ
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. ລາຍງານການແກ້ໄຂ */}
+                {/* 2. ລາຍງານການແກ້ໄຂ (Comment / Note) */}
                 {displayDoc.problemAssigns.commentText && (
-                  <div className="flex flex-col gap-2">
-                    <h4 className="text-xs font-bold text-slate-455 dark:text-slate-400 uppercase tracking-wider">
-                      ລາຍງານການແກ້ໄຂ
-                    </h4>
-                    <p className="text-xs text-slate-650 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800 whitespace-pre-line leading-relaxed">
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <MessageSquare className="w-4 h-4 text-blue-500" />
+                      <span className="uppercase tracking-wide">ລາຍງານການແກ້ໄຂ</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed font-normal">
                       {displayDoc.problemAssigns.commentText}
-                    </p>
+                    </div>
                   </div>
                 )}
+
+                {/* 3. ອຸປະກອນທີ່ນຳໃຊ້ໃນການສ້ອມແປງ (Equipments Used) */}
+                {displayDoc.problemAssigns.problemEquipments &&
+                  displayDoc.problemAssigns.problemEquipments.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <Wrench className="w-4 h-4 text-amber-500" />
+                          <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                            ອຸປະກອນທີ່ນຳໃຊ້ໃນການສ້ອມແປງ
+                          </h4>
+                        </div>
+                        <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                          {displayDoc.problemAssigns.problemEquipments.length} ລາຍການ
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+                        {displayDoc.problemAssigns.problemEquipments.map((pe, idx) => (
+                          <div
+                            key={pe.id || idx}
+                            className="p-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3 hover:border-slate-200 dark:hover:border-slate-700 transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <span className="w-5 h-5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                {idx + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">
+                                  {pe.equipment?.name || "ອຸປະກອນ"}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
+                                  {pe.typeEquipment?.name && (
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-200/50 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                      {pe.typeEquipment.name}
+                                    </span>
+                                  )}
+                                  {pe.comment && (
+                                    <span className="text-slate-500 dark:text-slate-400 italic truncate max-w-[220px]">
+                                      ໝາຍເຫດ: {pe.comment}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-200/50 dark:border-amber-900/40 tabular-nums">
+                                {pe.amount} {pe.typeUnit?.name || "ອັນ"}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
               </div>
 
-              {/* Right Side: Repair Photo & Audio Previews */}
-              <div className="w-full lg:col-span-7 h-auto lg:h-full flex flex-col gap-4 overflow-visible lg:overflow-hidden">
-                {/* Top: Repair Image */}
-                <div className="h-[280px] lg:h-auto lg:flex-[1.5] lg:min-h-[250px] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/40 flex flex-col shrink-0 lg:shrink">
-                  {displayDoc.problemAssigns.commentImg ? (
-                    <div className="w-full h-full overflow-auto flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-900">
+              {/* Right Side: Media Previews */}
+              <div className="w-full lg:col-span-6 flex flex-col gap-3.5 overflow-visible lg:overflow-hidden h-full">
+                {/* Photo Preview Card */}
+                <div className="flex-1 min-h-[300px] border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900/80 shadow-xs flex flex-col">
+                  {/* Card Header */}
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-blue-500" />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                        ຮູບພາບການສ້ອມແປງ
+                      </span>
+                    </div>
+                    {displayDoc.problemAssigns.commentImg && (
+                      <a
+                        href={`${ASSET_BASE_URL}/upload/comment/${displayDoc.problemAssigns.commentImg}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        <span>ເບິ່ງຂະໜາດເຕັມ</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Image Container */}
+                  <div className="flex-1 w-full h-full min-h-[220px] p-3 flex items-center justify-center bg-slate-50/30 dark:bg-slate-950/20 overflow-auto">
+                    {displayDoc.problemAssigns.commentImg ? (
                       <img
                         src={`${ASSET_BASE_URL}/upload/comment/${displayDoc.problemAssigns.commentImg}`}
                         alt="ຮູບພາບການສ້ອມແປງ"
-                        className="max-w-full h-auto max-h-full object-contain rounded-lg shadow-sm"
+                        className="max-w-full h-auto max-h-[380px] object-contain rounded-xl shadow-xs"
                       />
-                    </div>
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2">
-                      <FileText className="w-10 h-10" />
-                      <span className="text-sm">ບໍ່ພົບຮູບພາບການສ້ອມແປງ</span>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-400 gap-2 py-12">
+                        <ImageIcon className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                        <span className="text-xs font-medium">ບໍ່ມີຮູບພາບປະກອບການສ້ອມແປງ</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Bottom: Repair Audio Player */}
+                {/* Audio Player Card (if present) */}
                 {displayDoc.problemAssigns.commentAudio && (
-                  <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-900/40 flex flex-col gap-2 shrink-0">
-                    <span className="text-xs text-slate-400 font-semibold">ສຽງບັນທຶກການແກ້ໄຂ</span>
+                  <div className="p-3.5 border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/80 shadow-xs flex flex-col gap-2 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Volume2 className="w-4 h-4 text-indigo-500" />
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                          ສຽງບັນທຶກການແກ້ໄຂ
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-medium text-slate-400 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
+                        ໄຟລ໌ສຽງ
+                      </span>
+                    </div>
                     <audio
                       src={`${ASSET_BASE_URL}/upload/audio/${displayDoc.problemAssigns.commentAudio}`}
                       controls
-                      className="w-full"
+                      className="w-full h-9 rounded-lg"
                     />
                   </div>
                 )}
               </div>
             </>
           ) : (
-            // Tab 2: Repair Info (Empty state placeholder)
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2 py-10 w-full col-span-12">
-              <AlertTriangle className="w-12 h-12 text-slate-350 shrink-0" />
-              <span className="text-sm font-medium">ຍັງບໍ່ມີຂໍ້ມູນການສ້ອມແປງ</span>
+            // Tab 2: Empty state placeholder
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2.5 py-16 w-full col-span-12">
+              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-400 mb-1">
+                <AlertTriangle className="w-6 h-6 text-amber-500/80" />
+              </div>
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">ຍັງບໍ່ມີຂໍ້ມູນການສ້ອມແປງ</span>
+              <span className="text-xs text-slate-400 text-center max-w-sm">
+                ເອກະສານນີ້ຍັງບໍ່ທັນໄດ້ຖືກມອບໝາຍ ຫຼື ດຳເນີນການສ້ອມແປງໃນລະບົບ
+              </span>
             </div>
           )}
         </div>

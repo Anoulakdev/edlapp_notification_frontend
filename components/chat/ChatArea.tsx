@@ -1,5 +1,5 @@
 import React from "react";
-import { Phone, Loader2, Image as ImageIcon, Mic, Square, X, Send, MessageSquare, MessageSquareText, Search, ArrowLeft, Volume2, ChevronDown, MapPin, Trash2, Star } from "lucide-react";
+import { Phone, Loader2, Image as ImageIcon, Mic, Square, X, Send, MessageSquare, MessageSquareText, Search, ArrowLeft, Volume2, ChevronDown, MapPin, Trash2, Star, CheckCircle2 } from "lucide-react";
 import moment from "moment";
 import { Conversation, Message, AgentRating } from "./types";
 import { LocationPickerModal } from "./LocationPickerModal";
@@ -83,23 +83,70 @@ export function ChatArea({
   const [deletingMessageId, setDeletingMessageId] = React.useState<number | null>(null);
   const [requestingRating, setRequestingRating] = React.useState(false);
   const [agentRatings, setAgentRatings] = React.useState<AgentRating[]>([]);
+  const [isRatingRequestedToday, setIsRatingRequestedToday] = React.useState(false);
 
   React.useEffect(() => {
     if (!selectedConversation?.id) {
       setAgentRatings([]);
+      setIsRatingRequestedToday(false);
       return;
     }
     const fetchRating = async () => {
       try {
-        const res = await axiosInstance.get(`/conversations/rating/${selectedConversation.id}`);
-        const data = Array.isArray(res.data) ? res.data : (res.data ? [res.data] : []);
-        setAgentRatings(data);
+        const [ratingRes, statusRes] = await Promise.allSettled([
+          axiosInstance.get(`/conversations/rating/${selectedConversation.id}`),
+          axiosInstance.get(`/conversations/rating-status/${selectedConversation.id}`),
+        ]);
+
+        if (ratingRes.status === "fulfilled") {
+          const data = Array.isArray(ratingRes.value.data)
+            ? ratingRes.value.data
+            : ratingRes.value.data
+            ? [ratingRes.value.data]
+            : [];
+          setAgentRatings(data);
+        } else {
+          setAgentRatings([]);
+        }
+
+        if (statusRes.status === "fulfilled") {
+          setIsRatingRequestedToday(!!statusRes.value.data?.requestedToday);
+        } else {
+          setIsRatingRequestedToday(false);
+        }
       } catch (err) {
         setAgentRatings([]);
+        setIsRatingRequestedToday(false);
       }
     };
     fetchRating();
-  }, [selectedConversation?.id]);
+  }, [selectedConversation?.id, currentUserId]);
+
+  // Check if THIS logged-in agent has already requested or received a rating today
+  const hasRatingMessageToday = React.useMemo(() => {
+    if (!currentUserId) return false;
+    const todayStr = moment().format("YYYY-MM-DD");
+    const hasMsgToday = messages.some(
+      (m) =>
+        m.senderType === "callcenter" &&
+        m.agentId === currentUserId &&
+        (m.content?.includes("ດາວ") || m.content?.includes("ປະເມິນ")) &&
+        moment(m.createdAt).format("YYYY-MM-DD") === todayStr &&
+        !m.deletedAt
+    );
+    if (hasMsgToday) return true;
+
+    const hasRatingToday = agentRatings.some(
+      (r) =>
+        r.agentId === currentUserId &&
+        moment(r.createdAt).format("YYYY-MM-DD") === todayStr
+    );
+    if (hasRatingToday) return true;
+
+    return false;
+  }, [messages, agentRatings, currentUserId]);
+
+  const isRatingDisabledToday = isRatingRequestedToday || hasRatingMessageToday;
 
   // Realtime Rating Update Listener via Socket.io
   React.useEffect(() => {
@@ -108,6 +155,9 @@ export function ChatArea({
     const handleRatingSubmitted = (newRatingData: AgentRating) => {
       console.log("Realtime ratingSubmitted received in ChatArea:", newRatingData);
       if (selectedConversation && newRatingData.conversationId === selectedConversation.id) {
+        if (currentUserId && newRatingData.agentId === currentUserId) {
+          setIsRatingRequestedToday(true);
+        }
         setAgentRatings((prev) => {
           const index = prev.findIndex(
             (r) => r.id === newRatingData.id || (r.messageId && r.messageId === newRatingData.messageId)
@@ -127,19 +177,24 @@ export function ChatArea({
     return () => {
       socket.off("ratingSubmitted", handleRatingSubmitted);
     };
-  }, [socket, selectedConversation]);
+  }, [socket, selectedConversation, currentUserId]);
 
   const handleRequestRating = async () => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || isRatingDisabledToday) return;
     try {
       setRequestingRating(true);
       await axiosInstance.post("/conversations/request-rating", {
         conversationId: selectedConversation.id,
       });
+      setIsRatingRequestedToday(true);
       toast.success("ສົ່ງຄຳຮ້ອງຂໍໃຫ້ດາວປະເມິນສຳເລັດ");
     } catch (err: any) {
       console.error("Failed to request rating:", err);
-      toast.error(err?.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການສົ່ງຄຳຮ້ອງຂໍປະເມິນ");
+      const msg = err?.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການສົ່ງຄຳຮ້ອງຂໍປະເມິນ";
+      toast.error(msg);
+      if (msg.includes("ມື້ນີ້") || msg.includes("ແລ້ວ")) {
+        setIsRatingRequestedToday(true);
+      }
     } finally {
       setRequestingRating(false);
     }
@@ -364,22 +419,35 @@ export function ChatArea({
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleRequestRating}
-            disabled={requestingRating}
-            className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-gradient-to-r from-amber-500/15 via-amber-400/20 to-yellow-500/15 hover:from-amber-500/25 hover:to-yellow-500/25 border border-amber-400/40 dark:border-amber-500/30 shadow-sm hover:shadow-amber-500/20 transition-all duration-300 active:scale-95 disabled:opacity-50"
-            title="ສົ່ງຄຳຮ້ອງຂໍໃຫ້ດາວປະເມິນ"
-          >
-            {requestingRating ? (
-              <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
-            ) : (
-              <div className="relative">
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-300 animate-ping" />
-              </div>
-            )}
-            <span className="hidden sm:inline tracking-wide">ຂໍດາວປະເມິນ</span>
-          </button>
+          {isRatingDisabledToday ? (
+            <button
+              disabled
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 border border-slate-250 dark:border-slate-700/60 cursor-not-allowed select-none transition-all"
+              title="ທ່ານໄດ້ສົ່ງຄຳຮ້ອງຂໍດາວປະເມິນໃຫ້ລູກຄ້ານີ້ໃນຫົວຂໍ້ນີ້ແລ້ວໃນມື້ນີ້ (1 ຄັ້ງ/ມື້/ຄົນ/topic)"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="hidden sm:inline tracking-wide font-medium text-slate-500 dark:text-slate-400">
+                ຂໍດາວແລ້ວມື້ນີ້
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={handleRequestRating}
+              disabled={requestingRating}
+              className="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-gradient-to-r from-amber-500/15 via-amber-400/20 to-yellow-500/15 hover:from-amber-500/25 hover:to-yellow-500/25 border border-amber-400/40 dark:border-amber-500/30 shadow-sm hover:shadow-amber-500/20 transition-all duration-300 active:scale-95 disabled:opacity-50"
+              title="ສົ່ງຄຳຮ້ອງຂໍໃຫ້ດາວປະເມິນ (1 ຄັ້ງ/ມື້/ຄົນ/topic)"
+            >
+              {requestingRating ? (
+                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+              ) : (
+                <div className="relative">
+                  <Star className="w-4 h-4 fill-amber-400 text-amber-400 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-300 animate-ping" />
+                </div>
+              )}
+              <span className="hidden sm:inline tracking-wide">ຂໍດາວປະເມິນ</span>
+            </button>
+          )}
         </div>
       </div>
 

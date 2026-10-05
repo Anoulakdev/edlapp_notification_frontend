@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Button, Textarea } from "@/components/ui/FormElements";
+import { Input, Button, Textarea, Select } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { createCutpowerSchema } from "@/schemas/cutpower";
 import { toast } from "react-toastify";
@@ -15,6 +15,9 @@ export function AddCutpowerModal({ open, onClose, onRefresh }: AddCutpowerModalP
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [cutpowerDate, setCutpowerDate] = useState("");
+  const [voltageId, setVoltageId] = useState("");
+  const [voltages, setVoltages] = useState<{ id: number; name: string }[]>([]);
+  const [loadingVoltages, setLoadingVoltages] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
 
@@ -37,8 +40,22 @@ export function AddCutpowerModal({ open, onClose, onRefresh }: AddCutpowerModalP
       setTitle("");
       setDescription("");
       setCutpowerDate("");
+      setVoltageId("");
       setFile(null);
       setErrors({});
+
+      const fetchVoltages = async () => {
+        try {
+          setLoadingVoltages(true);
+          const res = await axiosInstance.get("/voltages/selectvoltage");
+          setVoltages(res.data || []);
+        } catch (err) {
+          console.error("Failed to load voltages:", err);
+        } finally {
+          setLoadingVoltages(false);
+        }
+      };
+      fetchVoltages();
     }
   }, [open]);
 
@@ -47,6 +64,7 @@ export function AddCutpowerModal({ open, onClose, onRefresh }: AddCutpowerModalP
       title,
       description,
       cutpowerDate,
+      voltageId: voltageId ? Number(voltageId) : undefined,
       file,
     });
 
@@ -69,6 +87,9 @@ export function AddCutpowerModal({ open, onClose, onRefresh }: AddCutpowerModalP
       formData.append("title", title);
       formData.append("description", description);
       formData.append("cutpowerDate", new Date(cutpowerDate).toISOString());
+      if (voltageId) {
+        formData.append("voltageId", voltageId);
+      }
       if (file) {
         formData.append("cutpowerFile", file);
       }
@@ -115,6 +136,21 @@ export function AddCutpowerModal({ open, onClose, onRefresh }: AddCutpowerModalP
                 />
               </div>
 
+              <div className="col-span-2">
+                <Select
+                  label="ແຮງດັນ"
+                  options={[
+                    { value: "", label: loadingVoltages ? "ກຳລັງໂຫຼດແຮງດັນ..." : "-- ເລືອກແຮງດັນ --" },
+                    ...voltages.map((v) => ({
+                      value: String(v.id),
+                      label: v.name,
+                    })),
+                  ]}
+                  value={voltageId}
+                  onChange={(e) => setVoltageId(e.target.value)}
+                  disabled={loadingVoltages}
+                />
+              </div>
 
               <div className="col-span-2">
                 <Textarea

@@ -6,6 +6,7 @@ export const emergencyBaseSchema = z.object({
   emergencyDate: z.string().min(1, "ກະລຸນາໃສ່ວັນທີ"),
   startTime: z.string().trim().optional().nullable().or(z.literal("")),
   endTime: z.string().trim().optional().nullable().or(z.literal("")),
+  voltageId: z.coerce.number().optional().nullable(),
   lat: z.preprocess((val) => (val === "" || val === undefined || val === null ? undefined : Number(val)), z.number().optional()),
   lng: z.preprocess((val) => (val === "" || val === undefined || val === null ? undefined : Number(val)), z.number().optional()),
 });
@@ -33,6 +34,14 @@ export const emergencyDocSchema = z.object({
   emergencyImg: z.string(),
   provinceId: z.number().nullable().optional(),
   districtId: z.number().nullable().optional(),
+  voltageId: z.number().nullable().optional(),
+  voltage: z
+    .object({
+      id: z.number(),
+      name: z.string(),
+    })
+    .nullable()
+    .optional(),
   createdById: z.number().nullable().optional(),
   province: z
     .object({

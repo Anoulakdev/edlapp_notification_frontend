@@ -33,6 +33,8 @@ import {
   Bot,
   Star,
   CreditCard,
+  Scale,
+  FileSpreadsheet,
 } from "lucide-react";
 
 export type NavChild = {
@@ -61,6 +63,7 @@ const ROLE_1_NAV_ITEMS: NavItem[] = [
 ];
 
 const ROLE_2_NAV_ITEMS: NavItem[] = [
+  { label: "ໜ້າຫຼັກ", href: "/dashboard", icon: LayoutDashboard },
   { label: "ຜູ້ໃຊ້ງານ", href: "/users", icon: Users },
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
@@ -69,6 +72,7 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   { label: "ສົນທະນາ (Chat)", href: "/chat", icon: MessageSquare },
   { label: "ປະຫວັດການສົນທະນາ", href: "/chathistory", icon: History },
+  { label: "ກວດສອບຂໍ້ມູນ BS", href: "/bs", icon: FileSpreadsheet },
   {
     label: "ຈັດການຂໍ້ມູນ",
     icon: FolderCog,
@@ -76,6 +80,10 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
       { label: "ສາຂາແຂວງ", href: "/branch", icon: Building2 },
       { label: "ສູນສ້ອມແປງເມືອງ", href: "/repairdistrict", icon: Wrench },
       { label: "ປະເພດບັນຫາ", href: "/problemtype", icon: Layers },
+      { label: "ແຮງດັນ", href: "/voltage", icon: Zap },
+      { label: "ໝວດໝູ່ອຸປະກອນ", href: "/typeequipment", icon: Box },
+      { label: "ອຸປະກອນ", href: "/equipment", icon: Component },
+      { label: "ຫົວໜ່ວຍ", href: "/typeunit", icon: Scale },
       { label: "ຫົວຂໍ້ການສົນທະນາ", href: "/topic", icon: Layers },
       { label: "ຂໍ້ຄວາມອັດໂນມັດ", href: "/messageauto", icon: Bot },
     ],
@@ -115,11 +123,14 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
 ];
 
 const ROLE_3_NAV_ITEMS: NavItem[] = [
+  { label: "ໜ້າຫຼັກ", href: "/dashboard", icon: LayoutDashboard },
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
-  { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
+  { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
+  { label: "ສົນທະນາ (Chat)", href: "/chat", icon: MessageSquare },
+  { label: "ກວດສອບຂໍ້ມູນ BS", href: "/bs", icon: FileSpreadsheet },
   {
     label: "ຈັດການຂໍ້ມູນ",
     icon: FolderCog,
@@ -127,6 +138,10 @@ const ROLE_3_NAV_ITEMS: NavItem[] = [
       { label: "ສາຂາແຂວງ", href: "/branch", icon: Building2 },
       { label: "ສູນສ້ອມແປງເມືອງ", href: "/repairdistrict", icon: Wrench },
       { label: "ປະເພດບັນຫາ", href: "/problemtype", icon: Layers },
+      { label: "ແຮງດັນ", href: "/voltage", icon: Zap },
+      { label: "ໝວດໝູ່ອຸປະກອນ", href: "/typeequipment", icon: Box },
+      { label: "ອຸປະກອນ", href: "/equipment", icon: Component },
+      { label: "ຫົວໜ່ວຍ", href: "/typeunit", icon: Scale },
     ],
   },
   {
@@ -159,17 +174,23 @@ const ROLE_3_NAV_ITEMS: NavItem[] = [
 ];
 
 const ROLE_4_NAV_ITEMS: NavItem[] = [
+  { label: "ໜ້າຫຼັກ", href: "/dashboard", icon: LayoutDashboard },
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
   { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   { label: "ສົນທະນາ (Chat)", href: "/chat", icon: MessageSquare },
+  { label: "ກວດສອບຂໍ້ມູນ BS", href: "/bs", icon: FileSpreadsheet },
   {
     label: "ຈັດການຂໍ້ມູນ",
     icon: FolderCog,
     children: [
       { label: "ປະເພດບັນຫາ", href: "/problemtype", icon: Layers },
+      { label: "ແຮງດັນ", href: "/voltage", icon: Zap },
+      { label: "ໝວດໝູ່ອຸປະກອນ", href: "/typeequipment", icon: Box },
+      { label: "ອຸປະກອນ", href: "/equipment", icon: Component },
+      { label: "ຫົວໜ່ວຍ", href: "/typeunit", icon: Scale },
       { label: "ຫົວຂໍ້ການສົນທະນາ", href: "/topic", icon: Layers },
       { label: "ຂໍ້ຄວາມອັດໂນມັດ", href: "/messageauto", icon: Bot },
     ],
@@ -204,6 +225,7 @@ const ROLE_4_NAV_ITEMS: NavItem[] = [
 ];
 
 const ROLE_5_NAV_ITEMS: NavItem[] = [
+  { label: "ໜ້າຫຼັກ", href: "/dashboard", icon: LayoutDashboard },
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
@@ -240,6 +262,7 @@ const ROLE_5_NAV_ITEMS: NavItem[] = [
 ];
 
 const ROLE_6_NAV_ITEMS: NavItem[] = [
+  { label: "ໜ້າຫຼັກ", href: "/dashboard", icon: LayoutDashboard },
   { label: "ແຈ້ງການມອດໄຟ", href: "/turnoff", icon: FileX },
   { label: "ແຈ້ງການມອດໄຟສຸກເສີນ", href: "/emergency", icon: AlertCircle },
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },

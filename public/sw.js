@@ -54,6 +54,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Bypass service worker entirely on localhost/development/LAN to avoid stale module chunks
+  const isDevHost =
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1' ||
+    url.hostname.startsWith('192.168.') ||
+    url.hostname.startsWith('10.') ||
+    url.port === '4600';
+
+  if (isDevHost) {
+    return;
+  }
+
   // 1. API and Socket.IO endpoints: Network Only (Never cache sensitive data or auth)
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io/')) {
     event.respondWith(

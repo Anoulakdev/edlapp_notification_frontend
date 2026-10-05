@@ -153,6 +153,11 @@ export interface EmergencyDocReportItem {
     id?: number;
     district_name?: string;
   } | null;
+  voltage?: {
+    id?: number;
+    name?: string;
+  } | null;
+  voltageName?: string | null;
   emergencyAddresses?: EmergencyAddress[];
 }
 
@@ -162,6 +167,7 @@ interface EmergencyReportPDFProps {
   endDate: string;
   provinceName?: string;
   districtName?: string;
+  voltageName?: string;
 }
 
 export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
@@ -170,6 +176,7 @@ export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
   endDate,
   provinceName = "ທຸກແຂວງ",
   districtName = "ທຸກເມືອງ",
+  voltageName = "ທຸກແຮງດັນ",
 }) => {
   const printedAt = moment().format("DD/MM/YYYY HH:mm:ss");
 
@@ -208,7 +215,7 @@ export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
               ຊ່ວງວັນທີ: {moment(startDate).format("DD/MM/YYYY")} – {moment(endDate).format("DD/MM/YYYY")}
             </Text>
             <Text style={styles.metaText}>
-              ແຂວງ: {provinceName}   ເມືອງ: {districtName}
+              ແຂວງ: {provinceName}   ເມືອງ: {districtName}{voltageName && voltageName !== "ທຸກແຮງດັນ" ? `   ແຮງດັນ: ${voltageName}` : ""}
             </Text>
             <Text style={styles.metaText}>ພິມວັນທີ: {printedAt}</Text>
           </View>
@@ -248,14 +255,15 @@ export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
           {/* Header */}
           <View style={styles.tableHeaderRow} fixed>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "4%" }]}>ລຳດັບ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "15%" }]}>ຫົວຂໍ້</Text>
-            <Text style={[styles.tableHeaderCell, { width: "15%" }]}>ລາຍລະອຽດ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "14%" }]}>ຫົວຂໍ້</Text>
+            <Text style={[styles.tableHeaderCell, { width: "13%" }]}>ລາຍລະອຽດ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>ວັນທີແຈ້ງເຫດ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>ເວລາ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "6%" }]}>ເວລາໃຊ້(ນາທີ)</Text>
-            <Text style={[styles.tableHeaderCell, { width: "9%" }]}>ແຂວງ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "9%" }]}>ເມືອງ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "19%" }]}>ບ້ານທີ່ຈະມອດໄຟ</Text>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "7%" }]}>ແຮງດັນ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "8%" }]}>ແຂວງ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "8%" }]}>ເມືອງ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "17%" }]}>ບ້ານທີ່ຈະມອດໄຟ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "7%" }]}>ຜູ້ໃຊ້ໄຟ(ທ່ານ)</Text>
           </View>
 
@@ -283,8 +291,8 @@ export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
                 <Text style={[styles.tableCell, styles.textCenter, { width: "4%" }]}>
                   {index + 1}
                 </Text>
-                <Text style={[styles.tableCell, { width: "15%" }]}>{item.title || "-"}</Text>
-                <Text style={[styles.tableCell, { width: "15%" }]}>{item.description || "-"}</Text>
+                <Text style={[styles.tableCell, { width: "14%" }]}>{item.title || "-"}</Text>
+                <Text style={[styles.tableCell, { width: "13%" }]}>{item.description || "-"}</Text>
                 <Text style={[styles.tableCell, styles.textCenter, { width: "8%" }]}>
                   {item.emergencyDate ? moment(item.emergencyDate).format("DD/MM/YYYY") : "-"}
                 </Text>
@@ -294,13 +302,16 @@ export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
                 <Text style={[styles.tableCell, styles.textCenter, { width: "6%" }]}>
                   {item.useTime !== null && item.useTime !== undefined ? String(item.useTime) : "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "9%" }]}>
+                <Text style={[styles.tableCell, styles.textCenter, { width: "7%" }]}>
+                  {item.voltage?.name || item.voltageName || "-"}
+                </Text>
+                <Text style={[styles.tableCell, { width: "8%" }]}>
                   {item.province?.province_name || "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "9%" }]}>
+                <Text style={[styles.tableCell, { width: "8%" }]}>
                   {item.district?.district_name || "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "19%" }]}>{villagesWithUsers}</Text>
+                <Text style={[styles.tableCell, { width: "17%" }]}>{villagesWithUsers}</Text>
                 <Text style={[styles.tableCell, styles.textCenter, { width: "7%" }]}>
                   {rowUsers > 0 ? rowUsers.toLocaleString() : "-"}
                 </Text>

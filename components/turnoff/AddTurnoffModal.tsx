@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Button, Textarea } from "@/components/ui/FormElements";
+import { Input, Button, Textarea, Select } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { createTurnoffSchema } from "@/schemas/turnoff";
 import { toast } from "react-toastify";
@@ -18,6 +18,9 @@ export function AddTurnoffModal({ open, onClose, onRefresh }: AddTurnoffModalPro
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [voltageId, setVoltageId] = useState("");
+  const [voltages, setVoltages] = useState<{ id: number; name: string }[]>([]);
+  const [loadingVoltages, setLoadingVoltages] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
 
@@ -43,8 +46,22 @@ export function AddTurnoffModal({ open, onClose, onRefresh }: AddTurnoffModalPro
       setEndDate("");
       setStartTime("");
       setEndTime("");
+      setVoltageId("");
       setFile(null);
       setErrors({});
+
+      const fetchVoltages = async () => {
+        try {
+          setLoadingVoltages(true);
+          const res = await axiosInstance.get("/voltages/selectvoltage");
+          setVoltages(res.data || []);
+        } catch (err) {
+          console.error("Failed to load voltages:", err);
+        } finally {
+          setLoadingVoltages(false);
+        }
+      };
+      fetchVoltages();
     }
   }, [open]);
 
@@ -56,6 +73,7 @@ export function AddTurnoffModal({ open, onClose, onRefresh }: AddTurnoffModalPro
       endDate,
       startTime,
       endTime,
+      voltageId: voltageId ? Number(voltageId) : undefined,
       file,
     });
 
@@ -76,11 +94,14 @@ export function AddTurnoffModal({ open, onClose, onRefresh }: AddTurnoffModalPro
       // Create Document (multipart/form-data upload)
       const formData = new FormData();
       formData.append("title", title);
-      formData.append("description", description);
+      if (description) formData.append("description", description);
       formData.append("startDate", new Date(startDate).toISOString());
       formData.append("endDate", new Date(endDate).toISOString());
       formData.append("startTime", startTime);
       formData.append("endTime", endTime);
+      if (voltageId) {
+        formData.append("voltageId", voltageId);
+      }
       if (file) {
         formData.append("turnoffFile", file);
       }
@@ -127,6 +148,21 @@ export function AddTurnoffModal({ open, onClose, onRefresh }: AddTurnoffModalPro
                 />
               </div>
 
+              <div className="col-span-2">
+                <Select
+                  label="ແຮງດັນ"
+                  options={[
+                    { value: "", label: loadingVoltages ? "ກຳລັງໂຫຼດແຮງດັນ..." : "-- ເລືອກແຮງດັນ --" },
+                    ...voltages.map((v) => ({
+                      value: String(v.id),
+                      label: v.name,
+                    })),
+                  ]}
+                  value={voltageId}
+                  onChange={(e) => setVoltageId(e.target.value)}
+                  disabled={loadingVoltages}
+                />
+              </div>
 
               <div className="col-span-2">
                 <Textarea

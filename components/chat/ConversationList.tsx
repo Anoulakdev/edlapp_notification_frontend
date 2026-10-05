@@ -112,7 +112,7 @@ export function ConversationList({
                     </h4>
                     {conv.lastMessageAt && (
                       <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0 ml-1">
-                        {moment(conv.lastMessageAt).format("HH:mm")}
+                        {moment(conv.lastMessageAt).format("DD/MM/YYYY HH:mm")}
                       </span>
                     )}
                   </div>

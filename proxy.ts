@@ -12,6 +12,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/syncdata",
   ],
   2: [
+    "/dashboard",
     "/users",
     "/turnoff",
     "/turnoffassign",
@@ -26,6 +27,10 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/branch",
     "/repairdistrict",
     "/problemtype",
+    "/voltage",
+    "/typeequipment",
+    "/equipment",
+    "/typeunit",
     "/topic",
     "/messageauto",
     "/turnoffreport",
@@ -36,6 +41,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/ratingreport",
   ],
   3: [
+    "/dashboard",
     "/turnoff",
     "/turnoffassign",
     "/emergency",
@@ -44,9 +50,14 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/cutpowerassign",
     "/problemdoc",
     "/registermeter",
+    "/chat",
     "/branch",
     "/repairdistrict",
     "/problemtype",
+    "/voltage",
+    "/typeequipment",
+    "/equipment",
+    "/typeunit",
     "/turnoffreport",
     "/emergencyreport",
     "/cutpowerreport",
@@ -54,6 +65,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/registermeterreport",
   ],
   4: [
+    "/dashboard",
     "/turnoff",
     "/turnoffassign",
     "/emergency",
@@ -64,6 +76,10 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/registermeter",
     "/chat",
     "/problemtype",
+    "/voltage",
+    "/typeequipment",
+    "/equipment",
+    "/typeunit",
     "/topic",
     "/messageauto",
     "/turnoffreport",
@@ -73,6 +89,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/registermeterreport",
   ],
   5: [
+    "/dashboard",
     "/turnoff",
     "/turnoffassign",
     "/emergency",
@@ -89,6 +106,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/registermeterreport",
   ],
   6: [
+    "/dashboard",
     "/turnoff",
     "/turnoffassign",
     "/emergency",
@@ -108,11 +126,11 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
 // 2. Define default page for each role ID
 const ROLE_DEFAULT_PAGES: Record<number, string> = {
   1: "/dashboard",
-  2: "/users",
-  3: "/turnoff",
-  4: "/turnoff",
-  5: "/turnoff",
-  6: "/turnoff",
+  2: "/dashboard",
+  3: "/dashboard",
+  4: "/dashboard",
+  5: "/dashboard",
+  6: "/dashboard",
 };
 
 const GUARDED_ROUTES_SET = new Set([
@@ -136,6 +154,10 @@ const GUARDED_ROUTES_SET = new Set([
   "/branch",
   "/repairdistrict",
   "/problemtype",
+  "/voltage",
+  "/typeequipment",
+  "/equipment",
+  "/typeunit",
   "/topic",
   "/messageauto",
   "/payment",
@@ -148,7 +170,10 @@ const GUARDED_ROUTES_SET = new Set([
 ]);
 
 const ROLE_ALLOWED_ROUTES_SET: Record<number, Set<string>> = Object.fromEntries(
-  Object.entries(ROLE_ALLOWED_ROUTES).map(([role, routes]) => [role, new Set(routes)])
+  Object.entries(ROLE_ALLOWED_ROUTES).map(([role, routes]) => [
+    role,
+    new Set(routes),
+  ]),
 );
 
 const AUTH_ROUTES_SET = new Set(["/signin", "/signup", "/resetpassword"]);

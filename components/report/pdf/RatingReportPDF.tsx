@@ -142,6 +142,7 @@ export interface RatingCountItem {
   rating4: number;
   rating5: number;
   totalRatings: number;
+  totalStars?: number;
   averageRating: number | string;
   agent?: {
     id?: number;
@@ -274,15 +275,14 @@ export const RatingReportPDF: React.FC<RatingReportPDFProps> = ({
 
           <View style={styles.table}>
             <View style={styles.tableHeaderRow} fixed>
-              <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "5%" }]}>ລຳດັບ</Text>
-              <Text style={[styles.tableHeaderCell, { width: "31%" }]}>ຊື່ພະນັກງານ</Text>
+              <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "6%" }]}>ລຳດັບ</Text>
+              <Text style={[styles.tableHeaderCell, { width: "38%" }]}>ຊື່ພະນັກງານ</Text>
               <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>1 ດາວ</Text>
               <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>2 ດາວ</Text>
               <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>3 ດາວ</Text>
               <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>4 ດາວ</Text>
               <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>5 ດາວ</Text>
-              <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "12%" }]}>ລວມທັງໝົດ</Text>
-              <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "12%" }]}>ຄະແນນສະເລ່ຍ</Text>
+              <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "16%" }]}>ຄະແນນດາວລວມ</Text>
             </View>
 
             {countData.map((item, index) => {
@@ -293,6 +293,14 @@ export const RatingReportPDF: React.FC<RatingReportPDFProps> = ({
                 ? ` (${item.agent.employee.emp_code})`
                 : "";
 
+              const totalStars =
+                item.totalStars ??
+                item.rating1 * 1 +
+                  item.rating2 * 2 +
+                  item.rating3 * 3 +
+                  item.rating4 * 4 +
+                  item.rating5 * 5;
+
               const isEven = index % 2 === 0;
 
               return (
@@ -301,10 +309,10 @@ export const RatingReportPDF: React.FC<RatingReportPDFProps> = ({
                   style={[styles.tableRow, isEven ? styles.tableRowEven : styles.tableRowOdd]}
                   wrap={false}
                 >
-                  <Text style={[styles.tableCell, styles.textCenter, { width: "5%" }]}>
+                  <Text style={[styles.tableCell, styles.textCenter, { width: "6%" }]}>
                     {index + 1}
                   </Text>
-                  <Text style={[styles.tableCell, { width: "31%" }]}>
+                  <Text style={[styles.tableCell, { width: "38%" }]}>
                     {`${agentStr}${empCode}`}
                   </Text>
                   <Text style={[styles.tableCell, styles.textCenter, { width: "8%" }]}>
@@ -322,11 +330,8 @@ export const RatingReportPDF: React.FC<RatingReportPDFProps> = ({
                   <Text style={[styles.tableCell, styles.textCenter, { width: "8%" }]}>
                     {item.rating5}
                   </Text>
-                  <Text style={[styles.tableCell, styles.textCenter, { width: "12%" }]}>
-                    {item.totalRatings}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.textCenter, { width: "12%" }]}>
-                    {item.averageRating}
+                  <Text style={[styles.tableCell, styles.textCenter, { width: "16%" }]}>
+                    {totalStars}
                   </Text>
                 </View>
               );

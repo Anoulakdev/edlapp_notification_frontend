@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/FormElements";
-import { CheckCheck, MapPin, Phone, AlertCircle } from "lucide-react";
+import { MapPinCheckInside, MapPin, Phone, AlertCircle } from "lucide-react";
 import { ProblemDoc } from "@/schemas/problemdoc";
 
 interface AlreadyReportedModalProps {
@@ -56,7 +56,7 @@ export function AlreadyReportedModal({
               className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: "rgba(147, 51, 234, 0.12)" }}
             >
-              <CheckCheck className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <MapPinCheckInside className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-bold truncate text-slate-800 dark:text-slate-200">
@@ -90,7 +90,7 @@ export function AlreadyReportedModal({
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
             ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການປ່ຽນສະຖານະຂອງລາຍການນີ້ເປັນ{" "}
-            <strong className="font-bold">"ຈຸດນີ້ໄດ້ຖືກແຈ້ງແລ້ວ"</strong>?
+            <strong className="font-bold">&quot;ຈຸດນີ້ໄດ້ຖືກແຈ້ງແລ້ວ&quot;</strong>?
           </span>
         </div>
 

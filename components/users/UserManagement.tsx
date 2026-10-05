@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
+import moment from "moment";
 import { TableTooltip, ButtonTooltip } from "@/lib/Tooltip";
 import {
   Plus,
@@ -34,7 +35,8 @@ import { EditUserModal } from "./EditUserModal";
 import { DeleteUserModal } from "./DeleteUserModal";
 
 import { User } from "@/schemas/user";
-import { axiosInstance } from "@/lib/axiosInstance";
+import axiosInstance, { rawBackendUrl } from "@/lib/axiosInstance";
+import { io } from "socket.io-client";
 import { encryptId } from "@/lib/crypto";
 
 export type { User };
@@ -85,6 +87,11 @@ const mapBackendUserToFrontend = (bUser: any): User => {
     avatar: initials,
     avatarColor,
     empimg,
+    isOnline: Boolean(bUser.isOnline),
+    onlineStatus: bUser.onlineStatus || (bUser.isOnline ? "online" : "offline"),
+    lastLoginAt: bUser.lastLoginAt || null,
+    lastLoginTimeAgo: bUser.lastLoginTimeAgo || bUser.lastLoginText || null,
+    lastActiveAt: bUser.lastActiveAt || null,
     raw: bUser,
   };
 };
@@ -186,6 +193,55 @@ export function UserManagement() {
   useEffect(() => {
     fetchUsers(debouncedSearch);
   }, [debouncedSearch, fetchUsers]);
+
+  // Realtime Socket listener for live Online / Offline updates
+  useEffect(() => {
+    const socketUrl =
+      typeof window !== "undefined" && window.location.hostname !== "localhost"
+        ? window.location.origin
+        : rawBackendUrl;
+
+    const socket = io(`${socketUrl}/users`, {
+      transports: ["websocket"],
+    });
+
+    socket.on("userStatusChanged", (data: { userId: number; isOnline: boolean; lastActiveAt?: string; lastLoginAt?: string }) => {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === data.userId) {
+            return {
+              ...u,
+              isOnline: data.isOnline,
+              onlineStatus: data.isOnline ? "online" : "offline",
+              lastActiveAt: data.lastActiveAt || u.lastActiveAt,
+              lastLoginAt: data.lastLoginAt || u.lastLoginAt,
+            };
+          }
+          return u;
+        })
+      );
+    });
+
+    socket.on("onlineUsersList", (data: { onlineUserIds: number[] }) => {
+      if (data?.onlineUserIds && Array.isArray(data.onlineUserIds)) {
+        const onlineSet = new Set(data.onlineUserIds);
+        setUsers((prev) =>
+          prev.map((u) => {
+            const isOnline = onlineSet.has(u.id);
+            return {
+              ...u,
+              isOnline,
+              onlineStatus: isOnline ? "online" : "offline",
+            };
+          })
+        );
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   // Handlers
   const openAdd = () => {
@@ -296,15 +352,23 @@ export function UserManagement() {
           const user = row.original;
           return (
             <div className="flex items-center gap-2 w-full min-w-0">
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden"
-                style={{ background: user.empimg ? "transparent" : `rgb(${user.avatarColor})` }}
-              >
-                {user.empimg ? (
-                  <img src={user.empimg} alt="profile" className="w-full h-full object-cover object-top" />
-                ) : (
-                  user.avatar
-                )}
+              <div className="relative shrink-0">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white overflow-hidden"
+                  style={{ background: user.empimg ? "transparent" : `rgb(${user.avatarColor})` }}
+                >
+                  {user.empimg ? (
+                    <img src={user.empimg} alt="profile" className="w-full h-full object-cover object-top" />
+                  ) : (
+                    user.avatar
+                  )}
+                </div>
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-800 ${
+                    user.isOnline ? "bg-emerald-500" : "bg-slate-300 dark:bg-gray-600"
+                  }`}
+                  title={user.isOnline ? "Online" : "Offline"}
+                />
               </div>
               <div className="flex-1 min-w-0">
                 <TableTooltip text={user.name}>
@@ -408,6 +472,57 @@ export function UserManagement() {
                 }}
               />
               <Badge color={statusColors[status] || "gray"}>{status}</Badge>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "onlineStatus",
+        id: "onlineStatus",
+        header: "Online",
+        cell: ({ row }) => {
+          const user = row.original;
+          return (
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  user.isOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-gray-600"
+                }`}
+              />
+              <span
+                className={`text-xs font-semibold ${
+                  user.isOnline
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-slate-400 dark:text-gray-500"
+                }`}
+              >
+                {user.isOnline ? "Online" : "Offline"}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "lastLoginAt",
+        header: "ເຂົ້າລະບົບລ່າສຸດ",
+        cell: ({ row }) => {
+          const user = row.original;
+          const lastLogin = user.lastLoginAt;
+          const timeAgo = user.lastLoginTimeAgo || user.raw?.lastLoginTimeAgo || user.raw?.lastLoginText;
+
+          if (!lastLogin) {
+            return (
+              <span className="text-xs text-slate-400 dark:text-gray-500">ບໍ່ເຄີຍເຂົ້າໃຊ້</span>
+            );
+          }
+          return (
+            <div className="flex flex-col text-xs whitespace-nowrap">
+              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                {timeAgo || moment(lastLogin).fromNow()}
+              </span>
+              <span className="text-[11px] text-slate-400 dark:text-gray-500">
+                {moment(lastLogin).format("DD/MM/YYYY HH:mm")}
+              </span>
             </div>
           );
         },
@@ -638,6 +753,18 @@ export function UserManagement() {
                   { value: "", label: "ທຸກສະຖານະ" },
                   { value: "Active", label: "Active" },
                   { value: "Inactive", label: "Inactive" },
+                ]}
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <Select
+                label="ສະຖານະ Online"
+                value={(table.getColumn("onlineStatus")?.getFilterValue() as string) ?? ""}
+                onChange={(e) => table.getColumn("onlineStatus")?.setFilterValue(e.target.value)}
+                options={[
+                  { value: "", label: "ທັງໝົດ" },
+                  { value: "online", label: "Online" },
+                  { value: "offline", label: "Offline" },
                 ]}
               />
             </div>

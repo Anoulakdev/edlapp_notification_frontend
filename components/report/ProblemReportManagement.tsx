@@ -622,7 +622,7 @@ export function ProblemReportManagement() {
                 onChange={(e) => setProblemstatusId(e.target.value)}
                 className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
               >
-                <option value="all">-- ທຸກສະຖານະ (All Statuses) --</option>
+                <option value="all">-- ທຸກສະຖານະ --</option>
                 {problemStatuses.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.callcenter}
@@ -645,7 +645,7 @@ export function ProblemReportManagement() {
                 onChange={(e) => setSourcetypeId(e.target.value)}
                 className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
               >
-                <option value="all">-- ທຸກຊ່ອງທາງ (All Channels) --</option>
+                <option value="all">-- ທຸກຊ່ອງທາງ --</option>
                 {sourceTypes.map((st) => (
                   <option key={st.id} value={st.id}>
                     {st.name}
@@ -668,7 +668,7 @@ export function ProblemReportManagement() {
                 onChange={(e) => setProblemtypeId(e.target.value)}
                 className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
               >
-                <option value="all">-- ທຸກປະເພດບັນຫາ (All Types) --</option>
+                <option value="all">-- ທຸກປະເພດບັນຫາ --</option>
                 {problemTypes.map((pt) => (
                   <option key={pt.id} value={pt.id}>
                     {pt.name}
@@ -692,7 +692,7 @@ export function ProblemReportManagement() {
                   onChange={(e) => setProvinceId(e.target.value)}
                   className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
                 >
-                  <option value="all">-- ທຸກແຂວງ (All Provinces) --</option>
+                  <option value="all">-- ທຸກແຂວງ --</option>
                   {provinces.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.province_name}
@@ -718,7 +718,7 @@ export function ProblemReportManagement() {
                   disabled={(!effectiveProvinceId || effectiveProvinceId === "all") || districts.length === 0}
                   className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="all">-- ທຸກເມືອງ (All Districts) --</option>
+                  <option value="all">-- ທຸກເມືອງ --</option>
                   {districts.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.district_name}
@@ -743,7 +743,7 @@ export function ProblemReportManagement() {
                 disabled={(!effectiveDistrictId || effectiveDistrictId === "all") || villages.length === 0}
                 className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="all">-- ທຸກບ້ານ (All Villages) --</option>
+                <option value="all">-- ທຸກບ້ານ --</option>
                 {villages.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.village_name}

@@ -63,6 +63,12 @@ export const fullUserSchema = z.object({
   districtId: z.number().nullable().optional(),
   branchId: z.number().nullable().optional(),
   repairDistrictId: z.number().nullable().optional(),
+  isOnline: z.boolean().optional(),
+  onlineStatus: z.string().optional(),
+  lastLoginAt: z.string().nullable().optional(),
+  lastLoginTimeAgo: z.string().nullable().optional(),
+  lastLoginText: z.string().nullable().optional(),
+  lastActiveAt: z.string().nullable().optional(),
   raw: z.any().optional(),
 });
 

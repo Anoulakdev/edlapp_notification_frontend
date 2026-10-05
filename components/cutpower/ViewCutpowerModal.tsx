@@ -1,7 +1,7 @@
 "use client";
 
 import { Modal } from "@/components/ui/Modal";
-import { Calendar, MapPin, User, FileText, Users, Home } from "lucide-react";
+import { Calendar, MapPin, User, FileText, Users, Home, Zap } from "lucide-react";
 import moment from "moment";
 import { CutpowerDoc } from "@/schemas/cutpower";
 import { ASSET_BASE_URL } from "@/lib/utils";
@@ -46,6 +46,21 @@ export function ViewCutpowerModal({ open, onClose, selectedDoc }: ViewCutpowerMo
                 </span>
               </div>
             </div>
+
+            {selectedDoc?.voltage?.name && (
+              <>
+                <div className="h-px bg-slate-100 dark:bg-slate-800 w-full" />
+                <div className="flex items-center gap-3 w-full">
+                  <Zap className="w-5 h-5 text-amber-500 shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-xs text-slate-400 font-medium">ແຮງດັນ</span>
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-350">
+                      {selectedDoc.voltage.name}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Location Panel */}

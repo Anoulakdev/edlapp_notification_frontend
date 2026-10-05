@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Sidebar, Header } from "./navbar";
+import { UserPresenceTracker } from "./UserPresenceTracker";
 import { cn } from "@/lib/utils";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex relative z-0">
+      {/* Realtime User Presence Tracker */}
+      <UserPresenceTracker />
+
       {/* Sleek Vertical Sidebar Menu */}
       <Sidebar
         isOpen={sidebarOpen}

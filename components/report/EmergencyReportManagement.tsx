@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Clock,
   Timer,
+  Zap,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
@@ -48,6 +49,11 @@ interface EmergencyAddress {
   };
 }
 
+interface Voltage {
+  id: number;
+  name: string;
+}
+
 interface EmergencyDocReportItem {
   id: number;
   title: string;
@@ -61,6 +67,8 @@ interface EmergencyDocReportItem {
   province?: Province | null;
   districtId?: number | null;
   district?: District | null;
+  voltageId?: number | null;
+  voltage?: Voltage | null;
   createdAt: string;
   updatedAt: string;
   emergencyAddresses?: EmergencyAddress[];
@@ -72,10 +80,12 @@ export function EmergencyReportManagement() {
   const [endDate, setEndDate] = useState<string>("");
   const [provinceId, setProvinceId] = useState<string>("all");
   const [districtId, setDistrictId] = useState<string>("all");
+  const [voltageId, setVoltageId] = useState<string>("all");
 
   // Dropdown Options States
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
+  const [voltages, setVoltages] = useState<Voltage[]>([]);
 
   // Report Data States
   const [reportData, setReportData] = useState<EmergencyDocReportItem[]>([]);
@@ -137,6 +147,21 @@ export function EmergencyReportManagement() {
     fetchProvinces();
   }, []);
 
+  // Fetch Voltages list on mount
+  useEffect(() => {
+    const fetchVoltages = async () => {
+      try {
+        const res = await axiosInstance.get("/voltages/selectvoltage");
+        if (Array.isArray(res.data)) {
+          setVoltages(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load voltages:", err);
+      }
+    };
+    fetchVoltages();
+  }, []);
+
   // 2. Fetch Districts list when effectiveProvinceId changes
   useEffect(() => {
     if (!effectiveProvinceId || effectiveProvinceId === "all" || provinces.length === 0) {
@@ -176,7 +201,8 @@ export function EmergencyReportManagement() {
     targetPage = page,
     targetLimit = limit,
     overrideStart = startDate,
-    overrideEnd = endDate
+    overrideEnd = endDate,
+    overrideVoltage = voltageId
   ) => {
     if (!overrideStart || !overrideEnd) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນດຶງລາຍງານ");
@@ -196,6 +222,9 @@ export function EmergencyReportManagement() {
       }
       if (effectiveDistrictId && effectiveDistrictId !== "all") {
         params.districtId = Number(effectiveDistrictId);
+      }
+      if (overrideVoltage && overrideVoltage !== "all") {
+        params.voltageId = Number(overrideVoltage);
       }
 
       const res = await axiosInstance.get("/reports/emergency", { params });
@@ -247,13 +276,13 @@ export function EmergencyReportManagement() {
     setStartDate(s);
     setEndDate(e);
     setPage(1);
-    fetchReportData(1, limit, s, e);
+    fetchReportData(1, limit, s, e, voltageId);
   };
 
   // Handle Search Click
   const handleSearch = () => {
     setPage(1);
-    fetchReportData(1, limit);
+    fetchReportData(1, limit, startDate, endDate, voltageId);
   };
 
   // Handle Reset Filters
@@ -262,6 +291,7 @@ export function EmergencyReportManagement() {
     setEndDate("");
     setProvinceId("all");
     setDistrictId("all");
+    setVoltageId("all");
     setReportData([]);
     setTotal(0);
     setPage(1);
@@ -300,6 +330,7 @@ export function EmergencyReportManagement() {
         "ວັນທີແຈ້ງເຫດ": d.emergencyDate ? moment(d.emergencyDate).format("DD/MM/YYYY") : "",
         "ເວລາ": `${d.startTime || "--:--"} - ${d.endTime || "--:--"}`,
         "ເວລາທີ່ໃຊ້ (ນາທີ)": d.useTime !== null && d.useTime !== undefined ? d.useTime : "-",
+        "ແຮງດັນ": d.voltage?.name || "-",
         "ແຂວງ": d.province?.province_name || "-",
         "ເມືອງ": d.district?.district_name || "-",
         "ບ້ານທີ່ຈະມອດໄຟ": villagesWithUsers,
@@ -346,6 +377,7 @@ export function EmergencyReportManagement() {
       };
       if (effectiveProvinceId && effectiveProvinceId !== "all") params.provinceId = Number(effectiveProvinceId);
       if (effectiveDistrictId && effectiveDistrictId !== "all") params.districtId = Number(effectiveDistrictId);
+      if (voltageId && voltageId !== "all") params.voltageId = Number(voltageId);
 
       const res = await axiosInstance.get("/reports/emergency", { params });
       if (res.data && Array.isArray(res.data.data)) {
@@ -371,6 +403,10 @@ export function EmergencyReportManagement() {
       effectiveDistrictId && effectiveDistrictId !== "all"
         ? districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ"
         : "ທຸກເມືອງ";
+    const filterVoltage =
+      voltageId && voltageId !== "all"
+        ? voltages.find((v) => String(v.id) === voltageId)?.name ?? "ທຸກແຮງດັນ"
+        : "ທຸກແຮງດັນ";
 
     try {
       const { EmergencyReportPDF } = await import("./pdf/EmergencyReportPDF");
@@ -383,6 +419,7 @@ export function EmergencyReportManagement() {
           endDate={endDate}
           provinceName={filterProvince}
           districtName={filterDistrict}
+          voltageName={filterVoltage}
         />,
         `emergency_report_${startDate}_to_${endDate}.pdf`
       );
@@ -497,10 +534,10 @@ export function EmergencyReportManagement() {
 
         <div
           className={`grid grid-cols-1 ${currentUserRoleId === 6
-            ? "sm:grid-cols-2"
+            ? "sm:grid-cols-3"
             : currentUserRoleId === 5
-              ? "sm:grid-cols-3"
-              : "sm:grid-cols-2 lg:grid-cols-4"
+              ? "sm:grid-cols-2 lg:grid-cols-4"
+              : "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
             } gap-4`}
         >
           {/* Start Date */}
@@ -549,7 +586,7 @@ export function EmergencyReportManagement() {
                   onChange={(e) => setProvinceId(e.target.value)}
                   className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
                 >
-                  <option value="all">-- ທຸກແຂວງ (All Provinces) --</option>
+                  <option value="all">-- ທຸກແຂວງ --</option>
                   {provinces.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.province_name}
@@ -575,7 +612,7 @@ export function EmergencyReportManagement() {
                   disabled={(!effectiveProvinceId || effectiveProvinceId === "all") || districts.length === 0}
                   className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="all">-- ທຸກເມືອງ (All Districts) --</option>
+                  <option value="all">-- ທຸກເມືອງ --</option>
                   {districts.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.district_name}
@@ -587,6 +624,29 @@ export function EmergencyReportManagement() {
               </div>
             </div>
           )}
+
+          {/* Voltage Select */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between min-h-[18px]">
+              <span>ແຮງດັນ</span>
+            </label>
+            <div className="relative">
+              <select
+                value={voltageId}
+                onChange={(e) => setVoltageId(e.target.value)}
+                className="w-full pl-9 pr-10 py-2.5 h-[42px] appearance-none bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-800 dark:text-slate-100 text-xs font-semibold transition-all cursor-pointer"
+              >
+                <option value="all">-- ທຸກແຮງດັນ --</option>
+                {voltages.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+              <Zap className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
         {/* Action Buttons */}
@@ -763,6 +823,7 @@ export function EmergencyReportManagement() {
                     <th className="py-4 px-4 min-w-[130px] bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400">
                       ເວລາທີ່ໃຊ້ (ນາທີ)
                     </th>
+                    <th className="py-4 px-4 min-w-[100px]">ແຮງດັນ</th>
                     <th className="py-4 px-4 min-w-[110px]">ແຂວງ</th>
                     <th className="py-4 px-4 min-w-[110px]">ເມືອງ</th>
                     <th className="py-4 px-4 min-w-[220px]">ບ້ານທີ່ຈະມອດໄຟ</th>
@@ -771,7 +832,7 @@ export function EmergencyReportManagement() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="py-16 text-center text-slate-400">
+                      <td colSpan={9} className="py-16 text-center text-slate-400">
                         <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3 text-red-500" />
                         <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
                           ກຳລັງໂຫຼດຂໍ້ມູນລາຍງານ...
@@ -833,6 +894,18 @@ export function EmergencyReportManagement() {
                             )}
                           </td>
 
+                          {/* Voltage */}
+                          <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                            {item.voltage?.name ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-900/50">
+                                <Zap className="w-3 h-3 text-amber-500" />
+                                {item.voltage.name}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-medium">-</span>
+                            )}
+                          </td>
+
                           {/* Province */}
                           <td className="py-4 px-4 font-semibold text-slate-700 dark:text-slate-300">
                             {item.province?.province_name || "-"}
@@ -871,7 +944,7 @@ export function EmergencyReportManagement() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={8} className="py-16 text-center text-slate-400">
+                      <td colSpan={9} className="py-16 text-center text-slate-400">
                         <AlertCircle className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
                         <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
                           ບໍ່ພົບຂໍ້ມູນລາຍງານຕາມຕົວກອງນີ້

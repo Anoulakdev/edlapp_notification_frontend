@@ -145,6 +145,11 @@ export interface CutpowerDocReportItem {
   startTime?: string | null;
   endTime?: string | null;
   useTime?: number | null;
+  voltage?: {
+    id?: number;
+    name?: string;
+  } | null;
+  voltageName?: string | null;
   province?: {
     id?: number;
     province_name?: string;
@@ -162,6 +167,7 @@ interface CutpowerReportPDFProps {
   endDate: string;
   provinceName?: string;
   districtName?: string;
+  voltageName?: string;
 }
 
 export const CutpowerReportPDF: React.FC<CutpowerReportPDFProps> = ({
@@ -170,6 +176,7 @@ export const CutpowerReportPDF: React.FC<CutpowerReportPDFProps> = ({
   endDate,
   provinceName = "ທຸກແຂວງ",
   districtName = "ທຸກເມືອງ",
+  voltageName = "ທຸກແຮງດັນ",
 }) => {
   const printedAt = moment().format("DD/MM/YYYY HH:mm:ss");
 
@@ -200,7 +207,7 @@ export const CutpowerReportPDF: React.FC<CutpowerReportPDFProps> = ({
               ຊ່ວງວັນທີ: {moment(startDate).format("DD/MM/YYYY")} – {moment(endDate).format("DD/MM/YYYY")}
             </Text>
             <Text style={styles.metaText}>
-              ແຂວງ: {provinceName}   ເມືອງ: {districtName}
+              ແຂວງ: {provinceName}   ເມືອງ: {districtName}{voltageName && voltageName !== "ທຸກແຮງດັນ" ? `   ແຮງດັນ: ${voltageName}` : ""}
             </Text>
             <Text style={styles.metaText}>ພິມວັນທີ: {printedAt}</Text>
           </View>
@@ -236,13 +243,14 @@ export const CutpowerReportPDF: React.FC<CutpowerReportPDFProps> = ({
           {/* Header */}
           <View style={styles.tableHeaderRow} fixed>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "4%" }]}>ລຳດັບ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "16%" }]}>ຫົວຂໍ້</Text>
-            <Text style={[styles.tableHeaderCell, { width: "16%" }]}>ລາຍລະອຽດ</Text>
-            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "10%" }]}>ວັນທີຕັດໄຟ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "10%" }]}>ແຂວງ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "10%" }]}>ເມືອງ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "14%" }]}>ຫົວຂໍ້</Text>
+            <Text style={[styles.tableHeaderCell, { width: "14%" }]}>ລາຍລະອຽດ</Text>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "9%" }]}>ວັນທີຕັດໄຟ</Text>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>ແຮງດັນ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "9%" }]}>ແຂວງ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "9%" }]}>ເມືອງ</Text>
             <Text style={[styles.tableHeaderCell, { width: "25%" }]}>ບ້ານທີ່ແຈ້ງການຕັດໄຟ</Text>
-            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "9%" }]}>ຜູ້ໃຊ້ໄຟ(ທ່ານ)</Text>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>ຜູ້ໃຊ້ໄຟ(ທ່ານ)</Text>
           </View>
 
           {/* Rows */}
@@ -269,19 +277,22 @@ export const CutpowerReportPDF: React.FC<CutpowerReportPDFProps> = ({
                 <Text style={[styles.tableCell, styles.textCenter, { width: "4%" }]}>
                   {index + 1}
                 </Text>
-                <Text style={[styles.tableCell, { width: "16%" }]}>{item.title || "-"}</Text>
-                <Text style={[styles.tableCell, { width: "16%" }]}>{item.description || "-"}</Text>
-                <Text style={[styles.tableCell, styles.textCenter, { width: "10%" }]}>
+                <Text style={[styles.tableCell, { width: "14%" }]}>{item.title || "-"}</Text>
+                <Text style={[styles.tableCell, { width: "14%" }]}>{item.description || "-"}</Text>
+                <Text style={[styles.tableCell, styles.textCenter, { width: "9%" }]}>
                   {item.cutpowerDate ? moment(item.cutpowerDate).format("DD/MM/YYYY") : "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "10%" }]}>
+                <Text style={[styles.tableCell, styles.textCenter, { width: "8%" }]}>
+                  {item.voltage?.name || item.voltageName || "-"}
+                </Text>
+                <Text style={[styles.tableCell, { width: "9%" }]}>
                   {item.province?.province_name || "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "10%" }]}>
+                <Text style={[styles.tableCell, { width: "9%" }]}>
                   {item.district?.district_name || "-"}
                 </Text>
                 <Text style={[styles.tableCell, { width: "25%" }]}>{villagesWithUsers}</Text>
-                <Text style={[styles.tableCell, styles.textCenter, { width: "9%" }]}>
+                <Text style={[styles.tableCell, styles.textCenter, { width: "8%" }]}>
                   {rowUsers > 0 ? rowUsers.toLocaleString() : "-"}
                 </Text>
               </View>

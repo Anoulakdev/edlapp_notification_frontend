@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Button, Textarea } from "@/components/ui/FormElements";
+import { Input, Button, Textarea, Select } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { createEmergencySchema } from "@/schemas/emergency";
 import { toast } from "react-toastify";
@@ -19,6 +19,9 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
   const [emergencyDate, setEmergencyDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [voltageId, setVoltageId] = useState("");
+  const [voltages, setVoltages] = useState<{ id: number; name: string }[]>([]);
+  const [loadingVoltages, setLoadingVoltages] = useState(false);
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [mapUrl, setMapUrl] = useState("");
@@ -132,12 +135,26 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
       setEmergencyDate("");
       setStartTime("");
       setEndTime("");
+      setVoltageId("");
       // Default to Vientiane coordinates
       setLat("17.974855");
       setLng("102.630867");
       setMapUrl("");
       setFile(null);
       setErrors({});
+
+      const fetchVoltages = async () => {
+        try {
+          setLoadingVoltages(true);
+          const res = await axiosInstance.get("/voltages/selectvoltage");
+          setVoltages(res.data || []);
+        } catch (err) {
+          console.error("Failed to load voltages:", err);
+        } finally {
+          setLoadingVoltages(false);
+        }
+      };
+      fetchVoltages();
 
       // Request user's current location
       if (navigator.geolocation) {
@@ -301,6 +318,7 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
       emergencyDate,
       startTime,
       endTime,
+      voltageId: voltageId ? Number(voltageId) : undefined,
       lat: lat === "" ? undefined : lat,
       lng: lng === "" ? undefined : lng,
       file,
@@ -327,6 +345,9 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
       formData.append("emergencyDate", new Date(emergencyDate).toISOString());
       formData.append("startTime", startTime);
       formData.append("endTime", endTime);
+      if (voltageId) {
+        formData.append("voltageId", voltageId);
+      }
       if (lat !== "") {
         formData.append("lat", lat);
       }
@@ -379,6 +400,21 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
                 />
               </div>
 
+              <div className="col-span-2">
+                <Select
+                  label="ແຮງດັນ"
+                  options={[
+                    { value: "", label: loadingVoltages ? "ກຳລັງໂຫຼດແຮງດັນ..." : "-- ເລືອກແຮງດັນ --" },
+                    ...voltages.map((v) => ({
+                      value: String(v.id),
+                      label: v.name,
+                    })),
+                  ]}
+                  value={voltageId}
+                  onChange={(e) => setVoltageId(e.target.value)}
+                  disabled={loadingVoltages}
+                />
+              </div>
 
               <div className="col-span-2">
                 <Textarea

@@ -17,6 +17,7 @@ import {
   User,
   MapPin,
   Eye,
+  Zap,
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
@@ -58,8 +59,10 @@ export function EmergencyManagement() {
   // Dropdown States for location filters
   const [provinces, setProvinces] = useState<{ id: number; province_name: string; province_code: string }[]>([]);
   const [districts, setDistricts] = useState<{ id: number; district_name: string; district_code: string }[]>([]);
+  const [voltages, setVoltages] = useState<{ id: number; name: string }[]>([]);
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  const [selectedVoltageId, setSelectedVoltageId] = useState("");
   const [filterMyDocs, setFilterMyDocs] = useState(false);
 
   // User Role & Province States for role-based filters
@@ -106,6 +109,19 @@ export function EmergencyManagement() {
       }
     };
     fetchProvinces();
+  }, []);
+
+  // Fetch Voltages on mount
+  useEffect(() => {
+    const fetchVoltages = async () => {
+      try {
+        const res = await axiosInstance.get("/voltages/selectvoltage");
+        setVoltages(res.data || []);
+      } catch (err) {
+        console.error("Failed to load voltages:", err);
+      }
+    };
+    fetchVoltages();
   }, []);
 
   // Load districts when effectiveProvinceId changes
@@ -155,7 +171,7 @@ export function EmergencyManagement() {
   }, [search]);
 
   // Load outage documents from backend
-  const fetchDocs = useCallback(async (searchVal = "", date = "", provId = "", distId = "", myDocsOnly = false) => {
+  const fetchDocs = useCallback(async (searchVal = "", date = "", provId = "", distId = "", svId = "", myDocsOnly = false) => {
     try {
       setLoading(true);
       const res = await axiosInstance.get("/emergencydocs", {
@@ -164,6 +180,7 @@ export function EmergencyManagement() {
           emergencyDate: date || undefined,
           provinceId: provId || undefined,
           districtId: distId || undefined,
+          voltageId: svId || undefined,
           filterMyDocs: myDocsOnly || undefined,
         },
       });
@@ -180,14 +197,14 @@ export function EmergencyManagement() {
   // Fetch documents when filter state changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    fetchDocs(debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs);
-  }, [debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs, fetchDocs]);
+    fetchDocs(debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs);
+  }, [debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs, fetchDocs]);
 
   // Keep track of latest filter values in a ref to avoid reconnecting SSE on every keystroke/filter change
-  const filterRef = useRef({ debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs });
+  const filterRef = useRef({ debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs });
   useEffect(() => {
-    filterRef.current = { debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs };
-  }, [debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs]);
+    filterRef.current = { debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs };
+  }, [debouncedSearch, emergencyDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs]);
 
   // Real-time Socket.io Connection
   useEffect(() => {
@@ -211,9 +228,10 @@ export function EmergencyManagement() {
           emergencyDate: ed,
           effectiveProvinceId: ep,
           selectedDistrictId: sdId,
+          selectedVoltageId: svId,
           filterMyDocs: md,
         } = filterRef.current;
-        fetchDocs(s, ed, ep, sdId, md);
+        fetchDocs(s, ed, ep, sdId, svId, md);
       }
     });
 
@@ -228,6 +246,7 @@ export function EmergencyManagement() {
     setEmergencyDate("");
     setSelectedProvinceId("");
     setSelectedDistrictId("");
+    setSelectedVoltageId("");
     setFilterMyDocs(false);
   };
 
@@ -314,6 +333,21 @@ export function EmergencyManagement() {
               <Clock className="w-3 h-3 shrink-0" />
               {doc.startTime && doc.endTime ? `${doc.startTime} - ${doc.endTime}` : "-"}
             </span>
+          );
+        },
+      },
+      {
+        id: "voltage",
+        header: "ແຮງດັນ",
+        cell: ({ row }) => {
+          const doc = row.original;
+          return doc.voltage?.name ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300 whitespace-nowrap">
+              <Zap className="w-3 h-3 shrink-0" />
+              {doc.voltage.name}
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400 font-medium">-</span>
           );
         },
       },
@@ -596,6 +630,25 @@ export function EmergencyManagement() {
                 </div>
               </div>
             )}
+            <div className="w-full sm:w-48 flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-500 uppercase">ແຮງດັນ</label>
+              <div className="relative w-full">
+                <select
+                  value={selectedVoltageId}
+                  onChange={(e) => setSelectedVoltageId(e.target.value)}
+                  className="w-full pl-3 pr-8 py-2 rounded-xl border outline-none text-xs appearance-none cursor-pointer"
+                  style={{ fontFamily: "'Noto Sans Lao', sans-serif", background: "rgb(var(--card))", color: "rgb(var(--text-primary))", borderColor: "rgb(var(--border))" }}
+                >
+                  <option value="">ເລືອກແຮງດັນ</option>
+                  {voltages.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            </div>
             <div className="flex items-center pb-2.5">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -732,13 +785,13 @@ export function EmergencyManagement() {
       </div>
 
       {/* MODALS */}
-      <AddEmergencyModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={() => fetchDocs(search, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs)} />
+      <AddEmergencyModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={() => fetchDocs(search, emergencyDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs)} />
 
       <EditEmergencyModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         selectedDoc={selectedDoc}
-        onRefresh={() => fetchDocs(search, emergencyDate, effectiveProvinceId, selectedDistrictId, filterMyDocs)}
+        onRefresh={() => fetchDocs(search, emergencyDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs)}
       />
 
       <DeleteEmergencyModal

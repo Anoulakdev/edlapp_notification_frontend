@@ -16,6 +16,7 @@ import {
   User,
   MapPin,
   Eye,
+  Zap,
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
@@ -56,6 +57,8 @@ export function CutpowerManagement() {
   const [districts, setDistricts] = useState<{ id: number; district_name: string; district_code: string }[]>([]);
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  const [voltages, setVoltages] = useState<{ id: number; name: string }[]>([]);
+  const [selectedVoltageId, setSelectedVoltageId] = useState("");
   const [filterMyDocs, setFilterMyDocs] = useState(false);
 
   // User Role & Province States for role-based filters
@@ -102,6 +105,19 @@ export function CutpowerManagement() {
       }
     };
     fetchProvinces();
+  }, []);
+
+  // Fetch Voltages on mount
+  useEffect(() => {
+    const fetchVoltages = async () => {
+      try {
+        const res = await axiosInstance.get("/voltages/selectvoltage");
+        setVoltages(res.data || []);
+      } catch (err) {
+        console.error("Failed to load voltages:", err);
+      }
+    };
+    fetchVoltages();
   }, []);
 
   // Load districts when effectiveProvinceId changes
@@ -151,7 +167,7 @@ export function CutpowerManagement() {
   }, [search]);
 
   // Load outage documents from backend
-  const fetchDocs = useCallback(async (searchVal = "", date = "", provId = "", distId = "", myDocsOnly = false) => {
+  const fetchDocs = useCallback(async (searchVal = "", date = "", provId = "", distId = "", voltId = "", myDocsOnly = false) => {
     try {
       setLoading(true);
       const res = await axiosInstance.get("/cutpowerdocs", {
@@ -160,6 +176,7 @@ export function CutpowerManagement() {
           cutpowerDate: date || undefined,
           provinceId: provId || undefined,
           districtId: distId || undefined,
+          voltageId: voltId || undefined,
           filterMyDocs: myDocsOnly || undefined,
         },
       });
@@ -177,14 +194,14 @@ export function CutpowerManagement() {
   // Fetch documents when filter state changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    fetchDocs(debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs);
-  }, [debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs, fetchDocs]);
+    fetchDocs(debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs);
+  }, [debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs, fetchDocs]);
 
   // Keep track of latest filter values in a ref to avoid reconnecting SSE on every keystroke/filter change
-  const filterRef = useRef({ debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs });
+  const filterRef = useRef({ debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs });
   useEffect(() => {
-    filterRef.current = { debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs };
-  }, [debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs]);
+    filterRef.current = { debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs };
+  }, [debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs]);
 
   // Real-time Socket.io Connection
   useEffect(() => {
@@ -208,9 +225,10 @@ export function CutpowerManagement() {
           cutpowerDate: cd,
           effectiveProvinceId: ep,
           selectedDistrictId: sdId,
+          selectedVoltageId: svId,
           filterMyDocs: md,
         } = filterRef.current;
-        fetchDocs(s, cd, ep, sdId, md);
+        fetchDocs(s, cd, ep, sdId, svId, md);
       }
     });
 
@@ -225,6 +243,7 @@ export function CutpowerManagement() {
     setCutpowerDate("");
     setSelectedProvinceId("");
     setSelectedDistrictId("");
+    setSelectedVoltageId("");
     setFilterMyDocs(false);
   };
 
@@ -302,6 +321,21 @@ export function CutpowerManagement() {
         },
       },
       {
+        id: "voltage",
+        header: "ແຮງດັນ",
+        cell: ({ row }) => {
+          const doc = row.original;
+          return doc.voltage?.name ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300 whitespace-nowrap">
+              <Zap className="w-3 h-3 shrink-0" />
+              {doc.voltage.name}
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400 font-medium">-</span>
+          );
+        },
+      },
+      {
         id: "province",
         header: "ແຂວງ",
         cell: ({ row }) => {
@@ -347,8 +381,9 @@ export function CutpowerManagement() {
         cell: ({ row }) => {
           const doc = row.original;
           const isCreator = currentUserId !== null && (Number(currentUserId) === Number(doc.createdById) || Number(currentUserId) === Number(doc.createdBy?.id));
+          const canManage = isCreator || currentUserRoleId === 2;
           const isPast = doc.cutpowerDate ? moment().isAfter(moment(doc.cutpowerDate).endOf('day')) : false;
-          const isDeleteDisabled = !isCreator || isPast;
+          const isDeleteDisabled = !canManage || isPast;
 
           return (
             <div className="flex items-center gap-1.5 shrink-0">
@@ -363,11 +398,11 @@ export function CutpowerManagement() {
                 </ButtonTooltip>
               )}
 
-              <ButtonTooltip text={!isCreator ? "ບໍ່ມີສິດກຳນົດບ້ານ" : isPast ? "ກາຍເວລາສິ້ນສຸດ" : "ກຳນົດບ້ານ"}>
+              <ButtonTooltip text={!canManage ? "ບໍ່ມີສິດກຳນົດບ້ານ" : isPast ? "ກາຍເວລາສິ້ນສຸດ" : "ກຳນົດບ້ານ"}>
                 <button
                   onClick={() => openAssignVillages(doc)}
-                  disabled={!isCreator || isPast}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${(!isCreator || isPast)
+                  disabled={!canManage || isPast}
+                  className={`p-2 rounded-xl transition-colors shrink-0 ${(!canManage || isPast)
                     ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
                     : doc.provinceId
                       ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
@@ -377,11 +412,11 @@ export function CutpowerManagement() {
                   <MapPin className="w-4 h-4" />
                 </button>
               </ButtonTooltip>
-              <ButtonTooltip text={isCreator ? "ແກ້ໄຂ" : "ບໍ່ມີສິດແກ້ໄຂ"}>
+              <ButtonTooltip text={canManage ? "ແກ້ໄຂ" : "ບໍ່ມີສິດແກ້ໄຂ"}>
                 <button
                   onClick={() => openEdit(doc)}
-                  disabled={!isCreator}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${!isCreator
+                  disabled={!canManage}
+                  className={`p-2 rounded-xl transition-colors shrink-0 ${!canManage
                     ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
                     : "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
                     }`}
@@ -389,7 +424,7 @@ export function CutpowerManagement() {
                   <Edit2 className="w-4 h-4" />
                 </button>
               </ButtonTooltip>
-              <ButtonTooltip text={!isCreator ? "ບໍ່ມີສິດລົບ" : isPast ? "ກາຍເວລາສິ້ນສຸດ" : "ລົບ"}>
+              <ButtonTooltip text={!canManage ? "ບໍ່ມີສິດລົບ" : isPast ? "ກາຍເວລາສິ້ນສຸດ" : "ລົບ"}>
                 <button
                   onClick={() => openDelete(doc)}
                   disabled={isDeleteDisabled}
@@ -406,7 +441,7 @@ export function CutpowerManagement() {
         },
       },
     ],
-    [currentUserId]
+    [currentUserId, currentUserRoleId]
   );
 
   const filteredDocs = useMemo(() => {
@@ -579,6 +614,25 @@ export function CutpowerManagement() {
                 </div>
               </div>
             )}
+            <div className="w-full sm:w-48 flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-500 uppercase">ແຮງດັນ</label>
+              <div className="relative w-full">
+                <select
+                  value={selectedVoltageId}
+                  onChange={(e) => setSelectedVoltageId(e.target.value)}
+                  className="w-full pl-3 pr-8 py-2 rounded-xl border outline-none text-xs appearance-none cursor-pointer"
+                  style={{ fontFamily: "'Noto Sans Lao', sans-serif", background: "rgb(var(--card))", color: "rgb(var(--text-primary))", borderColor: "rgb(var(--border))" }}
+                >
+                  <option value="">ເລືອກແຮງດັນ</option>
+                  {voltages.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            </div>
             <div className="flex items-center pb-2.5">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -715,13 +769,13 @@ export function CutpowerManagement() {
       </div>
 
       {/* MODALS */}
-      <AddCutpowerModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={() => fetchDocs(search, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs)} />
+      <AddCutpowerModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={() => fetchDocs(search, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs)} />
 
       <EditCutpowerModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         selectedDoc={selectedDoc}
-        onRefresh={() => fetchDocs(search, cutpowerDate, effectiveProvinceId, selectedDistrictId, filterMyDocs)}
+        onRefresh={() => fetchDocs(search, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs)}
       />
 
       <DeleteCutpowerModal

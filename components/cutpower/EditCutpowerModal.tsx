@@ -1,8 +1,6 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Button, Textarea } from "@/components/ui/FormElements";
+import { Input, Button, Textarea, Select } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editCutpowerSchema } from "@/schemas/cutpower";
 import { toast } from "react-toastify";
@@ -19,6 +17,9 @@ export function EditCutpowerModal({ open, onClose, selectedDoc, onRefresh }: Edi
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [cutpowerDate, setCutpowerDate] = useState("");
+  const [voltageId, setVoltageId] = useState("");
+  const [voltages, setVoltages] = useState<{ id: number; name: string }[]>([]);
+  const [loadingVoltages, setLoadingVoltages] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [currentFileName, setCurrentFileName] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
@@ -45,12 +46,18 @@ export function EditCutpowerModal({ open, onClose, selectedDoc, onRefresh }: Edi
       const fetchDocDetails = async () => {
         try {
           setLoadingDoc(true);
-          const res = await axiosInstance.get(`/cutpowerdocs/${selectedDoc.id}`);
-          const doc = res.data;
+          setLoadingVoltages(true);
+          const [docRes, voltRes] = await Promise.all([
+            axiosInstance.get(`/cutpowerdocs/${selectedDoc.id}`),
+            axiosInstance.get("/voltages/selectvoltage"),
+          ]);
+          const doc = docRes.data;
+          setVoltages(voltRes.data || []);
 
           setTitle(doc.title || "");
           setDescription(doc.description || "");
           setCutpowerDate(doc.cutpowerDate ? doc.cutpowerDate.split("T")[0] : "");
+          setVoltageId(doc.voltageId ? String(doc.voltageId) : (doc.voltage?.id ? String(doc.voltage.id) : ""));
           setCurrentFileName(doc.cutpowerFile || "");
           setFile(null);
           setErrors({});
@@ -59,6 +66,7 @@ export function EditCutpowerModal({ open, onClose, selectedDoc, onRefresh }: Edi
           setErrors({ apiError: "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນເອກະສານໄດ້" });
         } finally {
           setLoadingDoc(false);
+          setLoadingVoltages(false);
         }
       };
       fetchDocDetails();
@@ -72,6 +80,7 @@ export function EditCutpowerModal({ open, onClose, selectedDoc, onRefresh }: Edi
       title,
       description,
       cutpowerDate,
+      voltageId: voltageId ? Number(voltageId) : undefined,
       file,
     });
 
@@ -93,6 +102,9 @@ export function EditCutpowerModal({ open, onClose, selectedDoc, onRefresh }: Edi
       formData.append("title", title);
       formData.append("description", description);
       formData.append("cutpowerDate", new Date(cutpowerDate).toISOString());
+      if (voltageId) {
+        formData.append("voltageId", voltageId);
+      }
       if (file) {
         formData.append("cutpowerFile", file);
       }
@@ -142,6 +154,22 @@ export function EditCutpowerModal({ open, onClose, selectedDoc, onRefresh }: Edi
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     error={errors.title}
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Select
+                    label="ແຮງດັນ"
+                    options={[
+                      { value: "", label: loadingVoltages ? "ກຳລັງໂຫຼດແຮງດັນ..." : "-- ເລືອກແຮງດັນ --" },
+                      ...voltages.map((v) => ({
+                        value: String(v.id),
+                        label: v.name,
+                      })),
+                    ]}
+                    value={voltageId}
+                    onChange={(e) => setVoltageId(e.target.value)}
+                    disabled={loadingVoltages}
                   />
                 </div>
 

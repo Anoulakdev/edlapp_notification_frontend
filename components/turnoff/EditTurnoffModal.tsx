@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Button, Textarea } from "@/components/ui/FormElements";
+import { Input, Button, Textarea, Select } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { editTurnoffSchema } from "@/schemas/turnoff";
 import { toast } from "react-toastify";
@@ -20,6 +20,9 @@ export function EditTurnoffModal({ open, onClose, selectedDoc, onRefresh }: Edit
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [voltageId, setVoltageId] = useState("");
+  const [voltages, setVoltages] = useState<{ id: number; name: string }[]>([]);
+  const [loadingVoltages, setLoadingVoltages] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [currentFileName, setCurrentFileName] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
@@ -46,8 +49,13 @@ export function EditTurnoffModal({ open, onClose, selectedDoc, onRefresh }: Edit
       const fetchDocDetails = async () => {
         try {
           setLoadingDoc(true);
-          const res = await axiosInstance.get(`/turnoffdocs/${selectedDoc.id}`);
-          const doc = res.data;
+          setLoadingVoltages(true);
+          const [docRes, voltRes] = await Promise.all([
+            axiosInstance.get(`/turnoffdocs/${selectedDoc.id}`),
+            axiosInstance.get("/voltages/selectvoltage"),
+          ]);
+          const doc = docRes.data;
+          setVoltages(voltRes.data || []);
 
           setTitle(doc.title || "");
           setDescription(doc.description || "");
@@ -55,6 +63,7 @@ export function EditTurnoffModal({ open, onClose, selectedDoc, onRefresh }: Edit
           setEndDate(doc.endDate || "");
           setStartTime(doc.startTime || "");
           setEndTime(doc.endTime || "");
+          setVoltageId(doc.voltageId ? String(doc.voltageId) : (doc.voltage?.id ? String(doc.voltage.id) : ""));
           setCurrentFileName(doc.turnoffFile || "");
           setFile(null);
           setErrors({});
@@ -63,6 +72,7 @@ export function EditTurnoffModal({ open, onClose, selectedDoc, onRefresh }: Edit
           setErrors({ apiError: "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນເອກະສານໄດ້" });
         } finally {
           setLoadingDoc(false);
+          setLoadingVoltages(false);
         }
       };
       fetchDocDetails();
@@ -79,6 +89,7 @@ export function EditTurnoffModal({ open, onClose, selectedDoc, onRefresh }: Edit
       endDate,
       startTime,
       endTime,
+      voltageId: voltageId ? Number(voltageId) : undefined,
       file,
     });
 
@@ -99,11 +110,14 @@ export function EditTurnoffModal({ open, onClose, selectedDoc, onRefresh }: Edit
       // Update Document Details
       const formData = new FormData();
       formData.append("title", title);
-      formData.append("description", description);
+      if (description) formData.append("description", description);
       formData.append("startDate", new Date(startDate).toISOString());
       formData.append("endDate", new Date(endDate).toISOString());
       formData.append("startTime", startTime);
       formData.append("endTime", endTime);
+      if (voltageId) {
+        formData.append("voltageId", voltageId);
+      }
       if (file) {
         formData.append("turnoffFile", file);
       }
@@ -156,6 +170,21 @@ export function EditTurnoffModal({ open, onClose, selectedDoc, onRefresh }: Edit
                   />
                 </div>
 
+                <div className="col-span-2">
+                  <Select
+                    label="ແຮງດັນ"
+                    options={[
+                      { value: "", label: loadingVoltages ? "ກຳລັງໂຫຼດແຮງດັນ..." : "-- ເລືອກແຮງດັນ --" },
+                      ...voltages.map((v) => ({
+                        value: String(v.id),
+                        label: v.name,
+                      })),
+                    ]}
+                    value={voltageId}
+                    onChange={(e) => setVoltageId(e.target.value)}
+                    disabled={loadingVoltages}
+                  />
+                </div>
 
                 <div className="col-span-2">
                   <Textarea

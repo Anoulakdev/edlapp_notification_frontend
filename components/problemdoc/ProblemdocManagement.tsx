@@ -19,7 +19,7 @@ import {
   AlertTriangle,
   Forward,
   CheckSquare,
-  CheckCheck,
+  MapPinCheckInside,
   Wrench,
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
@@ -633,7 +633,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
                     onClick={() => openAlreadyReported(doc)}
                     className="p-2 rounded-xl text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-colors shrink-0"
                   >
-                    <CheckCheck className="w-4 h-4" />
+                    <MapPinCheckInside className="w-4 h-4" />
                   </button>
                 </ButtonTooltip>
               )}
