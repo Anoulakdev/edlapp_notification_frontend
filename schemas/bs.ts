@@ -31,6 +31,18 @@ export interface BsDebtItem {
   master_bill_id?: number | null;
 }
 
+export interface BsMeterProgressItem {
+  interger_digit?: number;
+  digit?: number;
+  consumption?: number;
+  account_no?: string;
+  voltage?: string;
+  amptage?: string;
+  tel?: string;
+  meter_status?: string;
+  phase_type?: number;
+}
+
 export interface BsApiResponse {
   energy?: {
     statusCode?: number;
@@ -44,6 +56,14 @@ export interface BsApiResponse {
     statusCode?: number;
     message?: string;
     data?: BsDebtItem[];
+    errorr?: {
+      message?: string;
+    };
+  };
+  meterProgress?: {
+    statusCode?: number;
+    message?: string;
+    data?: BsMeterProgressItem | BsMeterProgressItem[];
     errorr?: {
       message?: string;
     };

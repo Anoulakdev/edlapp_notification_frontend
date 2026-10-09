@@ -34,6 +34,8 @@ export default function SignInView() {
             window.location.href = "/dashboard";
           } else if (roleId === 6) {
             window.location.href = "/dashboard";
+          } else if (roleId === 8) {
+            window.location.href = "/activity";
           } else {
             try {
               await fetch("/api/auth/logout", { method: "POST" });
@@ -106,6 +108,8 @@ export default function SignInView() {
           window.location.href = "/dashboard";
         } else if (roleId === 6) {
           window.location.href = "/dashboard";
+        } else if (roleId === 8) {
+          window.location.href = "/activity";
         } else {
           try {
             await fetch("/api/auth/logout", { method: "POST" });

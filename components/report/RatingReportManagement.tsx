@@ -84,9 +84,15 @@ interface RatingCountItem {
   averageRating: number;
 }
 
+interface AgentCountItem {
+  agentId: number;
+  agent?: AgentUser | null;
+  totalCount: number;
+}
+
 export function RatingReportManagement() {
-  // Tab State: "data" (Tab 1: รายละเอียด) | "count" (Tab 2: สรุปตาม Agent)
-  const [activeTab, setActiveTab] = useState<"data" | "count">("data");
+  // Tab State: "data" (Tab 1: รายละเอียด) | "count" (Tab 2: สรุปตาม Agent) | "chatcount" (Tab 3: สรุปจำนวนการตอบแช็ต)
+  const [activeTab, setActiveTab] = useState<"data" | "count" | "chatcount">("data");
 
   // Shared Date Filter States
   const [startDate, setStartDate] = useState<string>("");
@@ -105,9 +111,13 @@ export function RatingReportManagement() {
   // Tab 2: Rating Count States (Array)
   const [ratingCountList, setRatingCountList] = useState<RatingCountItem[]>([]);
 
+  // Tab 3: Agent Chat Count States (Array)
+  const [agentChatCountList, setAgentChatCountList] = useState<AgentCountItem[]>([]);
+
   // Status States
   const [loadingData, setLoadingData] = useState<boolean>(false);
   const [loadingCount, setLoadingCount] = useState<boolean>(false);
+  const [loadingAgentCount, setLoadingAgentCount] = useState<boolean>(false);
   const [hasSearched, setHasSearched] = useState<boolean>(false);
 
   // Set default dates on mount (Current month)
@@ -186,7 +196,32 @@ export function RatingReportManagement() {
     }
   };
 
-  // Helper to fetch both tabs
+  // Fetch Tab 3 (Agent Chat Count)
+  const fetchAgentChatCount = async (sDate = startDate, eDate = endDate) => {
+    if (!sDate || !eDate) return;
+    setLoadingAgentCount(true);
+    try {
+      const res = await axiosInstance.get("/reports/agentcount", {
+        params: {
+          startDate: sDate,
+          endDate: eDate,
+        },
+      });
+
+      if (Array.isArray(res.data)) {
+        setAgentChatCountList(res.data);
+      } else {
+        setAgentChatCountList([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch agent chat count report:", err);
+      toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນສະຫຼຸບຈຳນວນການຕອບແຊັດໄດ້");
+    } finally {
+      setLoadingAgentCount(false);
+    }
+  };
+
+  // Helper to fetch all tabs
   const fetchBothReports = (
     sDate = startDate,
     eDate = endDate,
@@ -200,6 +235,7 @@ export function RatingReportManagement() {
     setHasSearched(true);
     fetchRatingData(targetPage, targetLimit, sDate, eDate);
     fetchRatingCount(sDate, eDate);
+    fetchAgentChatCount(sDate, eDate);
   };
 
   // Handle Quick Date Shortcuts
@@ -295,6 +331,19 @@ export function RatingReportManagement() {
     });
   }, [ratingCountList, searchTerm]);
 
+  const filteredAgentChatCount = useMemo(() => {
+    if (!searchTerm.trim()) return agentChatCountList;
+    const term = searchTerm.toLowerCase();
+    return agentChatCountList.filter((item) => {
+      const agentName =
+        `${item.agent?.employee?.first_name || ""} ${item.agent?.employee?.last_name || ""}`.toLowerCase();
+      const empCode = (item.agent?.employee?.emp_code || "").toLowerCase();
+      const agentIdStr = String(item.agentId);
+
+      return agentName.includes(term) || empCode.includes(term) || agentIdStr.includes(term);
+    });
+  }, [agentChatCountList, searchTerm]);
+
   // Overall Statistics Metrics
   const statsMetrics = useMemo(() => {
     const totalCount = ratingCountList.reduce((acc, curr) => acc + curr.totalRatings, 0);
@@ -338,7 +387,7 @@ export function RatingReportManagement() {
   };
 
 
-  // Export Excel — Combined 2 Worksheets in 1 File
+  // Export Excel — Combined 3 Worksheets in 1 File
   const handleExportExcel = async () => {
     if (!startDate || !endDate) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ Excel");
@@ -349,13 +398,17 @@ export function RatingReportManagement() {
 
     let allData: RatingDataItem[] = [];
     let countData: RatingCountItem[] = [];
+    let chatCountData: AgentCountItem[] = [];
 
     try {
-      const [resData, resCount] = await Promise.all([
+      const [resData, resCount, resChatCount] = await Promise.all([
         axiosInstance.get("/reports/ratingdata", {
           params: { page: 1, limit: 9999, startDate, endDate },
         }),
         axiosInstance.get("/reports/ratingcount", {
+          params: { startDate, endDate },
+        }),
+        axiosInstance.get("/reports/agentcount", {
           params: { startDate, endDate },
         }),
       ]);
@@ -369,12 +422,16 @@ export function RatingReportManagement() {
       if (Array.isArray(resCount.data)) {
         countData = resCount.data;
       }
+
+      if (Array.isArray(resChatCount.data)) {
+        chatCountData = resChatCount.data;
+      }
     } catch {
       toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນທັງໝົດໄດ້");
       return;
     }
 
-    if (allData.length === 0 && countData.length === 0) {
+    if (allData.length === 0 && countData.length === 0 && chatCountData.length === 0) {
       toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
       return;
     }
@@ -403,6 +460,15 @@ export function RatingReportManagement() {
         };
       });
       const worksheetData = XLSX.utils.json_to_sheet(dataRows);
+      worksheetData["!cols"] = [
+        { wch: 8 },
+        { wch: 18 },
+        { wch: 25 },
+        { wch: 25 },
+        { wch: 20 },
+        { wch: 12 },
+        { wch: 35 },
+      ];
       XLSX.utils.book_append_sheet(workbook, worksheetData, "ລາຍລະອຽດການປະເມິນ");
     }
 
@@ -434,14 +500,49 @@ export function RatingReportManagement() {
         };
       });
       const worksheetCount = XLSX.utils.json_to_sheet(countRows);
+      worksheetCount["!cols"] = [
+        { wch: 8 },
+        { wch: 30 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 16 },
+      ];
       XLSX.utils.book_append_sheet(workbook, worksheetCount, "ສະຫຼຸບຈຳນວນດາວ");
+    }
+
+    // Sheet 3: ສະຫຼຸບຈຳນວນການຕອບແຊັດ
+    if (chatCountData.length > 0) {
+      const chatRows = chatCountData.map((c, index) => {
+        const agentName =
+          `${c.agent?.employee?.first_name || ""} ${c.agent?.employee?.last_name || ""}`.trim() ||
+          `Agent #${c.agentId}`;
+        const empCode = c.agent?.employee?.emp_code || "-";
+
+        return {
+          "ລຳດັບ": index + 1,
+          "ລະຫັດພະນັກງານ": empCode,
+          "ຊື່ພະນັກງານ": agentName,
+          "ຈຳນວນການຕອບແຊັດ": c.totalCount || 0,
+        };
+      });
+      const worksheetChat = XLSX.utils.json_to_sheet(chatRows);
+      worksheetChat["!cols"] = [
+        { wch: 8 },
+        { wch: 18 },
+        { wch: 32 },
+        { wch: 22 },
+      ];
+      XLSX.utils.book_append_sheet(workbook, worksheetChat, "ສະຫຼຸບຈຳນວນການຕອບແຊັດ");
     }
 
     XLSX.writeFile(workbook, `rating_report_${startDate}_to_${endDate}.xlsx`);
     toast.success("ສົ່ງອອກ Excel ສຳເລັດແລ້ວ");
   };
 
-  // Export PDF — Combined 2 Sections/Tables in 1 File using @react-pdf/renderer with PhetsarathOT font
+  // Export PDF — Combined 3 Sections/Tables in 1 File using @react-pdf/renderer with PhetsarathOT font
   const handleExportPDF = async () => {
     if (!startDate || !endDate) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ PDF");
@@ -450,13 +551,17 @@ export function RatingReportManagement() {
 
     let allData: RatingDataItem[] = [];
     let countData: RatingCountItem[] = [];
+    let chatCountData: AgentCountItem[] = [];
 
     try {
-      const [resData, resCount] = await Promise.all([
+      const [resData, resCount, resChatCount] = await Promise.all([
         axiosInstance.get("/reports/ratingdata", {
           params: { page: 1, limit: 9999, startDate, endDate },
         }),
         axiosInstance.get("/reports/ratingcount", {
+          params: { startDate, endDate },
+        }),
+        axiosInstance.get("/reports/agentcount", {
           params: { startDate, endDate },
         }),
       ]);
@@ -470,12 +575,16 @@ export function RatingReportManagement() {
       if (Array.isArray(resCount.data)) {
         countData = resCount.data;
       }
+
+      if (Array.isArray(resChatCount.data)) {
+        chatCountData = resChatCount.data;
+      }
     } catch {
       toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນທັງໝົດໄດ້");
       return;
     }
 
-    if (allData.length === 0 && countData.length === 0) {
+    if (allData.length === 0 && countData.length === 0 && chatCountData.length === 0) {
       toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
       return;
     }
@@ -488,6 +597,7 @@ export function RatingReportManagement() {
         <RatingReportPDF
           data={allData}
           countData={countData}
+          chatCountData={chatCountData}
           startDate={startDate}
           endDate={endDate}
         />,
@@ -502,7 +612,7 @@ export function RatingReportManagement() {
   };
 
 
-  const isLoading = loadingData || loadingCount;
+  const isLoading = loadingData || loadingCount || loadingAgentCount;
 
   return (
     <div className="max-w-screen-2xl mx-auto px-4 md:px-6 py-6 font-sans text-slate-800 dark:text-slate-100 space-y-6 print:bg-white print:p-0">
@@ -653,6 +763,22 @@ export function RatingReportManagement() {
                 </span>
               )}
             </button>
+
+            <button
+              onClick={() => setActiveTab("chatcount")}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${activeTab === "chatcount"
+                ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
+                }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>ສະຫຼຸບຈຳນວນການຕອບແຊັດ</span>
+              {agentChatCountList.length > 0 && (
+                <span className="ml-1 px-2 py-0.5 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 rounded-full font-bold">
+                  {agentChatCountList.length}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Live Search Input */}
@@ -665,7 +791,9 @@ export function RatingReportManagement() {
               placeholder={
                 activeTab === "data"
                   ? "ຄົ້ນຫາ Agent, ຜູ້ຮັບບໍລິການ, ຄຳຄິດເຫັນ..."
-                  : "ຄົ້ນຫາ Agent..."
+                  : activeTab === "count"
+                  ? "ຄົ້ນຫາ Agent..."
+                  : "ຄົ້ນຫາ Agent ທີ່ຕອບແຊັດ..."
               }
               className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
             />
@@ -927,6 +1055,86 @@ export function RatingReportManagement() {
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 rounded-lg text-xs font-bold shadow-sm">
                               <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
                               <span>{totalStars} ດາວ</span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: AGENT CHAT COUNT TABLE */}
+        {activeTab === "chatcount" && (
+          <div className="p-0">
+            {loadingAgentCount ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center space-y-3">
+                <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" />
+                <p className="text-sm font-medium text-slate-600 dark:text-gray-400">
+                  ກຳລັງໂຫຼດຂໍ້ມູນສະຫຼຸບຈຳນວນການຕອບແຊັດ...
+                </p>
+              </div>
+            ) : filteredAgentChatCount.length === 0 ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center space-y-3">
+                <AlertCircle className="w-12 h-12 text-slate-300 dark:text-gray-600" />
+                <p className="text-base font-semibold text-slate-700 dark:text-gray-300">
+                  ບໍ່ພົບຂໍ້ມູນການຕອບແຊັດ
+                </p>
+                <p className="text-xs text-slate-400 dark:text-gray-500">
+                  ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ແລ້ວກົດປຸ່ມ &quot;ດຶງລາຍງານ&quot;
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100/70 dark:bg-gray-700/50 border-b border-slate-200 dark:border-gray-700 text-xs font-bold text-slate-600 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="py-3.5 px-4 text-center w-16">#</th>
+                      <th className="py-3.5 px-4">ຊື່ພະນັກງານ</th>
+                      <th className="py-3.5 px-4 text-center w-52 font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20">
+                        ຈຳນວນການຕອບແຊັດ
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/70 dark:divide-gray-700/70 text-sm">
+                    {filteredAgentChatCount.map((item, index) => {
+                      const agentName =
+                        `${item.agent?.employee?.first_name || ""} ${
+                          item.agent?.employee?.last_name || ""
+                        }`.trim() || `Agent #${item.agentId}`;
+                      const empCode = item.agent?.employee?.emp_code;
+                      const gender = item.agent?.employee?.gender;
+
+                      return (
+                        <tr
+                          key={item.agentId}
+                          className="hover:bg-slate-50/80 dark:hover:bg-gray-700/30 transition-colors"
+                        >
+                          <td className="py-3.5 px-4 text-center text-xs font-semibold text-slate-400 dark:text-gray-500">
+                            {index + 1}
+                          </td>
+                          <td className="py-3.5 px-4 whitespace-nowrap">
+                            <div className="font-semibold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+                              <span>{agentName}</span>
+                              {gender && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-gray-700 text-slate-500 font-normal">
+                                  {gender}
+                                </span>
+                              )}
+                            </div>
+                            {empCode && (
+                              <div className="text-xs text-slate-400 dark:text-gray-400 font-mono">
+                                ລະຫັດ: {empCode}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-center font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/10">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 rounded-lg text-xs font-bold shadow-sm">
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>{Number(item.totalCount || 0).toLocaleString()} ຄັ້ງ</span>
                             </span>
                           </td>
                         </tr>

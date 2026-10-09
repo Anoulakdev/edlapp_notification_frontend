@@ -16,10 +16,18 @@ import {
   MapPin,
   AlertCircle,
   ArrowUpDown,
+  Gauge,
+  Activity,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
-import { BsEnergyItem, BsDebtItem, BsApiResponse, ProvinceItem } from "@/schemas/bs";
+import {
+  BsEnergyItem,
+  BsDebtItem,
+  BsApiResponse,
+  BsMeterProgressItem,
+  ProvinceItem,
+} from "@/schemas/bs";
 import { EnergyConsumptionChart } from "./EnergyConsumptionChart";
 import { DebtHistoryTable } from "./DebtHistoryTable";
 
@@ -51,6 +59,7 @@ export function BsManagement() {
   const [hasSearched, setHasSearched] = useState(false);
   const [energyList, setEnergyList] = useState<BsEnergyItem[]>([]);
   const [debtList, setDebtList] = useState<BsDebtItem[]>([]);
+  const [meterProgress, setMeterProgress] = useState<BsMeterProgressItem | null>(null);
 
   // Active Tab: 'energy' | 'debt'
   const [activeTab, setActiveTab] = useState<"energy" | "debt">("energy");
@@ -135,12 +144,19 @@ export function BsManagement() {
 
       const energies = Array.isArray(res.data?.energy?.data) ? res.data.energy.data : [];
       const debts = Array.isArray(res.data?.debt?.data) ? res.data.debt.data : [];
+      const progressRaw = res.data?.meterProgress?.data;
+      const progress = progressRaw
+        ? Array.isArray(progressRaw)
+          ? progressRaw[0] || null
+          : progressRaw
+        : null;
 
       setEnergyList(energies);
       setDebtList(debts);
+      setMeterProgress(progress);
       setHasSearched(true);
 
-      if (energies.length === 0 && debts.length === 0) {
+      if (energies.length === 0 && debts.length === 0 && !progress) {
         toast.info("ບໍ່ພົບຂໍ້ມູນໃນລະບົບ BS ຕາມເງື່ອນໄຂທີ່ເລືອກ");
       } else {
         toast.success(
@@ -171,26 +187,39 @@ export function BsManagement() {
     setEndYear(String(currentYear));
     setEnergyList([]);
     setDebtList([]);
+    setMeterProgress(null);
     setHasSearched(false);
   };
 
-  // Customer info extraction from first energy item
+  // Customer info extraction from energy items and meterProgress
   const customerInfo = useMemo(() => {
     if (energyList.length > 0) {
       const first = energyList[0];
       return {
         customer_name: first.customer_name || "-",
-        account_no: first.account_no || accountNo,
+        account_no: first.account_no || meterProgress?.account_no || accountNo,
         barnch: first.barnch || "-",
-        phone: first.phone_no || first.tel || "-",
-        tel: first.tel || first.phone_no || "-",
+        phone: first.phone_no || first.tel || meterProgress?.tel || "-",
+        tel: first.tel || first.phone_no || meterProgress?.tel || "-",
         address: first.address || "-",
-        meter_status: first.meter_status || "-",
+        meter_status: meterProgress?.meter_status || first.meter_status || "-",
         account_status: first.account_status || "-",
       };
     }
+    if (meterProgress) {
+      return {
+        customer_name: "ລູກຄ້າບັນຊີ " + (meterProgress.account_no || accountNo),
+        account_no: meterProgress.account_no || accountNo,
+        barnch: "-",
+        phone: meterProgress.tel || "-",
+        tel: meterProgress.tel || "-",
+        address: "-",
+        meter_status: meterProgress.meter_status || "-",
+        account_status: "-",
+      };
+    }
     return null;
-  }, [energyList, accountNo]);
+  }, [energyList, meterProgress, accountNo]);
 
   if (authorized === null) {
     return (
@@ -383,15 +412,15 @@ export function BsManagement() {
       {/* Customer Info Card if available */}
       {customerInfo && (
         <div
-          className="relative overflow-hidden p-3.5 sm:p-5 rounded-2xl border shadow-xs transition-all"
+          className="relative overflow-hidden p-4 sm:p-5 rounded-2xl border shadow-xs transition-all space-y-3.5"
           style={{
             background:
               "linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(99, 102, 241, 0.08) 100%), rgb(var(--card))",
             borderColor: "rgb(var(--border))",
           }}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <div className="flex items-start gap-3 sm:gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-start gap-3 sm:gap-4 min-w-0">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
                 <User className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
@@ -403,6 +432,11 @@ export function BsManagement() {
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 shrink-0">
                     ເລກບັນຊີ: {customerInfo.account_no}
                   </span>
+                  {(meterProgress?.meter_status || (customerInfo.meter_status && customerInfo.meter_status !== "-")) && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 shrink-0">
+                      ສະຖານະກົງເຕີ: {meterProgress?.meter_status || customerInfo.meter_status}
+                    </span>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 sm:flex sm:items-center gap-1.5 sm:gap-4 text-xs text-slate-500 dark:text-slate-400">
                   <span className="flex items-center gap-1.5">
@@ -411,7 +445,7 @@ export function BsManagement() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>ໂທ: {customerInfo.tel || "-"}</span>
+                    <span>ໂທ: {customerInfo.tel || meterProgress?.tel || "-"}</span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -421,6 +455,65 @@ export function BsManagement() {
               </div>
             </div>
           </div>
+
+          {/* Meter Progress Technical Specifications */}
+          {meterProgress && (
+            <div className="pt-3 border-t border-slate-200/60 dark:border-slate-700/60">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                {/* Meter No / Account No */}
+                <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/40 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Hash className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">ເລກໝໍ້ນັບໄຟ</p>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                      {meterProgress.account_no || "-"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Voltage */}
+                <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/40 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">ແຮງດັນ</p>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                      {meterProgress.voltage ? `${meterProgress.voltage} V` : "-"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Amperage */}
+                <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/40 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                    <Gauge className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">ຂະໜາດ</p>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                      {meterProgress.amptage ? `${meterProgress.amptage} A` : "-"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Phase Type */}
+                <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/40 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">ລະບົບເຟສ</p>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                      {meterProgress.phase_type ? `${meterProgress.phase_type} ເຟສ` : "-"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

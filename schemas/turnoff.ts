@@ -84,7 +84,7 @@ export const turnoffDocSchema = z.object({
           id: z.number(),
           village_name: z.string(),
         }),
-      })
+      }),
     )
     .optional(),
   createdAt: z.string(),

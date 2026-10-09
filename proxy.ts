@@ -121,6 +121,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/problemreport",
     "/registermeterreport",
   ],
+  8: ["/dashboard", "/activity"],
 };
 
 // 2. Define default page for each role ID
@@ -131,6 +132,7 @@ const ROLE_DEFAULT_PAGES: Record<number, string> = {
   4: "/dashboard",
   5: "/dashboard",
   6: "/dashboard",
+  8: "/activity",
 };
 
 const GUARDED_ROUTES_SET = new Set([
@@ -151,6 +153,7 @@ const GUARDED_ROUTES_SET = new Set([
   "/registermeter",
   "/chat",
   "/chathistory",
+  "/activity",
   "/branch",
   "/repairdistrict",
   "/problemtype",

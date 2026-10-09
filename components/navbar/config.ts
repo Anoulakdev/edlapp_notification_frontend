@@ -35,6 +35,7 @@ import {
   CreditCard,
   Scale,
   FileSpreadsheet,
+  Newspaper,
 } from "lucide-react";
 
 export type NavChild = {
@@ -297,6 +298,10 @@ const ROLE_6_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+const ROLE_8_NAV_ITEMS: NavItem[] = [
+  { label: "ກິດຈະກຳ", href: "/activity", icon: Newspaper },
+];
+
 export const navItems: NavItem[] = [];
 
 let authMePromise: Promise<any> | null = null;
@@ -341,6 +346,8 @@ export function useNavItems() {
         setNavItemsState(ROLE_5_NAV_ITEMS);
       } else if (roleId === 6) {
         setNavItemsState(ROLE_6_NAV_ITEMS);
+      } else if (roleId === 8) {
+        setNavItemsState(ROLE_8_NAV_ITEMS);
       } else {
         setNavItemsState([]);
       }
@@ -368,6 +375,8 @@ export function useNavItems() {
               setNavItemsState(ROLE_5_NAV_ITEMS);
             } else if (roleId === 6) {
               setNavItemsState(ROLE_6_NAV_ITEMS);
+            } else if (roleId === 8) {
+              setNavItemsState(ROLE_8_NAV_ITEMS);
             } else {
               setNavItemsState([]);
             }

@@ -156,9 +156,26 @@ export interface RatingCountItem {
   } | null;
 }
 
+export interface AgentChatCountItem {
+  agentId: number;
+  totalCount: number;
+  agent?: {
+    id?: number;
+    username?: string;
+    employee?: {
+      id?: number;
+      first_name?: string;
+      last_name?: string;
+      gender?: string;
+      emp_code?: string;
+    } | null;
+  } | null;
+}
+
 interface RatingReportPDFProps {
   data: RatingDataItem[];
   countData: RatingCountItem[];
+  chatCountData?: AgentChatCountItem[];
   startDate: string;
   endDate: string;
 }
@@ -166,6 +183,7 @@ interface RatingReportPDFProps {
 export const RatingReportPDF: React.FC<RatingReportPDFProps> = ({
   data,
   countData,
+  chatCountData = [],
   startDate,
   endDate,
 }) => {
@@ -349,6 +367,78 @@ export const RatingReportPDF: React.FC<RatingReportPDFProps> = ({
           </View>
         </Page>
       )}
+
+      {/* SECTION 3: Agent Chat Count Summary */}
+      {chatCountData && chatCountData.length > 0 && (
+        <Page size="A4" orientation="landscape" style={styles.page}>
+          <View style={styles.accentBar} />
+
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.reportTitle}>ລາຍງານສະຫຼຸບຈຳນວນການຕອບແຊັດຕາມພະນັກງານ</Text>
+            </View>
+            <View style={styles.headerRight}>
+              <Text style={styles.metaText}>
+                ຊ່ວງວັນທີ: {moment(startDate).format("DD/MM/YYYY")} – {moment(endDate).format("DD/MM/YYYY")}
+              </Text>
+              <Text style={styles.metaText}>ພິມວັນທີ: {printedAt}</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.table}>
+            <View style={styles.tableHeaderRow} fixed>
+              <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>ລຳດັບ</Text>
+              <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "18%" }]}>ລະຫັດພະນັກງານ</Text>
+              <Text style={[styles.tableHeaderCell, { width: "50%" }]}>ຊື່ພະນັກງານ</Text>
+              <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "24%" }]}>ຈຳນວນການຕອບແຊັດ</Text>
+            </View>
+
+            {chatCountData.map((item, index) => {
+              const agentStr =
+                `${item.agent?.employee?.first_name || ""} ${item.agent?.employee?.last_name || ""}`.trim() ||
+                `Agent #${item.agentId}`;
+              const empCode = item.agent?.employee?.emp_code || "-";
+              const totalCount = Number(item.totalCount || 0).toLocaleString();
+
+              const isEven = index % 2 === 0;
+
+              return (
+                <View
+                  key={item.agentId || index}
+                  style={[styles.tableRow, isEven ? styles.tableRowEven : styles.tableRowOdd]}
+                  wrap={false}
+                >
+                  <Text style={[styles.tableCell, styles.textCenter, { width: "8%" }]}>
+                    {index + 1}
+                  </Text>
+                  <Text style={[styles.tableCell, styles.textCenter, { width: "18%" }]}>
+                    {empCode}
+                  </Text>
+                  <Text style={[styles.tableCell, { width: "50%" }]}>
+                    {agentStr}
+                  </Text>
+                  <Text style={[styles.tableCell, styles.textCenter, { width: "24%" }]}>
+                    {totalCount} ຄັ້ງ
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+
+          <View style={styles.footer} fixed>
+            <Text style={styles.footerText}>ລາຍງານສະຫຼຸບຈຳນວນການຕອບແຊັດ</Text>
+            <Text
+              style={styles.footerText}
+              render={({ pageNumber, totalPages }) =>
+                `ໜ້າ ${pageNumber} / ${totalPages}   |   ${printedAt}`
+              }
+            />
+          </View>
+        </Page>
+      )}
     </Document>
   );
 };
+
