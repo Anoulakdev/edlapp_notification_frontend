@@ -23,6 +23,7 @@ import {
   UserCheck,
   Smile,
   Frown,
+  X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
@@ -729,61 +730,66 @@ export function RatingReportManagement() {
 
       {/* Tabs Navigation & Search Bar Header */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200/80 dark:border-gray-700/80 shadow-sm overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border-b border-slate-100 dark:border-gray-700 bg-slate-50/50 dark:bg-gray-800/50">
-          {/* Tab Buttons */}
-          <div className="flex items-center gap-2 bg-slate-200/70 dark:bg-gray-700/70 p-1 rounded-xl">
-            <button
-              onClick={() => setActiveTab("data")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${activeTab === "data"
-                ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 p-3.5 sm:p-4 border-b border-slate-100 dark:border-gray-700 bg-slate-50/50 dark:bg-gray-800/50">
+          {/* Tab Buttons (Responsive Horizontal Scroll for Mobile) */}
+          <div className="w-full lg:w-auto overflow-x-auto scrollbar-none -mx-1 px-1 sm:mx-0 sm:px-0">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-slate-200/70 dark:bg-gray-700/70 p-1 sm:p-1.5 rounded-xl min-w-max">
+              <button
+                onClick={() => setActiveTab("data")}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer ${
+                  activeTab === "data"
+                    ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
                 }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>ລາຍລະອຽດການປະເມິນຄວາມພໍໃຈ</span>
-              {totalData > 0 && (
-                <span className="ml-1 px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full font-bold">
-                  {totalData}
-                </span>
-              )}
-            </button>
+              >
+                <FileText className="w-4 h-4 shrink-0" />
+                <span>ລາຍລະອຽດການປະເມິນຄວາມພໍໃຈ</span>
+                {totalData > 0 && (
+                  <span className="ml-0.5 sm:ml-1 px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full font-bold">
+                    {totalData}
+                  </span>
+                )}
+              </button>
 
-            <button
-              onClick={() => setActiveTab("count")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${activeTab === "count"
-                ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
+              <button
+                onClick={() => setActiveTab("count")}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer ${
+                  activeTab === "count"
+                    ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
                 }`}
-            >
-              <Award className="w-4 h-4" />
-              <span>ສະຫຼຸບຈຳນວນດາວຕາມ Agent</span>
-              {ratingCountList.length > 0 && (
-                <span className="ml-1 px-2 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full font-bold">
-                  {ratingCountList.length}
-                </span>
-              )}
-            </button>
+              >
+                <Award className="w-4 h-4 shrink-0" />
+                <span>ສະຫຼຸບຈຳນວນດາວຕາມ Agent</span>
+                {ratingCountList.length > 0 && (
+                  <span className="ml-0.5 sm:ml-1 px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full font-bold">
+                    {ratingCountList.length}
+                  </span>
+                )}
+              </button>
 
-            <button
-              onClick={() => setActiveTab("chatcount")}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${activeTab === "chatcount"
-                ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
+              <button
+                onClick={() => setActiveTab("chatcount")}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 whitespace-nowrap shrink-0 cursor-pointer ${
+                  activeTab === "chatcount"
+                    ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
                 }`}
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>ສະຫຼຸບຈຳນວນການຕອບແຊັດ</span>
-              {agentChatCountList.length > 0 && (
-                <span className="ml-1 px-2 py-0.5 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 rounded-full font-bold">
-                  {agentChatCountList.length}
-                </span>
-              )}
-            </button>
+              >
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                <span>ສະຫຼຸບຈຳນວນການຕອບແຊັດ</span>
+                {agentChatCountList.length > 0 && (
+                  <span className="ml-0.5 sm:ml-1 px-1.5 sm:px-2 py-0.5 text-[11px] sm:text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 rounded-full font-bold">
+                    {agentChatCountList.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Live Search Input */}
-          <div className="relative min-w-[240px] sm:min-w-[300px]">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" />
+          <div className="relative w-full lg:w-72 xl:w-80 shrink-0">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
@@ -795,8 +801,18 @@ export function RatingReportManagement() {
                   ? "ຄົ້ນຫາ Agent..."
                   : "ຄົ້ນຫາ Agent ທີ່ຕອບແຊັດ..."
               }
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+              className="w-full pl-10 pr-9 py-2 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-xs"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 transition-colors cursor-pointer"
+                title="ລຶບຂໍ້ຄວາມຄົ້ນຫາ"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
