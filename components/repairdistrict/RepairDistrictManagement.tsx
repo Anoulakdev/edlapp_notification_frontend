@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -18,7 +18,6 @@ import {
 import {
   useReactTable,
   getCoreRowModel,
-  getPaginationRowModel,
   ColumnDef,
   flexRender,
 } from "@tanstack/react-table";
@@ -42,6 +41,7 @@ export function RepairDistrictManagement() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
 
   // Pagination State
@@ -49,6 +49,8 @@ export function RepairDistrictManagement() {
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
   });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modals States
   const [addOpen, setAddOpen] = useState(false);
@@ -89,13 +91,44 @@ export function RepairDistrictManagement() {
     }
   }, [authorized]);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Fetch Repair Districts from backend
-  const fetchDocs = useCallback(async () => {
+  const fetchDocs = useCallback(async (
+    searchVal = "",
+    branchId = "",
+    page = 1,
+    limit = ROWS_PER_PAGE
+  ) => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get("/repairdistricts");
-      const data = Array.isArray(res.data) ? res.data : res.data.data || [];
-      setDocs(data);
+      const res = await axiosInstance.get("/repairdistricts", {
+        params: {
+          search: searchVal.trim() || undefined,
+          branchId: branchId || undefined,
+          page,
+          limit,
+        },
+      });
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setDocs(res.data.data);
+        setTotalCount(res.data.total ?? 0);
+        setTotalPages(res.data.totalPages ?? 1);
+      } else if (Array.isArray(res.data)) {
+        setDocs(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / limit) || 1);
+      } else {
+        setDocs([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error("Failed to load repair districts:", err);
       toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນສູນສ້ອມແປງເມືອງໄດ້");
@@ -104,11 +137,60 @@ export function RepairDistrictManagement() {
     }
   }, []);
 
+  const prevFiltersRef = useRef({
+    debouncedSearch,
+    selectedBranchFilter,
+  });
+
+  // Fetch data when filters or pagination changes
   useEffect(() => {
-    if (authorized) {
-      fetchDocs();
+    if (!authorized) return;
+
+    const prev = prevFiltersRef.current;
+    const filtersChanged =
+      prev.debouncedSearch !== debouncedSearch ||
+      prev.selectedBranchFilter !== selectedBranchFilter;
+
+    prevFiltersRef.current = {
+      debouncedSearch,
+      selectedBranchFilter,
+    };
+
+    if (filtersChanged && pagination.pageIndex !== 0) {
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+      return;
     }
-  }, [authorized, fetchDocs]);
+
+    fetchDocs(
+      debouncedSearch,
+      selectedBranchFilter,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    authorized,
+    debouncedSearch,
+    selectedBranchFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+    fetchDocs,
+  ]);
+
+  // Stable refresh callback
+  const handleRefresh = useCallback(() => {
+    fetchDocs(
+      debouncedSearch,
+      selectedBranchFilter,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    fetchDocs,
+    debouncedSearch,
+    selectedBranchFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+  ]);
 
   // Handlers
   const openAdd = () => setAddOpen(true);
@@ -127,9 +209,9 @@ export function RepairDistrictManagement() {
     if (!selectedDoc) return;
     try {
       await axiosInstance.delete(`/repairdistricts/${selectedDoc.id}`);
-      setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
       setDeleteOpen(false);
       toast.success("ລົບຂໍ້ມູນສູນສ້ອມແປງເມືອງສຳເລັດ");
+      handleRefresh();
     } catch (err) {
       console.error("Failed to delete repair district:", err);
       toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
@@ -247,38 +329,22 @@ export function RepairDistrictManagement() {
     [pagination]
   );
 
-  // Client-side filtering
-  const filteredDocs = useMemo(() => {
-    return docs.filter((doc) => {
-      const matchSearch =
-        !search.trim() ||
-        doc.name.toLowerCase().includes(search.toLowerCase().trim()) ||
-        (doc.code && doc.code.toLowerCase().includes(search.toLowerCase().trim())) ||
-        (doc.branch?.name &&
-          doc.branch.name.toLowerCase().includes(search.toLowerCase().trim()));
-
-      const matchBranch =
-        !selectedBranchFilter || String(doc.branchId) === selectedBranchFilter;
-
-      return matchSearch && matchBranch;
-    });
-  }, [docs, search, selectedBranchFilter]);
-
   const table = useReactTable({
-    data: filteredDocs,
+    data: docs,
     columns,
+    pageCount: totalPages,
     state: {
       pagination,
     },
     onPaginationChange: setPagination,
+    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    autoResetPageIndex: true,
+    autoResetPageIndex: false,
   });
 
   const generatePagination = () => {
-    const currentPage = table.getState().pagination.pageIndex;
-    const pageCount = table.getPageCount();
+    const currentPage = pagination.pageIndex;
+    const pageCount = totalPages;
     const pages = [];
 
     if (pageCount <= 5) {
@@ -403,7 +469,7 @@ export function RepairDistrictManagement() {
 
           <div className="flex items-center gap-2 sm:ml-auto">
             <span className="text-xs text-slate-500">
-              {table.getFilteredRowModel().rows.length} ລາຍການ
+              {totalCount} ລາຍການ
             </span>
           </div>
         </div>
@@ -526,14 +592,13 @@ export function RepairDistrictManagement() {
         </div>
 
         {/* Pagination layout */}
-        {table.getPageCount() > 1 && (
+        {totalPages > 1 && (
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
             style={{ borderColor: "rgb(var(--border))" }}
           >
             <span className="text-xs text-slate-500">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
+              Page {pagination.pageIndex + 1} of {totalPages} ({totalCount} ລາຍການ)
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -562,12 +627,12 @@ export function RepairDistrictManagement() {
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all"
                     style={{
                       background:
-                        table.getState().pagination.pageIndex === i
+                        pagination.pageIndex === i
                           ? "rgb(var(--brand))"
                           : "transparent",
                       border: "1px solid rgb(var(--border))",
                       color:
-                        table.getState().pagination.pageIndex === i
+                        pagination.pageIndex === i
                           ? "white"
                           : "rgb(var(--text-secondary))",
                     }}
@@ -592,14 +657,14 @@ export function RepairDistrictManagement() {
       <AddRepairDistrictModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        onRefresh={fetchDocs}
+        onRefresh={handleRefresh}
       />
 
       <EditRepairDistrictModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         doc={selectedDoc}
-        onRefresh={fetchDocs}
+        onRefresh={handleRefresh}
       />
 
       <DeleteRepairDistrictModal

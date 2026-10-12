@@ -51,6 +51,8 @@ export function CutpowerManagement() {
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
   });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Dropdown States for location filters
   const [provinces, setProvinces] = useState<{ id: number; province_name: string; province_code: string }[]>([]);
@@ -167,7 +169,16 @@ export function CutpowerManagement() {
   }, [search]);
 
   // Load outage documents from backend
-  const fetchDocs = useCallback(async (searchVal = "", date = "", provId = "", distId = "", voltId = "", myDocsOnly = false) => {
+  const fetchDocs = useCallback(async (
+    searchVal = "",
+    date = "",
+    provId = "",
+    distId = "",
+    voltId = "",
+    myDocsOnly = false,
+    page = 1,
+    limit = ROWS_PER_PAGE
+  ) => {
     try {
       setLoading(true);
       const res = await axiosInstance.get("/cutpowerdocs", {
@@ -178,30 +189,119 @@ export function CutpowerManagement() {
           districtId: distId || undefined,
           voltageId: voltId || undefined,
           filterMyDocs: myDocsOnly || undefined,
+          page,
+          limit,
         },
       });
-      const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
-      setDocs(data);
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setDocs(res.data.data);
+        setTotalCount(res.data.total ?? 0);
+        setTotalPages(res.data.totalPages ?? 1);
+      } else if (Array.isArray(res.data)) {
+        setDocs(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / limit) || 1);
+      } else {
+        setDocs([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error("Failed to load cutpower documents:", err);
       toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນແຈ້ງການຕັດໄຟໄດ້");
-
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Fetch documents when filter state changes
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    fetchDocs(debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs);
-  }, [debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs, fetchDocs]);
+  const prevFiltersRef = useRef({
+    debouncedSearch,
+    cutpowerDate,
+    effectiveProvinceId,
+    selectedDistrictId,
+    selectedVoltageId,
+    filterMyDocs,
+  });
 
-  // Keep track of latest filter values in a ref to avoid reconnecting SSE on every keystroke/filter change
-  const filterRef = useRef({ debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs });
+  // Fetch documents when filter state or pagination changes
   useEffect(() => {
-    filterRef.current = { debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs };
-  }, [debouncedSearch, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs]);
+    const prev = prevFiltersRef.current;
+    const filtersChanged =
+      prev.debouncedSearch !== debouncedSearch ||
+      prev.cutpowerDate !== cutpowerDate ||
+      prev.effectiveProvinceId !== effectiveProvinceId ||
+      prev.selectedDistrictId !== selectedDistrictId ||
+      prev.selectedVoltageId !== selectedVoltageId ||
+      prev.filterMyDocs !== filterMyDocs;
+
+    prevFiltersRef.current = {
+      debouncedSearch,
+      cutpowerDate,
+      effectiveProvinceId,
+      selectedDistrictId,
+      selectedVoltageId,
+      filterMyDocs,
+    };
+
+    if (filtersChanged && pagination.pageIndex !== 0) {
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+      return;
+    }
+
+    fetchDocs(
+      debouncedSearch,
+      cutpowerDate,
+      effectiveProvinceId,
+      selectedDistrictId,
+      selectedVoltageId,
+      filterMyDocs,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    debouncedSearch,
+    cutpowerDate,
+    effectiveProvinceId,
+    selectedDistrictId,
+    selectedVoltageId,
+    filterMyDocs,
+    pagination.pageIndex,
+    pagination.pageSize,
+    fetchDocs,
+  ]);
+
+  // Keep track of latest filter values and pagination in a ref to avoid reconnecting SSE on every keystroke/filter change
+  const filterRef = useRef({
+    debouncedSearch,
+    cutpowerDate,
+    effectiveProvinceId,
+    selectedDistrictId,
+    selectedVoltageId,
+    filterMyDocs,
+    pageIndex: pagination.pageIndex,
+    pageSize: pagination.pageSize,
+  });
+  useEffect(() => {
+    filterRef.current = {
+      debouncedSearch,
+      cutpowerDate,
+      effectiveProvinceId,
+      selectedDistrictId,
+      selectedVoltageId,
+      filterMyDocs,
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
+    };
+  }, [
+    debouncedSearch,
+    cutpowerDate,
+    effectiveProvinceId,
+    selectedDistrictId,
+    selectedVoltageId,
+    filterMyDocs,
+    pagination.pageIndex,
+    pagination.pageSize,
+  ]);
 
   // Real-time Socket.io Connection
   useEffect(() => {
@@ -227,8 +327,10 @@ export function CutpowerManagement() {
           selectedDistrictId: sdId,
           selectedVoltageId: svId,
           filterMyDocs: md,
+          pageIndex: pi,
+          pageSize: ps,
         } = filterRef.current;
-        fetchDocs(s, cd, ep, sdId, svId, md);
+        fetchDocs(s, cd, ep, sdId, svId, md, pi + 1, ps);
       }
     });
 
@@ -269,10 +371,18 @@ export function CutpowerManagement() {
     if (!selectedDoc) return;
     try {
       await axiosInstance.delete(`/cutpowerdocs/${selectedDoc.id}`);
-      setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
       setDeleteOpen(false);
       toast.success("ລົບຂໍ້ມູນແຈ້ງການຕັດໄຟສຳເລັດ");
-
+      fetchDocs(
+        debouncedSearch,
+        cutpowerDate,
+        effectiveProvinceId,
+        selectedDistrictId,
+        selectedVoltageId,
+        filterMyDocs,
+        pagination.pageIndex + 1,
+        pagination.pageSize
+      );
     } catch (err) {
       console.error("Failed to delete cutpower document:", err);
       toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
@@ -451,18 +561,19 @@ export function CutpowerManagement() {
   const table = useReactTable({
     data: filteredDocs,
     columns,
+    pageCount: totalPages,
     state: {
       pagination,
     },
     onPaginationChange: setPagination,
+    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     autoResetPageIndex: false,
   });
 
   const generatePagination = () => {
-    const currentPage = table.getState().pagination.pageIndex;
-    const pageCount = table.getPageCount();
+    const currentPage = pagination.pageIndex;
+    const pageCount = totalPages;
     const pages = [];
 
     if (pageCount <= 5) {
@@ -716,13 +827,13 @@ export function CutpowerManagement() {
         </div>
 
         {/* Pagination layout */}
-        {table.getPageCount() > 1 && (
+        {totalPages > 1 && (
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
             style={{ borderColor: "rgb(var(--border))" }}
           >
             <span className="text-xs text-slate-500">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              Page {pagination.pageIndex + 1} of {totalPages} ({totalCount} ລາຍການ)
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -747,9 +858,9 @@ export function CutpowerManagement() {
                     onClick={() => table.setPageIndex(i)}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all"
                     style={{
-                      background: table.getState().pagination.pageIndex === i ? "rgb(var(--brand))" : "transparent",
+                      background: pagination.pageIndex === i ? "rgb(var(--brand))" : "transparent",
                       border: "1px solid rgb(var(--border))",
-                      color: table.getState().pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
+                      color: pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
                     }}
                   >
                     {i + 1}
@@ -769,13 +880,39 @@ export function CutpowerManagement() {
       </div>
 
       {/* MODALS */}
-      <AddCutpowerModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={() => fetchDocs(search, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs)} />
+      <AddCutpowerModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onRefresh={() =>
+          fetchDocs(
+            debouncedSearch,
+            cutpowerDate,
+            effectiveProvinceId,
+            selectedDistrictId,
+            selectedVoltageId,
+            filterMyDocs,
+            pagination.pageIndex + 1,
+            pagination.pageSize
+          )
+        }
+      />
 
       <EditCutpowerModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         selectedDoc={selectedDoc}
-        onRefresh={() => fetchDocs(search, cutpowerDate, effectiveProvinceId, selectedDistrictId, selectedVoltageId, filterMyDocs)}
+        onRefresh={() =>
+          fetchDocs(
+            debouncedSearch,
+            cutpowerDate,
+            effectiveProvinceId,
+            selectedDistrictId,
+            selectedVoltageId,
+            filterMyDocs,
+            pagination.pageIndex + 1,
+            pagination.pageSize
+          )
+        }
       />
 
       <DeleteCutpowerModal

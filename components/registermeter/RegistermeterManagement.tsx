@@ -208,6 +208,8 @@ export function RegistermeterManagement() {
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
   });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Dropdown States for location filters
   const [provinces, setProvinces] = useState<{ id: number; province_name: string; province_code: string }[]>([]);
@@ -361,7 +363,9 @@ export function RegistermeterManagement() {
     villId = "",
     statusId = "",
     sTypeId = "",
-    myDocsOnly = false
+    myDocsOnly = false,
+    page = 1,
+    limit = ROWS_PER_PAGE
   ) => {
     try {
       setLoading(true);
@@ -374,6 +378,8 @@ export function RegistermeterManagement() {
         villageId: villId || undefined,
         meterStatusId: statusId || undefined,
         sourcetypeId: sTypeId || undefined,
+        page,
+        limit,
       };
 
       if (isCustomer) {
@@ -383,8 +389,19 @@ export function RegistermeterManagement() {
       }
 
       const res = await axiosInstance.get(url, { params });
-      const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
-      setDocs(data);
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setDocs(res.data.data);
+        setTotalCount(res.data.total ?? 0);
+        setTotalPages(res.data.totalPages ?? 1);
+      } else if (Array.isArray(res.data)) {
+        setDocs(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / limit) || 1);
+      } else {
+        setDocs([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error("Failed to load register meter documents:", err);
       toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນຂໍໝໍ້ນັບໄຟໄດ້");
@@ -393,20 +410,56 @@ export function RegistermeterManagement() {
     }
   }, [currentUserRoleId, currentUserId]);
 
-  // Fetch documents when filter state changes
+  const prevFiltersRef = useRef({
+    debouncedSearch,
+    effectiveProvinceId,
+    effectiveDistrictId,
+    selectedVillageId,
+    selectedStatusId,
+    selectedSourceTypeId,
+    filterMyDocs,
+  });
+
+  // Fetch documents when filter state or pagination changes
   useEffect(() => {
-    if (currentUserRoleId !== null) {
-      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-      fetchDocs(
-        debouncedSearch,
-        effectiveProvinceId,
-        effectiveDistrictId,
-        selectedVillageId,
-        selectedStatusId,
-        selectedSourceTypeId,
-        filterMyDocs
-      );
+    if (currentUserRoleId === null) return;
+
+    const prev = prevFiltersRef.current;
+    const filtersChanged =
+      prev.debouncedSearch !== debouncedSearch ||
+      prev.effectiveProvinceId !== effectiveProvinceId ||
+      prev.effectiveDistrictId !== effectiveDistrictId ||
+      prev.selectedVillageId !== selectedVillageId ||
+      prev.selectedStatusId !== selectedStatusId ||
+      prev.selectedSourceTypeId !== selectedSourceTypeId ||
+      prev.filterMyDocs !== filterMyDocs;
+
+    prevFiltersRef.current = {
+      debouncedSearch,
+      effectiveProvinceId,
+      effectiveDistrictId,
+      selectedVillageId,
+      selectedStatusId,
+      selectedSourceTypeId,
+      filterMyDocs,
+    };
+
+    if (filtersChanged && pagination.pageIndex !== 0) {
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+      return;
     }
+
+    fetchDocs(
+      debouncedSearch,
+      effectiveProvinceId,
+      effectiveDistrictId,
+      selectedVillageId,
+      selectedStatusId,
+      selectedSourceTypeId,
+      filterMyDocs,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
   }, [
     debouncedSearch,
     effectiveProvinceId,
@@ -415,8 +468,10 @@ export function RegistermeterManagement() {
     selectedStatusId,
     selectedSourceTypeId,
     filterMyDocs,
+    pagination.pageIndex,
+    pagination.pageSize,
     fetchDocs,
-    currentUserRoleId
+    currentUserRoleId,
   ]);
 
   // Ref for latest filters to SSE refresh
@@ -427,7 +482,9 @@ export function RegistermeterManagement() {
     selectedVillageId,
     selectedStatusId,
     selectedSourceTypeId,
-    filterMyDocs
+    filterMyDocs,
+    pageIndex: pagination.pageIndex,
+    pageSize: pagination.pageSize,
   });
   useEffect(() => {
     filterRef.current = {
@@ -437,7 +494,9 @@ export function RegistermeterManagement() {
       selectedVillageId,
       selectedStatusId,
       selectedSourceTypeId,
-      filterMyDocs
+      filterMyDocs,
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
     };
   }, [
     debouncedSearch,
@@ -446,7 +505,9 @@ export function RegistermeterManagement() {
     selectedVillageId,
     selectedStatusId,
     selectedSourceTypeId,
-    filterMyDocs
+    filterMyDocs,
+    pagination.pageIndex,
+    pagination.pageSize,
   ]);
 
   // Real-time Socket.io Connection
@@ -474,7 +535,9 @@ export function RegistermeterManagement() {
           filters.selectedVillageId,
           filters.selectedStatusId,
           filters.selectedSourceTypeId,
-          filters.filterMyDocs
+          filters.filterMyDocs,
+          filters.pageIndex + 1,
+          filters.pageSize
         );
       }
     });
@@ -519,13 +582,39 @@ export function RegistermeterManagement() {
     setRejectOpen(true);
   };
 
+  // Stable refresh callback
+  const handleRefresh = useCallback(() => {
+    fetchDocs(
+      debouncedSearch,
+      effectiveProvinceId,
+      effectiveDistrictId,
+      selectedVillageId,
+      selectedStatusId,
+      selectedSourceTypeId,
+      filterMyDocs,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    fetchDocs,
+    debouncedSearch,
+    effectiveProvinceId,
+    effectiveDistrictId,
+    selectedVillageId,
+    selectedStatusId,
+    selectedSourceTypeId,
+    filterMyDocs,
+    pagination.pageIndex,
+    pagination.pageSize,
+  ]);
+
   const handleDelete = async () => {
     if (!selectedDoc) return;
     try {
       await axiosInstance.delete(`/registermeters/${selectedDoc.id}`);
-      setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
       setDeleteOpen(false);
       toast.success("ລົບຂໍ້ມູນຂໍໝໍ້ນັບໄຟສຳເລັດ");
+      handleRefresh();
     } catch (err) {
       console.error("Failed to delete register meter:", err);
       toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
@@ -746,18 +835,19 @@ export function RegistermeterManagement() {
   const table = useReactTable({
     data: docs,
     columns,
+    pageCount: totalPages,
     state: {
       pagination,
     },
     onPaginationChange: setPagination,
+    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     autoResetPageIndex: false,
   });
 
   const generatePagination = () => {
-    const currentPage = table.getState().pagination.pageIndex;
-    const pageCount = table.getPageCount();
+    const currentPage = pagination.pageIndex;
+    const pageCount = totalPages;
     const pages = [];
 
     if (pageCount <= 5) {
@@ -1058,13 +1148,13 @@ export function RegistermeterManagement() {
         </div>
 
         {/* Pagination Layout */}
-        {table.getPageCount() > 1 && (
+        {totalPages > 1 && (
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
             style={{ borderColor: "rgb(var(--border))" }}
           >
-            <span className="text-xs text-slate-505">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            <span className="text-xs text-slate-500">
+              Page {pagination.pageIndex + 1} of {totalPages} ({totalCount} ລາຍການ)
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -1089,9 +1179,9 @@ export function RegistermeterManagement() {
                     onClick={() => table.setPageIndex(i)}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all"
                     style={{
-                      background: table.getState().pagination.pageIndex === i ? "rgb(var(--brand))" : "transparent",
+                      background: pagination.pageIndex === i ? "rgb(var(--brand))" : "transparent",
                       border: "1px solid rgb(var(--border))",
-                      color: table.getState().pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
+                      color: pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
                     }}
                   >
                     {i + 1}
@@ -1114,14 +1204,14 @@ export function RegistermeterManagement() {
       <AddRegistermeterModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        onRefresh={() => fetchDocs(search, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedStatusId, selectedSourceTypeId, filterMyDocs)}
+        onRefresh={handleRefresh}
       />
 
       <EditRegistermeterModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         selectedDoc={selectedDoc}
-        onRefresh={() => fetchDocs(search, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedStatusId, selectedSourceTypeId, filterMyDocs)}
+        onRefresh={handleRefresh}
       />
 
       <DeleteRegistermeterModal
@@ -1142,14 +1232,14 @@ export function RegistermeterManagement() {
         onClose={() => setForwardOpen(false)}
         selectedDoc={selectedDoc}
         mode={forwardMode}
-        onRefresh={() => fetchDocs(search, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedStatusId, selectedSourceTypeId, filterMyDocs)}
+        onRefresh={handleRefresh}
       />
 
       <RejectRegistermeterModal
         open={rejectOpen}
         onClose={() => setRejectOpen(false)}
         selectedDoc={selectedDoc}
-        onRefresh={() => fetchDocs(search, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedStatusId, selectedSourceTypeId, filterMyDocs)}
+        onRefresh={handleRefresh}
       />
 
       <RegistermeterPdfModal

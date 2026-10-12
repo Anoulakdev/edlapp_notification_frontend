@@ -11,8 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
-  DollarSign,
-  Receipt,
+  ClipboardList,
   User,
   Phone,
   CheckCircle2,
@@ -39,6 +38,7 @@ import moment from "moment";
 import { ButtonTooltip, TableTooltip } from "@/lib/Tooltip";
 import { PaymentItem, PaymentApiResponse } from "@/schemas/payment";
 import { PaymentDetailModal } from "./PaymentDetailModal";
+import { KipIcon } from "@/components/ui/KipIcon";
 
 const PAGE_SIZE_OPTIONS = [8, 10, 20, 50, 100];
 
@@ -47,6 +47,9 @@ export function PaymentManagement() {
   const [items, setItems] = useState<PaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [branches, setBranches] = useState<{ id: number; name: string; code: string }[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
 
   // Filters & Pagination State
   const [search, setSearch] = useState("");
@@ -83,7 +86,17 @@ export function PaymentManagement() {
     const checkAuth = async () => {
       try {
         const res = await axiosInstance.get("/auth/me");
-        if ([5].includes(res.data?.roleId)) {
+        const user = res.data;
+        if ([9, 10].includes(user?.roleId)) {
+          setCurrentUser(user);
+          if (user?.roleId === 9) {
+            try {
+              const branchRes = await axiosInstance.get("/branchs/selectbranch");
+              setBranches(branchRes.data || []);
+            } catch (bErr) {
+              console.error("Failed to load branches:", bErr);
+            }
+          }
           setAuthorized(true);
         } else {
           router.replace("/unauthorized");
@@ -98,12 +111,20 @@ export function PaymentManagement() {
 
   // Fetch payments from backend
   const fetchPayments = useCallback(async () => {
+    if (!currentUser) return;
     try {
       setLoading(true);
+      const isRole9 = currentUser.roleId === 9;
+      const endpoint = isRole9 ? "/payments/selectbranch" : "/payments";
+
       const params: Record<string, any> = {
         page: pageIndex + 1,
         pageSize: pageSize,
       };
+
+      if (isRole9 && selectedBranchId) {
+        params.branchId = selectedBranchId;
+      }
 
       if (debouncedSearch.trim()) {
         params.accountNo = debouncedSearch.trim();
@@ -121,7 +142,7 @@ export function PaymentManagement() {
         params.status = status;
       }
 
-      const res = await axiosInstance.get<PaymentApiResponse>("/payments", {
+      const res = await axiosInstance.get<PaymentApiResponse>(endpoint, {
         params,
       });
 
@@ -147,13 +168,22 @@ export function PaymentManagement() {
     } finally {
       setLoading(false);
     }
-  }, [pageIndex, pageSize, debouncedSearch, paymentDateFrom, paymentDateTo, status]);
+  }, [
+    currentUser,
+    selectedBranchId,
+    pageIndex,
+    pageSize,
+    debouncedSearch,
+    paymentDateFrom,
+    paymentDateTo,
+    status,
+  ]);
 
   useEffect(() => {
-    if (authorized) {
+    if (authorized && currentUser) {
       fetchPayments();
     }
-  }, [authorized, fetchPayments]);
+  }, [authorized, currentUser, fetchPayments]);
 
   const openDetail = (item: PaymentItem) => {
     setSelectedItem(item);
@@ -163,6 +193,9 @@ export function PaymentManagement() {
   const handleResetFilters = () => {
     setSearch("");
     setDebouncedSearch("");
+    if (currentUser?.roleId === 9) {
+      setSelectedBranchId("");
+    }
     const today = moment().format("YYYY-MM-DD");
     setPaymentDateFrom(today);
     setPaymentDateTo(today);
@@ -198,16 +231,20 @@ export function PaymentManagement() {
   // Helper to fetch all records matching active filters for export
   const fetchAllExportData = async (): Promise<PaymentItem[]> => {
     try {
+      const isRole9 = currentUser?.roleId === 9;
+      const endpoint = isRole9 ? "/payments/selectbranch" : "/payments";
+
       const params: Record<string, any> = {
         page: 1,
         pageSize: 9999,
       };
+      if (isRole9 && selectedBranchId) params.branchId = selectedBranchId;
       if (debouncedSearch.trim()) params.accountNo = debouncedSearch.trim();
       if (paymentDateFrom) params.paymentDateFrom = paymentDateFrom;
       if (paymentDateTo) params.paymentDateTo = paymentDateTo;
       if (status) params.status = status;
 
-      const res = await axiosInstance.get<PaymentApiResponse>("/payments", {
+      const res = await axiosInstance.get<PaymentApiResponse>(endpoint, {
         params,
       });
 
@@ -693,11 +730,11 @@ export function PaymentManagement() {
           <div className="absolute -right-8 -top-8 w-36 h-36 bg-blue-500/10 dark:bg-blue-500/15 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
 
           {/* Background Watermark Icon */}
-          <Receipt className="absolute -right-3 -bottom-3 w-28 h-28 text-blue-500/[0.04] dark:text-blue-400/[0.05] -rotate-12 pointer-events-none group-hover:scale-110 group-hover:rotate-0 transition-all duration-500" />
+          <ClipboardList className="absolute -right-3 -bottom-3 w-28 h-28 text-blue-500/[0.04] dark:text-blue-400/[0.05] -rotate-12 pointer-events-none group-hover:scale-110 group-hover:rotate-0 transition-all duration-500" />
 
           <div className="flex items-center gap-4 sm:gap-5 relative z-10">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 via-blue-500/10 to-indigo-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/25 shadow-sm group-hover:scale-105 group-hover:shadow-md transition-all duration-300">
-              <Receipt className="w-7 h-7" />
+              <ClipboardList className="w-7 h-7" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -728,11 +765,14 @@ export function PaymentManagement() {
           <div className="absolute -right-8 -top-8 w-36 h-36 bg-emerald-500/10 dark:bg-emerald-500/15 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
 
           {/* Background Watermark Icon */}
-          <DollarSign className="absolute -right-3 -bottom-3 w-28 h-28 text-emerald-500/[0.04] dark:text-emerald-400/[0.05] -rotate-12 pointer-events-none group-hover:scale-110 group-hover:rotate-0 transition-all duration-500" />
+          <KipIcon
+            className="absolute -right-3 -bottom-3 w-28 h-28 text-emerald-500/[0.04] dark:text-emerald-400/[0.05] -rotate-12 pointer-events-none group-hover:scale-110 group-hover:rotate-0 transition-all duration-500"
+            strokeWidth={1.8}
+          />
 
           <div className="flex items-center gap-4 sm:gap-5 relative z-10">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-teal-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/25 shadow-sm group-hover:scale-105 group-hover:shadow-md transition-all duration-300">
-              <DollarSign className="w-7 h-7" />
+              <KipIcon className="w-7 h-7" strokeWidth={2.2} />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -844,6 +884,7 @@ export function PaymentManagement() {
               </button>
 
               {(search ||
+                (currentUser?.roleId === 9 && selectedBranchId) ||
                 paymentDateFrom !== moment().format("YYYY-MM-DD") ||
                 paymentDateTo !== moment().format("YYYY-MM-DD") ||
                 status !== "SUCCESS") && (
@@ -861,6 +902,36 @@ export function PaymentManagement() {
           {/* Date Pickers, Status Filter & Page Size */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/60">
             <div className="flex flex-wrap items-center gap-3">
+              {/* Branch Select Dropdown for Role 9 */}
+              {currentUser?.roleId === 9 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <Building className="w-3.5 h-3.5 text-slate-400" />
+                    ສາຂາ:
+                  </span>
+                  <select
+                    value={selectedBranchId}
+                    onChange={(e) => {
+                      setSelectedBranchId(e.target.value);
+                      setPageIndex(0);
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold outline-none cursor-pointer transition-all"
+                    style={{
+                      background: "rgb(var(--bg))",
+                      border: "1px solid rgb(var(--border))",
+                      color: "rgb(var(--text-primary))",
+                    }}
+                  >
+                    <option value="">ເລືອກສາຂາທັງໝົດ</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id.toString()}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   ວັນທີເລີ່ມຕົ້ນ:

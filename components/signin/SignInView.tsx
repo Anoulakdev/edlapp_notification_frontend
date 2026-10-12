@@ -36,6 +36,10 @@ export default function SignInView() {
             window.location.href = "/dashboard";
           } else if (roleId === 8) {
             window.location.href = "/activity";
+          } else if (roleId === 9) {
+            window.location.href = "/payment";
+          } else if (roleId === 10) {
+            window.location.href = "/payment";
           } else {
             try {
               await fetch("/api/auth/logout", { method: "POST" });
@@ -110,6 +114,10 @@ export default function SignInView() {
           window.location.href = "/dashboard";
         } else if (roleId === 8) {
           window.location.href = "/activity";
+        } else if (roleId === 9) {
+          window.location.href = "/payment";
+        } else if (roleId === 10) {
+          window.location.href = "/payment";
         } else {
           try {
             await fetch("/api/auth/logout", { method: "POST" });

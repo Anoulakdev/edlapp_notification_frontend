@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -13,7 +13,7 @@ import {
   Calendar,
   FileText,
 } from "lucide-react";
-import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
 import moment from "moment";
@@ -33,12 +33,15 @@ export function TypeequipmentManagement() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Pagination State
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
   });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modals States
   const [addOpen, setAddOpen] = useState(false);
@@ -64,13 +67,42 @@ export function TypeequipmentManagement() {
     checkAuth();
   }, [router]);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Fetch Type Equipments from backend
-  const fetchDocs = useCallback(async () => {
+  const fetchDocs = useCallback(async (
+    searchVal = "",
+    page = 1,
+    limit = ROWS_PER_PAGE
+  ) => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get("/typeequipments");
-      const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
-      setDocs(data);
+      const res = await axiosInstance.get("/typeequipments", {
+        params: {
+          search: searchVal.trim() || undefined,
+          page,
+          limit,
+        },
+      });
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setDocs(res.data.data);
+        setTotalCount(res.data.total ?? 0);
+        setTotalPages(res.data.totalPages ?? 1);
+      } else if (Array.isArray(res.data)) {
+        setDocs(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / limit) || 1);
+      } else {
+        setDocs([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error("Failed to load type equipments:", err);
       toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນໝວດໝູ່ອຸປະກອນໄດ້");
@@ -79,11 +111,52 @@ export function TypeequipmentManagement() {
     }
   }, []);
 
+  const prevFiltersRef = useRef({
+    debouncedSearch,
+  });
+
+  // Fetch data when filters or pagination changes
   useEffect(() => {
-    if (authorized) {
-      fetchDocs();
+    if (!authorized) return;
+
+    const prev = prevFiltersRef.current;
+    const filtersChanged = prev.debouncedSearch !== debouncedSearch;
+
+    prevFiltersRef.current = {
+      debouncedSearch,
+    };
+
+    if (filtersChanged && pagination.pageIndex !== 0) {
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+      return;
     }
-  }, [authorized, fetchDocs]);
+
+    fetchDocs(
+      debouncedSearch,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    authorized,
+    debouncedSearch,
+    pagination.pageIndex,
+    pagination.pageSize,
+    fetchDocs,
+  ]);
+
+  // Stable refresh callback
+  const handleRefresh = useCallback(() => {
+    fetchDocs(
+      debouncedSearch,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    fetchDocs,
+    debouncedSearch,
+    pagination.pageIndex,
+    pagination.pageSize,
+  ]);
 
   // Handlers
   const openAdd = () => setAddOpen(true);
@@ -102,9 +175,9 @@ export function TypeequipmentManagement() {
     if (!selectedDoc) return;
     try {
       await axiosInstance.delete(`/typeequipments/${selectedDoc.id}`);
-      setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
       setDeleteOpen(false);
       toast.success("ລົບຂໍ້ມູນໝວດໝູ່ອຸປະກອນສຳເລັດ");
+      handleRefresh();
     } catch (err) {
       console.error("Failed to delete type equipment:", err);
       toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
@@ -215,32 +288,22 @@ export function TypeequipmentManagement() {
     [pagination]
   );
 
-  // Client-side filtering
-  const filteredDocs = useMemo(() => {
-    if (!search.trim()) return docs;
-    const s = search.toLowerCase().trim();
-    return docs.filter(
-      (doc) =>
-        doc.name.toLowerCase().includes(s) ||
-        (doc.code && doc.code.toLowerCase().includes(s))
-    );
-  }, [docs, search]);
-
   const table = useReactTable({
-    data: filteredDocs,
+    data: docs,
     columns,
+    pageCount: totalPages,
     state: {
       pagination,
     },
     onPaginationChange: setPagination,
+    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    autoResetPageIndex: true,
+    autoResetPageIndex: false,
   });
 
   const generatePagination = () => {
-    const currentPage = table.getState().pagination.pageIndex;
-    const pageCount = table.getPageCount();
+    const currentPage = pagination.pageIndex;
+    const pageCount = totalPages;
     const pages = [];
 
     if (pageCount <= 5) {
@@ -321,7 +384,7 @@ export function TypeequipmentManagement() {
           </div>
           <div className="flex items-center gap-2 sm:ml-auto">
             <span className="text-xs text-slate-500">
-              {table.getFilteredRowModel().rows.length} ລາຍການ
+              {totalCount} ລາຍການ
             </span>
           </div>
         </div>
@@ -386,13 +449,13 @@ export function TypeequipmentManagement() {
         </div>
 
         {/* Pagination layout */}
-        {table.getPageCount() > 1 && (
+        {totalPages > 1 && (
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
             style={{ borderColor: "rgb(var(--border))" }}
           >
             <span className="text-xs text-slate-500">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              Page {pagination.pageIndex + 1} of {totalPages} ({totalCount} ລາຍການ)
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -417,9 +480,9 @@ export function TypeequipmentManagement() {
                     onClick={() => table.setPageIndex(i)}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all cursor-pointer"
                     style={{
-                      background: table.getState().pagination.pageIndex === i ? "rgb(var(--brand))" : "transparent",
+                      background: pagination.pageIndex === i ? "rgb(var(--brand))" : "transparent",
                       border: "1px solid rgb(var(--border))",
-                      color: table.getState().pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
+                      color: pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
                     }}
                   >
                     {i + 1}
@@ -439,13 +502,13 @@ export function TypeequipmentManagement() {
       </div>
 
       {/* MODALS */}
-      <AddTypeEquipmentModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={fetchDocs} />
+      <AddTypeEquipmentModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={handleRefresh} />
 
       <EditTypeEquipmentModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         selectedDoc={selectedDoc}
-        onRefresh={fetchDocs}
+        onRefresh={handleRefresh}
       />
 
       <DeleteTypeEquipmentModal

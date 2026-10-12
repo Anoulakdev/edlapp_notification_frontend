@@ -6,6 +6,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/dashboard",
     "/users",
     "/role",
+    "/fcmtoken",
     "/sourcetype",
     "/problemstatus",
     "/meterstatus",
@@ -98,7 +99,7 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/cutpowerassign",
     "/problemdoc",
     "/registermeter",
-    "/payment",
+    // "/payment",
     "/turnoffreport",
     "/emergencyreport",
     "/cutpowerreport",
@@ -121,7 +122,9 @@ const ROLE_ALLOWED_ROUTES: Record<number, string[]> = {
     "/problemreport",
     "/registermeterreport",
   ],
-  8: ["/dashboard", "/activity"],
+  8: ["/activity"],
+  9: ["/payment"],
+  10: ["/payment"],
 };
 
 // 2. Define default page for each role ID
@@ -133,12 +136,15 @@ const ROLE_DEFAULT_PAGES: Record<number, string> = {
   5: "/dashboard",
   6: "/dashboard",
   8: "/activity",
+  9: "/payment",
+  10: "/payment",
 };
 
 const GUARDED_ROUTES_SET = new Set([
   "/dashboard",
   "/users",
   "/role",
+  "/fcmtoken",
   "/sourcetype",
   "/problemstatus",
   "/meterstatus",

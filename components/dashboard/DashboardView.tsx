@@ -181,17 +181,19 @@ export function DashboardView() {
       }
     });
 
-    // Heartbeat fallback polling every 45 seconds
+    // Fallback polling every 60 seconds if socket is disconnected
     const interval = setInterval(() => {
-      axiosInstance
-        .get("/dashboards/useronline")
-        .then((res) => {
-          if (res?.data?.useronline !== undefined) {
-            setUserOnlineCount(Number(res.data.useronline));
-          }
-        })
-        .catch(() => { });
-    }, 30000);
+      if (!socket.connected) {
+        axiosInstance
+          .get("/dashboards/useronline")
+          .then((res) => {
+            if (res?.data?.useronline !== undefined) {
+              setUserOnlineCount(Number(res.data.useronline));
+            }
+          })
+          .catch(() => {});
+      }
+    }, 60000);
 
     return () => {
       clearInterval(interval);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -12,9 +12,8 @@ import {
   ChevronDown,
   Calendar,
   FileText,
-  Filter,
 } from "lucide-react";
-import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
 import moment from "moment";
@@ -39,6 +38,7 @@ export function MessageAutoManagement() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
   const [topics, setTopics] = useState<TopicOption[]>([]);
 
@@ -47,6 +47,8 @@ export function MessageAutoManagement() {
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
   });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modals States
   const [addOpen, setAddOpen] = useState(false);
@@ -72,24 +74,63 @@ export function MessageAutoManagement() {
     checkAuth();
   }, [router]);
 
-  // Fetch Message Autos & Topics list
-  const fetchDocs = useCallback(async () => {
+  // Fetch topics list for filter select
+  useEffect(() => {
+    if (authorized) {
+      const fetchTopics = async () => {
+        try {
+          const res = await axiosInstance.get("/topics/selecttopic");
+          const topicData = Array.isArray(res.data)
+            ? res.data
+            : (res.data?.data || []);
+          setTopics(topicData);
+        } catch (err) {
+          console.error("Failed to load topics:", err);
+        }
+      };
+      fetchTopics();
+    }
+  }, [authorized]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Fetch Message Autos from backend
+  const fetchDocs = useCallback(async (
+    searchVal = "",
+    topicId = "",
+    page = 1,
+    limit = ROWS_PER_PAGE
+  ) => {
     try {
       setLoading(true);
-      const [msgRes, topicsRes] = await Promise.all([
-        axiosInstance.get("/messageautos"),
-        axiosInstance.get("/topics/selecttopic"),
-      ]);
+      const res = await axiosInstance.get("/messageautos", {
+        params: {
+          search: searchVal.trim() || undefined,
+          topicId: topicId || undefined,
+          page,
+          limit,
+        },
+      });
 
-      const msgData = Array.isArray(msgRes.data)
-        ? msgRes.data
-        : (msgRes.data?.data || []);
-      setDocs(msgData);
-
-      const topicData = Array.isArray(topicsRes.data)
-        ? topicsRes.data
-        : (topicsRes.data?.data || []);
-      setTopics(topicData);
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setDocs(res.data.data);
+        setTotalCount(res.data.total ?? 0);
+        setTotalPages(res.data.totalPages ?? 1);
+      } else if (Array.isArray(res.data)) {
+        setDocs(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / limit) || 1);
+      } else {
+        setDocs([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error("Failed to load message autos:", err);
       toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນຂໍ້ຄວາມອັດໂນມັດໄດ້");
@@ -98,11 +139,60 @@ export function MessageAutoManagement() {
     }
   }, []);
 
+  const prevFiltersRef = useRef({
+    debouncedSearch,
+    selectedTopicId,
+  });
+
+  // Fetch data when filters or pagination changes
   useEffect(() => {
-    if (authorized) {
-      fetchDocs();
+    if (!authorized) return;
+
+    const prev = prevFiltersRef.current;
+    const filtersChanged =
+      prev.debouncedSearch !== debouncedSearch ||
+      prev.selectedTopicId !== selectedTopicId;
+
+    prevFiltersRef.current = {
+      debouncedSearch,
+      selectedTopicId,
+    };
+
+    if (filtersChanged && pagination.pageIndex !== 0) {
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+      return;
     }
-  }, [authorized, fetchDocs]);
+
+    fetchDocs(
+      debouncedSearch,
+      selectedTopicId,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    authorized,
+    debouncedSearch,
+    selectedTopicId,
+    pagination.pageIndex,
+    pagination.pageSize,
+    fetchDocs,
+  ]);
+
+  // Stable refresh callback
+  const handleRefresh = useCallback(() => {
+    fetchDocs(
+      debouncedSearch,
+      selectedTopicId,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    fetchDocs,
+    debouncedSearch,
+    selectedTopicId,
+    pagination.pageIndex,
+    pagination.pageSize,
+  ]);
 
   // Handlers
   const openAdd = () => setAddOpen(true);
@@ -121,9 +211,9 @@ export function MessageAutoManagement() {
     if (!selectedDoc) return;
     try {
       await axiosInstance.delete(`/messageautos/${selectedDoc.id}`);
-      setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
       setDeleteOpen(false);
       toast.success("ລົບຂໍ້ມູນຂໍ້ຄວາມອັດໂນມັດສຳເລັດ");
+      handleRefresh();
     } catch (err) {
       console.error("Failed to delete message auto:", err);
       toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
@@ -191,7 +281,7 @@ export function MessageAutoManagement() {
               <ButtonTooltip text="ແກ້ໄຂ">
                 <button
                   onClick={() => openEdit(doc)}
-                  className="p-2 rounded-xl text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-colors shrink-0"
+                  className="p-2 rounded-xl text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-colors shrink-0 cursor-pointer"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -199,7 +289,7 @@ export function MessageAutoManagement() {
               <ButtonTooltip text="ລົບ">
                 <button
                   onClick={() => openDelete(doc)}
-                  className="p-2 rounded-xl text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors shrink-0"
+                  className="p-2 rounded-xl text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors shrink-0 cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -212,39 +302,22 @@ export function MessageAutoManagement() {
     [pagination]
   );
 
-  // Client-side filtering (Search & Topic filter)
-  const filteredDocs = useMemo(() => {
-    return docs.filter((doc) => {
-      // Topic filter
-      if (selectedTopicId && String(doc.topicId) !== selectedTopicId) {
-        return false;
-      }
-      // Search term filter
-      if (search.trim()) {
-        const s = search.toLowerCase().trim();
-        const matchMsg = doc.messageTopic.toLowerCase().includes(s);
-        const matchTopic = doc.topic?.name.toLowerCase().includes(s);
-        return matchMsg || matchTopic;
-      }
-      return true;
-    });
-  }, [docs, search, selectedTopicId]);
-
   const table = useReactTable({
-    data: filteredDocs,
+    data: docs,
     columns,
+    pageCount: totalPages,
     state: {
       pagination,
     },
     onPaginationChange: setPagination,
+    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    autoResetPageIndex: true,
+    autoResetPageIndex: false,
   });
 
   const generatePagination = () => {
-    const currentPage = table.getState().pagination.pageIndex;
-    const pageCount = table.getPageCount();
+    const currentPage = pagination.pageIndex;
+    const pageCount = totalPages;
     const pages = [];
 
     if (pageCount <= 5) {
@@ -287,7 +360,7 @@ export function MessageAutoManagement() {
         <div className="sm:ml-auto flex items-center">
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
           >
             <Plus className="w-4 h-4" strokeWidth={2.5} />
             ເພີ່ມຂໍ້ມູນ
@@ -350,7 +423,7 @@ export function MessageAutoManagement() {
 
           <div className="flex items-center gap-2 sm:ml-auto">
             <span className="text-xs text-slate-500">
-              {table.getFilteredRowModel().rows.length} ລາຍການ
+              {totalCount} ລາຍການ
             </span>
           </div>
         </div>
@@ -431,19 +504,19 @@ export function MessageAutoManagement() {
         </div>
 
         {/* Pagination layout */}
-        {table.getPageCount() > 1 && (
+        {totalPages > 1 && (
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
             style={{ borderColor: "rgb(var(--border))" }}
           >
             <span className="text-xs text-slate-500">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              Page {pagination.pageIndex + 1} of {totalPages} ({totalCount} ລາຍການ)
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border bg-theme-bg border-theme text-slate-500 disabled:opacity-40"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border bg-theme-bg border-theme text-slate-500 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -460,11 +533,11 @@ export function MessageAutoManagement() {
                   <button
                     key={i}
                     onClick={() => table.setPageIndex(i)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all cursor-pointer"
                     style={{
-                      background: table.getState().pagination.pageIndex === i ? "rgb(var(--brand))" : "transparent",
+                      background: pagination.pageIndex === i ? "rgb(var(--brand))" : "transparent",
                       border: "1px solid rgb(var(--border))",
-                      color: table.getState().pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
+                      color: pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
                     }}
                   >
                     {i + 1}
@@ -474,7 +547,7 @@ export function MessageAutoManagement() {
               <button
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border bg-theme-bg border-theme text-slate-500 disabled:opacity-40"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border bg-theme-bg border-theme text-slate-500 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -484,13 +557,13 @@ export function MessageAutoManagement() {
       </div>
 
       {/* MODALS */}
-      <AddMessageAutoModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={fetchDocs} />
+      <AddMessageAutoModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={handleRefresh} />
 
       <EditMessageAutoModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         selectedDoc={selectedDoc}
-        onRefresh={fetchDocs}
+        onRefresh={handleRefresh}
       />
 
       <DeleteMessageAutoModal

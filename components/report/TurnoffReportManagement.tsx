@@ -300,14 +300,42 @@ export function TurnoffReportManagement() {
 
   // Export to Excel (.xlsx) using SheetJS 'xlsx' library
   const handleExportExcel = async () => {
-    if (reportData.length === 0) {
+    if (!startDate || !endDate) {
+      toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ Excel");
+      return;
+    }
+
+    let allData: TurnoffDocReportItem[] = [];
+    try {
+      const params: Record<string, any> = {
+        page: 1,
+        limit: 9999,
+        startDate,
+        endDate,
+      };
+      if (effectiveProvinceId && effectiveProvinceId !== "all") params.provinceId = Number(effectiveProvinceId);
+      if (effectiveDistrictId && effectiveDistrictId !== "all") params.districtId = Number(effectiveDistrictId);
+      if (voltageId && voltageId !== "all") params.voltageId = Number(voltageId);
+
+      const res = await axiosInstance.get("/reports/turnoff", { params });
+      if (res.data && Array.isArray(res.data.data)) {
+        allData = res.data.data;
+      } else if (Array.isArray(res.data)) {
+        allData = res.data;
+      }
+    } catch {
+      toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນທັງໝົດໄດ້");
+      return;
+    }
+
+    if (allData.length === 0) {
       toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
       return;
     }
 
     const XLSX = await import("xlsx");
 
-    const exportRows = reportData.map((d, index) => {
+    const exportRows = allData.map((d, index) => {
       const villagesWithUsers =
         d.turnoffAddresses
           ?.map(

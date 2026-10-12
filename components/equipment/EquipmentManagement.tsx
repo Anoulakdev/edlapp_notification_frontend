@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -18,7 +18,6 @@ import {
 import {
   useReactTable,
   getCoreRowModel,
-  getPaginationRowModel,
   ColumnDef,
   flexRender,
 } from "@tanstack/react-table";
@@ -42,6 +41,7 @@ export function EquipmentManagement() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedTypeEquipmentFilter, setSelectedTypeEquipmentFilter] = useState<string>("");
 
   // Pagination State
@@ -49,6 +49,8 @@ export function EquipmentManagement() {
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
   });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modals States
   const [addOpen, setAddOpen] = useState(false);
@@ -89,13 +91,44 @@ export function EquipmentManagement() {
     }
   }, [authorized]);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Fetch Equipments from backend
-  const fetchDocs = useCallback(async () => {
+  const fetchDocs = useCallback(async (
+    searchVal = "",
+    typeEquipmentId = "",
+    page = 1,
+    limit = ROWS_PER_PAGE
+  ) => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get("/equipments");
-      const data = Array.isArray(res.data) ? res.data : res.data.data || [];
-      setDocs(data);
+      const res = await axiosInstance.get("/equipments", {
+        params: {
+          search: searchVal.trim() || undefined,
+          typeEquipmentId: typeEquipmentId || undefined,
+          page,
+          limit,
+        },
+      });
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setDocs(res.data.data);
+        setTotalCount(res.data.total ?? 0);
+        setTotalPages(res.data.totalPages ?? 1);
+      } else if (Array.isArray(res.data)) {
+        setDocs(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / limit) || 1);
+      } else {
+        setDocs([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error("Failed to load equipments:", err);
       toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນອຸປະກອນໄດ້");
@@ -104,11 +137,60 @@ export function EquipmentManagement() {
     }
   }, []);
 
+  const prevFiltersRef = useRef({
+    debouncedSearch,
+    selectedTypeEquipmentFilter,
+  });
+
+  // Fetch data when filters or pagination changes
   useEffect(() => {
-    if (authorized) {
-      fetchDocs();
+    if (!authorized) return;
+
+    const prev = prevFiltersRef.current;
+    const filtersChanged =
+      prev.debouncedSearch !== debouncedSearch ||
+      prev.selectedTypeEquipmentFilter !== selectedTypeEquipmentFilter;
+
+    prevFiltersRef.current = {
+      debouncedSearch,
+      selectedTypeEquipmentFilter,
+    };
+
+    if (filtersChanged && pagination.pageIndex !== 0) {
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+      return;
     }
-  }, [authorized, fetchDocs]);
+
+    fetchDocs(
+      debouncedSearch,
+      selectedTypeEquipmentFilter,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    authorized,
+    debouncedSearch,
+    selectedTypeEquipmentFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+    fetchDocs,
+  ]);
+
+  // Stable refresh callback
+  const handleRefresh = useCallback(() => {
+    fetchDocs(
+      debouncedSearch,
+      selectedTypeEquipmentFilter,
+      pagination.pageIndex + 1,
+      pagination.pageSize
+    );
+  }, [
+    fetchDocs,
+    debouncedSearch,
+    selectedTypeEquipmentFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+  ]);
 
   // Handlers
   const openAdd = () => setAddOpen(true);
@@ -127,9 +209,9 @@ export function EquipmentManagement() {
     if (!selectedDoc) return;
     try {
       await axiosInstance.delete(`/equipments/${selectedDoc.id}`);
-      setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
       setDeleteOpen(false);
       toast.success("ລົບຂໍ້ມູນອຸປະກອນສຳເລັດ");
+      handleRefresh();
     } catch (err) {
       console.error("Failed to delete equipment:", err);
       toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
@@ -235,37 +317,22 @@ export function EquipmentManagement() {
     [pagination]
   );
 
-  // Client-side filtering
-  const filteredDocs = useMemo(() => {
-    return docs.filter((doc) => {
-      const matchSearch =
-        !search.trim() ||
-        doc.name.toLowerCase().includes(search.toLowerCase().trim()) ||
-        (doc.typeEquipment?.name &&
-          doc.typeEquipment.name.toLowerCase().includes(search.toLowerCase().trim()));
-
-      const matchTypeEquipment =
-        !selectedTypeEquipmentFilter || String(doc.typeEquipmentId) === selectedTypeEquipmentFilter;
-
-      return matchSearch && matchTypeEquipment;
-    });
-  }, [docs, search, selectedTypeEquipmentFilter]);
-
   const table = useReactTable({
-    data: filteredDocs,
+    data: docs,
     columns,
+    pageCount: totalPages,
     state: {
       pagination,
     },
     onPaginationChange: setPagination,
+    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    autoResetPageIndex: true,
+    autoResetPageIndex: false,
   });
 
   const generatePagination = () => {
-    const currentPage = table.getState().pagination.pageIndex;
-    const pageCount = table.getPageCount();
+    const currentPage = pagination.pageIndex;
+    const pageCount = totalPages;
     const pages = [];
 
     if (pageCount <= 5) {
@@ -390,7 +457,7 @@ export function EquipmentManagement() {
 
           <div className="flex items-center gap-2 sm:ml-auto">
             <span className="text-xs text-slate-500">
-              {table.getFilteredRowModel().rows.length} ລາຍການ
+              {totalCount} ລາຍການ
             </span>
           </div>
         </div>
@@ -490,14 +557,13 @@ export function EquipmentManagement() {
         </div>
 
         {/* Pagination layout */}
-        {table.getPageCount() > 1 && (
+        {totalPages > 1 && (
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
             style={{ borderColor: "rgb(var(--border))" }}
           >
             <span className="text-xs text-slate-500">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
+              Page {pagination.pageIndex + 1} of {totalPages} ({totalCount} ລາຍການ)
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -526,12 +592,12 @@ export function EquipmentManagement() {
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all cursor-pointer"
                     style={{
                       background:
-                        table.getState().pagination.pageIndex === i
+                        pagination.pageIndex === i
                           ? "rgb(var(--brand))"
                           : "transparent",
                       border: "1px solid rgb(var(--border))",
                       color:
-                        table.getState().pagination.pageIndex === i
+                        pagination.pageIndex === i
                           ? "white"
                           : "rgb(var(--text-secondary))",
                     }}
@@ -556,14 +622,14 @@ export function EquipmentManagement() {
       <AddEquipmentModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        onRefresh={fetchDocs}
+        onRefresh={handleRefresh}
       />
 
       <EditEquipmentModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         doc={selectedDoc}
-        onRefresh={fetchDocs}
+        onRefresh={handleRefresh}
       />
 
       <DeleteEquipmentModal

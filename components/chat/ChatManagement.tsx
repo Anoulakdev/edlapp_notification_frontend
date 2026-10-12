@@ -363,7 +363,7 @@ export function ChatManagement() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [backendUrl]);
+  }, [rawBackendUrl]);
 
   // 4. Join WebSocket topic room on topic selection
   useEffect(() => {

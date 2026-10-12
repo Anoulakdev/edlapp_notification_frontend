@@ -68,6 +68,8 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     pageIndex: 0,
     pageSize: ROWS_PER_PAGE,
   });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Dropdown States for location filters
   const [provinces, setProvinces] = useState<{ id: number; province_name: string; province_code: string }[]>([]);
@@ -218,17 +220,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
         problemstatusId: 3,
       });
       toast.success("ຮັບວຽກສຳເລັດ");
-      fetchDocs(
-        search,
-        problemDate,
-        effectiveProvinceId,
-        effectiveDistrictId,
-        selectedVillageId,
-        selectedProblemTypeId,
-        selectedProblemStatusId,
-        selectedSourceTypeId,
-        filterMyDocs
-      );
+      handleRefresh();
     } catch (err: any) {
       console.error("Failed to receive work:", err);
       const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການຮັບວຽກ";
@@ -250,17 +242,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       toast.success("ອັບເດດສະຖານະເປັນ 'ຈຸດນີ້ໄດ້ຖືກແຈ້ງແລ້ວ' ສຳເລັດ");
       setAlreadyReportedOpen(false);
       setSelectedDoc(null);
-      fetchDocs(
-        search,
-        problemDate,
-        effectiveProvinceId,
-        effectiveDistrictId,
-        selectedVillageId,
-        selectedProblemTypeId,
-        selectedProblemStatusId,
-        selectedSourceTypeId,
-        filterMyDocs
-      );
+      handleRefresh();
     } catch (err: any) {
       console.error("Failed to update status:", err);
       const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະ";
@@ -286,7 +268,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     pTypeId = "",
     pStatusId = "",
     sTypeId = "",
-    myDocsOnly = false
+    myDocsOnly = false,
+    page = 1,
+    limit = ROWS_PER_PAGE
   ) => {
     try {
       setLoading(true);
@@ -301,10 +285,23 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
           problemstatusId: pStatusId || undefined,
           sourcetypeId: sTypeId || undefined,
           filterMyDocs: myDocsOnly || undefined,
+          page,
+          limit,
         },
       });
-      const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
-      setDocs(data);
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setDocs(res.data.data);
+        setTotalCount(res.data.total ?? 0);
+        setTotalPages(res.data.totalPages ?? 1);
+      } else if (Array.isArray(res.data)) {
+        setDocs(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / limit) || 1);
+      } else {
+        setDocs([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error("Failed to load problem documents:", err);
       toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນແຈ້ງບັນຫາໄດ້");
@@ -313,9 +310,49 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     }
   }, []);
 
-  // Fetch documents when filter state changes
+  const prevFiltersRef = useRef({
+    debouncedSearch,
+    problemDate,
+    effectiveProvinceId,
+    effectiveDistrictId,
+    selectedVillageId,
+    selectedProblemTypeId,
+    selectedProblemStatusId,
+    selectedSourceTypeId,
+    filterMyDocs,
+  });
+
+  // Fetch documents when filter state or pagination changes
   useEffect(() => {
-    setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+    const prev = prevFiltersRef.current;
+    const filtersChanged =
+      prev.debouncedSearch !== debouncedSearch ||
+      prev.problemDate !== problemDate ||
+      prev.effectiveProvinceId !== effectiveProvinceId ||
+      prev.effectiveDistrictId !== effectiveDistrictId ||
+      prev.selectedVillageId !== selectedVillageId ||
+      prev.selectedProblemTypeId !== selectedProblemTypeId ||
+      prev.selectedProblemStatusId !== selectedProblemStatusId ||
+      prev.selectedSourceTypeId !== selectedSourceTypeId ||
+      prev.filterMyDocs !== filterMyDocs;
+
+    prevFiltersRef.current = {
+      debouncedSearch,
+      problemDate,
+      effectiveProvinceId,
+      effectiveDistrictId,
+      selectedVillageId,
+      selectedProblemTypeId,
+      selectedProblemStatusId,
+      selectedSourceTypeId,
+      filterMyDocs,
+    };
+
+    if (filtersChanged && pagination.pageIndex !== 0) {
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+      return;
+    }
+
     fetchDocs(
       debouncedSearch,
       problemDate,
@@ -325,7 +362,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       selectedProblemTypeId,
       selectedProblemStatusId,
       selectedSourceTypeId,
-      filterMyDocs
+      filterMyDocs,
+      pagination.pageIndex + 1,
+      pagination.pageSize
     );
   }, [
     debouncedSearch,
@@ -337,7 +376,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     selectedProblemStatusId,
     selectedSourceTypeId,
     filterMyDocs,
-    fetchDocs
+    pagination.pageIndex,
+    pagination.pageSize,
+    fetchDocs,
   ]);
 
   // Ref for latest filters to SSE refresh
@@ -350,7 +391,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     selectedProblemTypeId,
     selectedProblemStatusId,
     selectedSourceTypeId,
-    filterMyDocs
+    filterMyDocs,
+    pageIndex: pagination.pageIndex,
+    pageSize: pagination.pageSize,
   });
   useEffect(() => {
     filterRef.current = {
@@ -362,7 +405,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       selectedProblemTypeId,
       selectedProblemStatusId,
       selectedSourceTypeId,
-      filterMyDocs
+      filterMyDocs,
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
     };
   }, [
     debouncedSearch,
@@ -373,7 +418,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     selectedProblemTypeId,
     selectedProblemStatusId,
     selectedSourceTypeId,
-    filterMyDocs
+    filterMyDocs,
+    pagination.pageIndex,
+    pagination.pageSize,
   ]);
 
   // Real-time Socket.io Connection
@@ -403,7 +450,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
           filters.selectedProblemTypeId,
           filters.selectedProblemStatusId,
           filters.selectedSourceTypeId,
-          filters.filterMyDocs
+          filters.filterMyDocs,
+          filters.pageIndex + 1,
+          filters.pageSize
         );
       }
     });
@@ -429,7 +478,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
   // Stable refresh callback — memoized so modal props don't change on every parent render
   const handleRefresh = useCallback(() => {
     fetchDocs(
-      search,
+      debouncedSearch,
       problemDate,
       effectiveProvinceId,
       effectiveDistrictId,
@@ -437,9 +486,11 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       selectedProblemTypeId,
       selectedProblemStatusId,
       selectedSourceTypeId,
-      filterMyDocs
+      filterMyDocs,
+      pagination.pageIndex + 1,
+      pagination.pageSize
     );
-  }, [fetchDocs, search, problemDate, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedProblemTypeId, selectedProblemStatusId, selectedSourceTypeId, filterMyDocs]);
+  }, [fetchDocs, debouncedSearch, problemDate, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedProblemTypeId, selectedProblemStatusId, selectedSourceTypeId, filterMyDocs, pagination.pageIndex, pagination.pageSize]);
 
   // Handlers
   const openAdd = () => setAddOpen(true);
@@ -463,9 +514,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     if (!selectedDoc) return;
     try {
       await axiosInstance.delete(`/problemdocs/${selectedDoc.id}`);
-      setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
       setDeleteOpen(false);
       toast.success("ລົບຂໍ້ມູນແຈ້ງບັນຫາສຳເລັດ");
+      handleRefresh();
     } catch (err) {
       console.error("Failed to delete problem document:", err);
       toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
@@ -700,18 +751,19 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
   const table = useReactTable({
     data: filteredDocs,
     columns,
+    pageCount: totalPages,
     state: {
       pagination,
     },
     onPaginationChange: setPagination,
+    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     autoResetPageIndex: false,
   });
 
   const generatePagination = () => {
-    const currentPage = table.getState().pagination.pageIndex;
-    const pageCount = table.getPageCount();
+    const currentPage = pagination.pageIndex;
+    const pageCount = totalPages;
     const pages = [];
 
     if (pageCount <= 5) {
@@ -1032,13 +1084,13 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
         </div>
 
         {/* Pagination layout */}
-        {table.getPageCount() > 1 && (
+        {totalPages > 1 && (
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
             style={{ borderColor: "rgb(var(--border))" }}
           >
             <span className="text-xs text-slate-500">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              Page {pagination.pageIndex + 1} of {totalPages} ({totalCount} ລາຍການ)
             </span>
             <div className="flex items-center gap-1">
               <button

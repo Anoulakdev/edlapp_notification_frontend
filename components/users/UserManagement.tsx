@@ -132,11 +132,18 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [roles, setRoles] = useState<{ id: number; name: string }[]>([]);
 
+  // Server-side Pagination & Filter states
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(ROWS_PER_PAGE);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [onlineStatusFilter, setOnlineStatusFilter] = useState("");
 
   // Modals
   const [addOpen, setAddOpen] = useState(false);
@@ -144,28 +151,53 @@ export function UserManagement() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-
   // Reset password states
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [userToReset, setUserToReset] = useState<User | null>(null);
   const [resetting, setResetting] = useState(false);
 
-  const fetchUsers = useCallback(async (searchVal = "") => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get("/users", {
-        params: {
-          search: searchVal.trim() || undefined,
+      const params: Record<string, any> = {
+        page: pageIndex + 1,
+        limit: pageSize,
+      };
+
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+      }
+
+      if (roleFilter) {
+        params.roleId = Number(roleFilter);
+      }
+
+      if (statusFilter) {
+        params.status = statusFilter;
+      }
+
+      if (onlineStatusFilter) {
+        params.onlineStatus = onlineStatusFilter;
+      }
+
+      const res = await axiosInstance.get("/users", { params });
+      if (res.data) {
+        if (res.data.data && Array.isArray(res.data.data)) {
+          setUsers(res.data.data.map(mapBackendUserToFrontend));
+          setTotalCount(res.data.total ?? 0);
+          setTotalPages(res.data.totalPages ?? 1);
+        } else if (Array.isArray(res.data)) {
+          setUsers(res.data.map(mapBackendUserToFrontend));
+          setTotalCount(res.data.length);
+          setTotalPages(Math.ceil(res.data.length / pageSize) || 1);
         }
-      });
-      const rawUsers = Array.isArray(res.data) ? res.data : (res.data.data || []);
-      setUsers(rawUsers.map(mapBackendUserToFrontend));
+      }
     } catch (err) {
       console.error("Failed to fetch users:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pageIndex, pageSize, debouncedSearch, roleFilter, statusFilter, onlineStatusFilter]);
 
   useEffect(() => {
     const fetchMeAndMetadata = async () => {
@@ -186,13 +218,14 @@ export function UserManagement() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(globalFilter);
+      setPageIndex(0);
     }, 500);
     return () => clearTimeout(timer);
   }, [globalFilter]);
 
   useEffect(() => {
-    fetchUsers(debouncedSearch);
-  }, [debouncedSearch, fetchUsers]);
+    fetchUsers();
+  }, [fetchUsers]);
 
   // Realtime Socket listener for live Online / Offline updates
   useEffect(() => {
@@ -269,7 +302,7 @@ export function UserManagement() {
         repairDistrictId: newForm.repairDistrictId ? Number(newForm.repairDistrictId) : null,
       });
       setAddOpen(false);
-      await fetchUsers(debouncedSearch);
+      await fetchUsers();
       toast.success("ເພີ່ມຜູ້ໃຊ້ສຳເລັດ");
     } catch (err) {
       console.error("Failed to add user:", err);
@@ -290,7 +323,7 @@ export function UserManagement() {
         repairDistrictId: updatedForm.repairDistrictId ? Number(updatedForm.repairDistrictId) : null,
       });
       setEditOpen(false);
-      await fetchUsers(debouncedSearch);
+      await fetchUsers();
       toast.success("ແກ້ໄຂຂໍ້ມູນຜູ້ໃຊ້ສຳເລັດ");
     } catch (err) {
       console.error("Failed to edit user:", err);
@@ -304,7 +337,7 @@ export function UserManagement() {
     const nextStatus = currentStatus === "A" ? "C" : "A";
     try {
       await axiosInstance.put(`/users/updatestatus/${user.id}?actived=${nextStatus}`);
-      await fetchUsers(debouncedSearch);
+      await fetchUsers();
       toast.success("ປ່ຽນສະຖານະຜູ້ໃຊ້ສຳເລັດ");
     } catch (err) {
       console.error("Failed to toggle user status:", err);
@@ -332,8 +365,8 @@ export function UserManagement() {
     if (!selectedUser) return;
     try {
       await axiosInstance.delete(`/users/${selectedUser.id}`);
-      setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
       setDeleteOpen(false);
+      await fetchUsers();
       toast.success("ລົບຜູ້ໃຊ້ສຳເລັດ");
     } catch (err) {
       console.error("Failed to delete user:", err);
@@ -364,9 +397,8 @@ export function UserManagement() {
                   )}
                 </div>
                 <span
-                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-800 ${
-                    user.isOnline ? "bg-emerald-500" : "bg-slate-300 dark:bg-gray-600"
-                  }`}
+                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-gray-800 ${user.isOnline ? "bg-emerald-500" : "bg-slate-300 dark:bg-gray-600"
+                    }`}
                   title={user.isOnline ? "Online" : "Offline"}
                 />
               </div>
@@ -485,16 +517,14 @@ export function UserManagement() {
           return (
             <div className="flex items-center gap-1.5 whitespace-nowrap">
               <span
-                className={`w-2 h-2 rounded-full ${
-                  user.isOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-gray-600"
-                }`}
+                className={`w-2 h-2 rounded-full ${user.isOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-gray-600"
+                  }`}
               />
               <span
-                className={`text-xs font-semibold ${
-                  user.isOnline
+                className={`text-xs font-semibold ${user.isOnline
                     ? "text-emerald-600 dark:text-emerald-400"
                     : "text-slate-400 dark:text-gray-500"
-                }`}
+                  }`}
               >
                 {user.isOnline ? "Online" : "Offline"}
               </span>
@@ -618,36 +648,24 @@ export function UserManagement() {
   const table = useReactTable({
     data: users,
     columns,
-    state: {
-      columnFilters,
-    },
-    onColumnFiltersChange: setColumnFilters,
+    manualPagination: true,
+    pageCount: totalPages,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: ROWS_PER_PAGE,
-      },
-    },
   });
 
   const generatePagination = () => {
-    const currentPage = table.getState().pagination.pageIndex;
-    const pageCount = table.getPageCount();
     const pages = [];
-
-    if (pageCount <= 5) {
-      for (let i = 0; i < pageCount; i++) {
+    if (totalPages <= 5) {
+      for (let i = 0; i < totalPages; i++) {
         pages.push(i);
       }
     } else {
-      if (currentPage <= 2) {
-        pages.push(0, 1, 2, 3, "...", pageCount - 1);
-      } else if (currentPage >= pageCount - 3) {
-        pages.push(0, "...", pageCount - 4, pageCount - 3, pageCount - 2, pageCount - 1);
+      if (pageIndex <= 2) {
+        pages.push(0, 1, 2, 3, "...", totalPages - 1);
+      } else if (pageIndex >= totalPages - 3) {
+        pages.push(0, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1);
       } else {
-        pages.push(0, "...", currentPage - 1, currentPage, currentPage + 1, "...", pageCount - 1);
+        pages.push(0, "...", pageIndex - 1, pageIndex, pageIndex + 1, "...", totalPages - 1);
       }
     }
     return pages;
@@ -710,7 +728,7 @@ export function UserManagement() {
           </div>
           <div className="flex items-center gap-2 sm:ml-auto">
             <span className="text-xs" style={{ color: "rgb(var(--text-secondary))" }}>
-              {table.getFilteredRowModel().rows.length} ລາຍການ
+              {totalCount} ລາຍການ
             </span>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -736,19 +754,25 @@ export function UserManagement() {
             <div className="w-full sm:w-48">
               <Select
                 label="ສິດຜູ້ໃຊ້"
-                value={(table.getColumn("role")?.getFilterValue() as string) ?? ""}
-                onChange={(e) => table.getColumn("role")?.setFilterValue(e.target.value)}
+                value={roleFilter}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value);
+                  setPageIndex(0);
+                }}
                 options={[
                   { value: "", label: "ສິດທັງໝົດ" },
-                  ...roles.map((r) => ({ value: r.name, label: r.name })),
+                  ...roles.map((r) => ({ value: r.id.toString(), label: r.name })),
                 ]}
               />
             </div>
             <div className="w-full sm:w-48">
               <Select
                 label="ສະຖານະ"
-                value={(table.getColumn("status")?.getFilterValue() as string) ?? ""}
-                onChange={(e) => table.getColumn("status")?.setFilterValue(e.target.value)}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPageIndex(0);
+                }}
                 options={[
                   { value: "", label: "ທຸກສະຖານະ" },
                   { value: "Active", label: "Active" },
@@ -759,8 +783,11 @@ export function UserManagement() {
             <div className="w-full sm:w-48">
               <Select
                 label="ສະຖານະ Online"
-                value={(table.getColumn("onlineStatus")?.getFilterValue() as string) ?? ""}
-                onChange={(e) => table.getColumn("onlineStatus")?.setFilterValue(e.target.value)}
+                value={onlineStatusFilter}
+                onChange={(e) => {
+                  setOnlineStatusFilter(e.target.value);
+                  setPageIndex(0);
+                }}
                 options={[
                   { value: "", label: "ທັງໝົດ" },
                   { value: "online", label: "Online" },
@@ -768,15 +795,21 @@ export function UserManagement() {
                 ]}
               />
             </div>
-            <div className="sm:ml-auto flex items-end">
-              <button
-                onClick={() => setColumnFilters([])}
-                className="text-sm font-medium hover:underline mb-2"
-                style={{ color: "rgb(var(--text-secondary))" }}
-              >
-                Clear Filters
-              </button>
-            </div>
+            {(roleFilter || statusFilter || onlineStatusFilter) && (
+              <div className="sm:ml-auto flex items-end">
+                <button
+                  onClick={() => {
+                    setRoleFilter("");
+                    setStatusFilter("");
+                    setOnlineStatusFilter("");
+                    setPageIndex(0);
+                  }}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-all cursor-pointer"
+                >
+                  ລ້າງຕົວກັ່ນຕອງ
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -877,19 +910,19 @@ export function UserManagement() {
         </div>
 
         {/* Pagination */}
-        {table.getPageCount() > 1 && (
+        {totalPages > 1 && (
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-4 border-t"
             style={{ borderColor: "rgb(var(--border))" }}
           >
             <span className="text-xs" style={{ color: "rgb(var(--text-secondary))" }}>
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+              Page {pageIndex + 1} of {totalPages} (ທັງໝົດ {totalCount} ລາຍການ)
             </span>
             <div className="flex items-center gap-1">
               <button
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className="w-8 h-8 flex items-center justify-center rounded-lg transition-all disabled:opacity-40"
+                onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                disabled={pageIndex === 0}
+                className="w-8 h-8 flex items-center justify-center rounded-lg transition-all disabled:opacity-40 cursor-pointer"
                 style={{
                   background: "rgb(var(--bg))",
                   border: "1px solid rgb(var(--border))",
@@ -914,12 +947,12 @@ export function UserManagement() {
                 return (
                   <button
                     key={i}
-                    onClick={() => table.setPageIndex(i)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all"
+                    onClick={() => setPageIndex(i)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-all cursor-pointer"
                     style={{
-                      background: table.getState().pagination.pageIndex === i ? "rgb(var(--brand))" : "rgb(var(--bg))",
+                      background: pageIndex === i ? "rgb(var(--brand))" : "rgb(var(--bg))",
                       border: "1px solid rgb(var(--border))",
-                      color: table.getState().pagination.pageIndex === i ? "white" : "rgb(var(--text-secondary))",
+                      color: pageIndex === i ? "white" : "rgb(var(--text-secondary))",
                     }}
                   >
                     {i + 1}
@@ -927,9 +960,9 @@ export function UserManagement() {
                 );
               })}
               <button
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className="w-8 h-8 flex items-center justify-center rounded-lg transition-all disabled:opacity-40"
+                onClick={() => setPageIndex((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={pageIndex >= totalPages - 1}
+                className="w-8 h-8 flex items-center justify-center rounded-lg transition-all disabled:opacity-40 cursor-pointer"
                 style={{
                   background: "rgb(var(--bg))",
                   border: "1px solid rgb(var(--border))",

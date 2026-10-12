@@ -232,7 +232,7 @@ const ROLE_5_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງການຕັດໄຟ", href: "/cutpower", icon: Zap },
   { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
-  { label: "ລາຍການຊຳລະເງິນ", href: "/payment", icon: CreditCard },
+  // { label: "ລາຍການຊຳລະເງິນ", href: "/payment", icon: CreditCard },
   {
     label: "ລາຍງານ",
     icon: BarChart3,
@@ -302,6 +302,14 @@ const ROLE_8_NAV_ITEMS: NavItem[] = [
   { label: "ກິດຈະກຳ", href: "/activity", icon: Newspaper },
 ];
 
+const ROLE_9_NAV_ITEMS: NavItem[] = [
+  { label: "ລາຍການຊຳລະເງິນ", href: "/payment", icon: CreditCard },
+];
+
+const ROLE_10_NAV_ITEMS: NavItem[] = [
+  { label: "ລາຍການຊຳລະເງິນ", href: "/payment", icon: CreditCard },
+];
+
 export const navItems: NavItem[] = [];
 
 let authMePromise: Promise<any> | null = null;
@@ -348,6 +356,10 @@ export function useNavItems() {
         setNavItemsState(ROLE_6_NAV_ITEMS);
       } else if (roleId === 8) {
         setNavItemsState(ROLE_8_NAV_ITEMS);
+      } else if (roleId === 9) {
+        setNavItemsState(ROLE_9_NAV_ITEMS);
+      } else if (roleId === 10) {
+        setNavItemsState(ROLE_10_NAV_ITEMS);
       } else {
         setNavItemsState([]);
       }
@@ -377,6 +389,10 @@ export function useNavItems() {
               setNavItemsState(ROLE_6_NAV_ITEMS);
             } else if (roleId === 8) {
               setNavItemsState(ROLE_8_NAV_ITEMS);
+            } else if (roleId === 9) {
+              setNavItemsState(ROLE_9_NAV_ITEMS);
+            } else if (roleId === 10) {
+              setNavItemsState(ROLE_10_NAV_ITEMS);
             } else {
               setNavItemsState([]);
             }

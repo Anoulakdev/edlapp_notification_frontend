@@ -275,7 +275,7 @@ export function AddUserModal({ open, onClose, onAdd }: AddUserModalProps) {
               let updatedBranch = f.branchId;
               let updatedRepairDistrict = f.repairDistrictId;
 
-              if (selectedRole === 5) {
+              if (selectedRole === 5 || selectedRole === 10) {
                 updatedDistrict = undefined;
                 updatedRepairDistrict = undefined;
               } else if (selectedRole !== 6) {
@@ -318,7 +318,7 @@ export function AddUserModal({ open, onClose, onAdd }: AddUserModalProps) {
                     districtId: undefined,
                   }));
                 }}
-                disabled={form.roleId !== 5 && form.roleId !== 6}
+                disabled={form.roleId !== 5 && form.roleId !== 6 && form.roleId !== 10}
                 options={[
                   { value: "", label: "ເລືອກແຂວງ" },
                   ...provinces.map((p) => ({ value: p.id.toString(), label: p.province_name })),
@@ -351,7 +351,7 @@ export function AddUserModal({ open, onClose, onAdd }: AddUserModalProps) {
                     repairDistrictId: undefined,
                   }));
                 }}
-                disabled={form.roleId !== 5 && form.roleId !== 6}
+                disabled={form.roleId !== 5 && form.roleId !== 6 && form.roleId !== 10}
                 options={[
                   { value: "", label: "ເລືອກສາຂາແຂວງ" },
                   ...branches.map((b) => ({ value: b.id.toString(), label: b.name })),

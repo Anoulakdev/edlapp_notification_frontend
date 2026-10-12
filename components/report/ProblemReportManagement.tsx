@@ -404,14 +404,45 @@ export function ProblemReportManagement() {
 
   // Export to Excel (.xlsx) using SheetJS 'xlsx' library dynamically
   const handleExportExcel = async () => {
-    if (reportData.length === 0) {
+    if (!startDate || !endDate) {
+      toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ Excel");
+      return;
+    }
+
+    let allData: ProblemReportItem[] = [];
+    try {
+      const params: Record<string, any> = {
+        page: 1,
+        limit: 9999,
+        startDate,
+        endDate,
+      };
+      if (effectiveProvinceId && effectiveProvinceId !== "all") params.provinceId = Number(effectiveProvinceId);
+      if (effectiveDistrictId && effectiveDistrictId !== "all") params.districtId = Number(effectiveDistrictId);
+      if (villageId && villageId !== "all") params.villageId = Number(villageId);
+      if (problemtypeId && problemtypeId !== "all") params.problemtypeId = Number(problemtypeId);
+      if (problemstatusId && problemstatusId !== "all") params.problemstatusId = Number(problemstatusId);
+      if (sourcetypeId && sourcetypeId !== "all") params.sourcetypeId = Number(sourcetypeId);
+
+      const res = await axiosInstance.get("/reports/problem", { params });
+      if (res.data && Array.isArray(res.data.data)) {
+        allData = res.data.data;
+      } else if (Array.isArray(res.data)) {
+        allData = res.data;
+      }
+    } catch {
+      toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນທັງໝົດໄດ້");
+      return;
+    }
+
+    if (allData.length === 0) {
       toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
       return;
     }
 
     const XLSX = await import("xlsx");
 
-    const exportRows = reportData.map((d, index) => {
+    const exportRows = allData.map((d, index) => {
       return {
         "ລຳດັບ": index + 1,
         "ວັນທີແຈ້ງ": d.createdAt ? moment(d.createdAt).format("DD/MM/YYYY HH:mm") : "-",
