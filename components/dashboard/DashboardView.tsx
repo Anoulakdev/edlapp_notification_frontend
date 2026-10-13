@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { axiosInstance, rawBackendUrl } from "@/lib/axiosInstance";
+import { axiosInstance } from "@/lib/axiosInstance";
+import { getSocketUrl } from "@/lib/utils";
 import {
   Users,
   Radio,
@@ -141,10 +142,7 @@ export function DashboardView() {
   useEffect(() => {
     if (!isPrivilegedUser) return;
 
-    const socketUrl =
-      typeof window !== "undefined" && window.location.hostname !== "localhost"
-        ? window.location.origin
-        : rawBackendUrl;
+    const socketUrl = getSocketUrl();
 
     const socket = io(`${socketUrl}/users`, {
       transports: ["websocket"],

@@ -10,7 +10,7 @@
 import axios from "axios";
 import { cookies } from "next/headers";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
 
 export async function createServerApiClient() {
   const cookieStore = await cookies();

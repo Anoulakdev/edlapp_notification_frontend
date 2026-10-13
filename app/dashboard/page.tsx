@@ -1,7 +1,7 @@
 import { DashboardView } from "@/components/dashboard/DashboardView";
 
 export const metadata = {
-  title: "ພາບລວມລະບົບ (Dashboard) | EDL Notification",
+  title: "ພາບລວມລະບົບ (Dashboard)",
   description: "ລະບົບຕິດຕາມການແຈ້ງການ ແລະ ສະຖິຕິການບໍລິການໄຟຟ້າລາວ",
 };
 

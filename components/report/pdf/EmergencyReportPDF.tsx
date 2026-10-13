@@ -158,6 +158,10 @@ export interface EmergencyDocReportItem {
     name?: string;
   } | null;
   voltageName?: string | null;
+  emergencyStatus?: {
+    id?: number;
+    name?: string;
+  } | null;
   emergencyAddresses?: EmergencyAddress[];
 }
 
@@ -255,14 +259,15 @@ export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
           {/* Header */}
           <View style={styles.tableHeaderRow} fixed>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "4%" }]}>ລຳດັບ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "14%" }]}>ຫົວຂໍ້</Text>
-            <Text style={[styles.tableHeaderCell, { width: "13%" }]}>ລາຍລະອຽດ</Text>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "7%" }]}>ສະຖານະ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "13%" }]}>ຫົວຂໍ້</Text>
+            <Text style={[styles.tableHeaderCell, { width: "10%" }]}>ລາຍລະອຽດ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>ວັນທີແຈ້ງເຫດ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>ເວລາ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "6%" }]}>ເວລາໃຊ້(ນາທີ)</Text>
-            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "7%" }]}>ແຮງດັນ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "8%" }]}>ແຂວງ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "8%" }]}>ເມືອງ</Text>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "6%" }]}>ແຮງດັນ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "7%" }]}>ແຂວງ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "7%" }]}>ເມືອງ</Text>
             <Text style={[styles.tableHeaderCell, { width: "17%" }]}>ບ້ານທີ່ຈະມອດໄຟ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "7%" }]}>ຜູ້ໃຊ້ໄຟ(ທ່ານ)</Text>
           </View>
@@ -291,8 +296,11 @@ export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
                 <Text style={[styles.tableCell, styles.textCenter, { width: "4%" }]}>
                   {index + 1}
                 </Text>
-                <Text style={[styles.tableCell, { width: "14%" }]}>{item.title || "-"}</Text>
-                <Text style={[styles.tableCell, { width: "13%" }]}>{item.description || "-"}</Text>
+                <Text style={[styles.tableCell, styles.textCenter, { width: "7%" }]}>
+                  {item.emergencyStatus?.name || "-"}
+                </Text>
+                <Text style={[styles.tableCell, { width: "13%" }]}>{item.title || "-"}</Text>
+                <Text style={[styles.tableCell, { width: "10%" }]}>{item.description || "-"}</Text>
                 <Text style={[styles.tableCell, styles.textCenter, { width: "8%" }]}>
                   {item.emergencyDate ? moment(item.emergencyDate).format("DD/MM/YYYY") : "-"}
                 </Text>
@@ -302,13 +310,13 @@ export const EmergencyReportPDF: React.FC<EmergencyReportPDFProps> = ({
                 <Text style={[styles.tableCell, styles.textCenter, { width: "6%" }]}>
                   {item.useTime !== null && item.useTime !== undefined ? String(item.useTime) : "-"}
                 </Text>
-                <Text style={[styles.tableCell, styles.textCenter, { width: "7%" }]}>
+                <Text style={[styles.tableCell, styles.textCenter, { width: "6%" }]}>
                   {item.voltage?.name || item.voltageName || "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "8%" }]}>
+                <Text style={[styles.tableCell, { width: "7%" }]}>
                   {item.province?.province_name || "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "8%" }]}>
+                <Text style={[styles.tableCell, { width: "7%" }]}>
                   {item.district?.district_name || "-"}
                 </Text>
                 <Text style={[styles.tableCell, { width: "17%" }]}>{villagesWithUsers}</Text>

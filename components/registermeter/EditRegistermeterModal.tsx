@@ -265,6 +265,17 @@ export function EditRegistermeterModal({ open, onClose, selectedDoc, onRefresh }
         const container = document.getElementById("map-edit-container");
         if (!container) return;
 
+        if (mapRef.current) {
+          try {
+            mapRef.current.remove();
+          } catch (_) {}
+          mapRef.current = null;
+        }
+
+        if ((container as any)._leaflet_id) {
+          delete (container as any)._leaflet_id;
+        }
+
         mapInstance = L.map("map-edit-container").setView([initialLat, initialLng], 16);
         mapRef.current = mapInstance;
 
@@ -303,8 +314,8 @@ export function EditRegistermeterModal({ open, onClose, selectedDoc, onRefresh }
         });
 
         setTimeout(() => {
-          if (mapInstance && active) {
-            mapInstance.invalidateSize();
+          if (mapRef.current && active) {
+            mapRef.current.invalidateSize();
           }
         }, 250);
       }).catch((err) => {
@@ -314,10 +325,12 @@ export function EditRegistermeterModal({ open, onClose, selectedDoc, onRefresh }
 
     return () => {
       active = false;
-      if (mapInstance) {
-        mapInstance.remove();
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (_) {}
+        mapRef.current = null;
       }
-      mapRef.current = null;
       markerRef.current = null;
     };
   }, [open, loadingDoc]);

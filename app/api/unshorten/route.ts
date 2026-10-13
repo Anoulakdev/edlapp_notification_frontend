@@ -67,6 +67,37 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "URL is required" }, { status: 400 });
   }
 
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
+  }
+
+  // Only allow http and https
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    return NextResponse.json({ error: "Invalid protocol" }, { status: 400 });
+  }
+
+  // Prevent SSRF to internal/private networks
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0" ||
+    hostname === "::1" ||
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+    /^169\.254\./.test(hostname)
+  ) {
+    return NextResponse.json(
+      { error: "Access to internal addresses is forbidden" },
+      { status: 403 }
+    );
+  }
+
   // 1. Check raw URL string directly
   let coords = extractCoords(url);
   if (coords) {

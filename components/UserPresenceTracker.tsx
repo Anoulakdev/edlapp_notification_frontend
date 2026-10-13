@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { rawBackendUrl } from "@/lib/axiosInstance";
+import { getSocketUrl } from "@/lib/utils";
 
 export function UserPresenceTracker() {
   const socketRef = useRef<Socket | null>(null);
@@ -18,10 +18,7 @@ export function UserPresenceTracker() {
         const user = await res.json();
         if (!user?.id || !isMounted) return;
 
-        const socketUrl =
-          typeof window !== "undefined" && window.location.hostname !== "localhost"
-            ? window.location.origin
-            : rawBackendUrl;
+        const socketUrl = getSocketUrl();
 
         const socket = io(`${socketUrl}/users`, {
           auth: { userId: user.id },

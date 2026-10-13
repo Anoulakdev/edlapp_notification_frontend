@@ -21,14 +21,14 @@ import {
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
-import { axiosInstance, rawBackendUrl } from "@/lib/axiosInstance";
+import { axiosInstance } from "@/lib/axiosInstance";
 import { io } from "socket.io-client";
 import { encryptId } from "@/lib/crypto";
 import { Modal } from "@/components/ui/Modal";
 import moment from "moment";
 import { TableTooltip, ButtonTooltip } from "@/lib/Tooltip";
 import { EmergencyDoc } from "@/schemas/emergency";
-import { loadLeaflet } from "@/lib/utils";
+import { loadLeaflet, getSocketUrl } from "@/lib/utils";
 
 // Modals
 import { AddEmergencyModal } from "./AddEmergencyModal";
@@ -38,6 +38,25 @@ import { ViewEmergencyModal } from "./ViewEmergencyModal";
 
 const ROWS_PER_PAGE = 10;
 
+const getStatusBadgeStyle = (statusName?: string) => {
+  if (!statusName) {
+    return "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700";
+  }
+  const name = statusName.toLowerCase();
+  if (name.includes("ສຳເລັດ") || name.includes("ແລ້ວ") || name.includes("complete") || name.includes("success")) {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50";
+  }
+  if (name.includes("ຍົກເລີກ") || name.includes("cancel")) {
+    return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50";
+  }
+  if (name.includes("ກຳລັງດຳເນີນງານ") || name.includes("ກຳລັງ") || name.includes("process") || name.includes("progress")) {
+    return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/50";
+  }
+  if (name.includes("ລໍຖ້າ") || name.includes("pending")) {
+    return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50";
+  }
+  return "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700";
+};
 
 export function EmergencyManagement() {
   const router = useRouter();
@@ -66,6 +85,8 @@ export function EmergencyManagement() {
   const [selectedDistrictId, setSelectedDistrictId] = useState("");
   const [selectedVoltageId, setSelectedVoltageId] = useState("");
   const [filterMyDocs, setFilterMyDocs] = useState(false);
+  const [emergencyStatuses, setEmergencyStatuses] = useState<{ id: number; name: string }[]>([]);
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
   // User Role & Province States for role-based filters
   const [currentUserRoleId, setCurrentUserRoleId] = useState<number | null>(null);
@@ -124,6 +145,19 @@ export function EmergencyManagement() {
       }
     };
     fetchVoltages();
+  }, []);
+
+  // Fetch Emergency Statuses on mount
+  useEffect(() => {
+    const fetchEmergencyStatuses = async () => {
+      try {
+        const res = await axiosInstance.get("/emergencystatus/selectemergencystatus");
+        setEmergencyStatuses(Array.isArray(res.data) ? res.data : res.data?.data || []);
+      } catch (err) {
+        console.error("Failed to load emergency statuses:", err);
+      }
+    };
+    fetchEmergencyStatuses();
   }, []);
 
   // Load districts when effectiveProvinceId changes
@@ -309,10 +343,7 @@ export function EmergencyManagement() {
 
   // Real-time Socket.io Connection
   useEffect(() => {
-    const socketUrl =
-      typeof window !== "undefined" && window.location.hostname !== "localhost"
-        ? window.location.origin
-        : rawBackendUrl;
+    const socketUrl = getSocketUrl();
 
     const socket = io(`${socketUrl}/emergencydoc`, {
       transports: ["websocket"],
@@ -393,6 +424,32 @@ export function EmergencyManagement() {
     }
   };
 
+  const handleStatusChange = async (docId: number, statusId: number) => {
+    try {
+      setUpdatingStatusId(docId);
+      await axiosInstance.put(`/emergencydocs/updatestatus/${docId}`, {
+        emergencyStatusId: Number(statusId),
+      });
+      toast.success("ອັບເດດສະຖານະສຳເລັດ");
+      setDocs((prevDocs) =>
+        prevDocs.map((doc) =>
+          doc.id === docId
+            ? {
+                ...doc,
+                emergencyStatusId: Number(statusId),
+                emergencyStatus: emergencyStatuses.find((s) => s.id === Number(statusId)) || doc.emergencyStatus,
+              }
+            : doc
+        )
+      );
+    } catch (err: any) {
+      console.error("Failed to update status:", err);
+      toast.error(err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະ");
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
   // Columns definition
   const columns = useMemo<ColumnDef<EmergencyDoc>[]>(
     () => [
@@ -404,6 +461,55 @@ export function EmergencyManagement() {
             {getValue() as any}
           </span>
         ),
+      },
+      {
+        accessorKey: "emergencyStatusId",
+        header: "ສະຖານະ",
+        cell: ({ row }) => {
+          const doc = row.original;
+          const currentStatus = emergencyStatuses.find(
+            (s) => s.id === (doc.emergencyStatusId || doc.emergencyStatus?.id)
+          );
+          const statusName = currentStatus?.name || doc.emergencyStatus?.name || "";
+          const style = getStatusBadgeStyle(statusName);
+          const canManageStatus = [2, 3, 4, 5, 6].includes(currentUserRoleId || 0);
+
+          return (
+            <div className="relative inline-flex items-center min-w-[130px]">
+              <select
+                value={doc.emergencyStatusId ?? doc.emergencyStatus?.id ?? ""}
+                onChange={(e) => handleStatusChange(doc.id, Number(e.target.value))}
+                disabled={!canManageStatus || updatingStatusId === doc.id}
+                className={`w-full appearance-none pl-3 pr-7 py-1.5 rounded-xl text-xs font-semibold outline-none transition-all cursor-pointer border ${style} ${
+                  !canManageStatus || updatingStatusId === doc.id
+                    ? "opacity-60 cursor-not-allowed"
+                    : "hover:opacity-90"
+                }`}
+                style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
+              >
+                <option value="" disabled>
+                  -- ເລືອກສະຖານະ --
+                </option>
+                {emergencyStatuses.map((st) => (
+                  <option
+                    key={st.id}
+                    value={st.id}
+                    className="text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 font-normal"
+                  >
+                    {st.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 pointer-events-none text-slate-400">
+                {updatingStatusId === doc.id ? (
+                  <div className="w-3.5 h-3.5 border-2 border-brand/30 border-t-brand rounded-full animate-spin" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </div>
+            </div>
+          );
+        },
       },
       {
         accessorKey: "title",
@@ -568,7 +674,7 @@ export function EmergencyManagement() {
         },
       },
     ],
-    [currentUserId, currentUserRoleId]
+    [currentUserId, currentUserRoleId, emergencyStatuses, updatingStatusId]
   );
 
   const filteredDocs = useMemo(() => {

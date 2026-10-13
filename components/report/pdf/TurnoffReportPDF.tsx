@@ -159,6 +159,10 @@ export interface TurnoffDocReportItem {
     name?: string;
   } | null;
   voltageName?: string | null;
+  turnoffStatus?: {
+    id?: number;
+    name?: string;
+  } | null;
   turnoffAddresses?: TurnoffAddress[];
 }
 
@@ -256,15 +260,16 @@ export const TurnoffReportPDF: React.FC<TurnoffReportPDFProps> = ({
           {/* Header */}
           <View style={styles.tableHeaderRow} fixed>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "4%" }]}>ລຳດັບ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "13%" }]}>ຫົວຂໍ້</Text>
-            <Text style={[styles.tableHeaderCell, { width: "12%" }]}>ລາຍລະອຽດ</Text>
-            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "10%" }]}>ວັນທີມອດໄຟ</Text>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "7%" }]}>ສະຖານະ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "12%" }]}>ຫົວຂໍ້</Text>
+            <Text style={[styles.tableHeaderCell, { width: "10%" }]}>ລາຍລະອຽດ</Text>
+            <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "9%" }]}>ວັນທີມອດໄຟ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "8%" }]}>ເວລາ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "5%" }]}>ເວລາໃຊ້</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "7%" }]}>ແຮງດັນ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "8%" }]}>ແຂວງ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "8%" }]}>ເມືອງ</Text>
-            <Text style={[styles.tableHeaderCell, { width: "18%" }]}>ບ້ານທີ່ຈະມອດໄຟ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "7%" }]}>ແຂວງ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "7%" }]}>ເມືອງ</Text>
+            <Text style={[styles.tableHeaderCell, { width: "17%" }]}>ບ້ານທີ່ຈະມອດໄຟ</Text>
             <Text style={[styles.tableHeaderCell, styles.textCenter, { width: "7%" }]}>ຜູ້ໃຊ້ໄຟ(ທ່ານ)</Text>
           </View>
 
@@ -299,9 +304,12 @@ export const TurnoffReportPDF: React.FC<TurnoffReportPDFProps> = ({
                 <Text style={[styles.tableCell, styles.textCenter, { width: "4%" }]}>
                   {index + 1}
                 </Text>
-                <Text style={[styles.tableCell, { width: "13%" }]}>{item.title || "-"}</Text>
-                <Text style={[styles.tableCell, { width: "12%" }]}>{item.description || "-"}</Text>
-                <Text style={[styles.tableCell, styles.textCenter, { width: "10%" }]}>
+                <Text style={[styles.tableCell, styles.textCenter, { width: "7%" }]}>
+                  {item.turnoffStatus?.name || "-"}
+                </Text>
+                <Text style={[styles.tableCell, { width: "12%" }]}>{item.title || "-"}</Text>
+                <Text style={[styles.tableCell, { width: "10%" }]}>{item.description || "-"}</Text>
+                <Text style={[styles.tableCell, styles.textCenter, { width: "9%" }]}>
                   {dateRange}
                 </Text>
                 <Text style={[styles.tableCell, styles.textCenter, { width: "8%" }]}>
@@ -313,13 +321,13 @@ export const TurnoffReportPDF: React.FC<TurnoffReportPDFProps> = ({
                 <Text style={[styles.tableCell, styles.textCenter, { width: "7%" }]}>
                   {item.voltage?.name || item.voltageName || "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "8%" }]}>
+                <Text style={[styles.tableCell, { width: "7%" }]}>
                   {item.province?.province_name || "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "8%" }]}>
+                <Text style={[styles.tableCell, { width: "7%" }]}>
                   {item.district?.district_name || "-"}
                 </Text>
-                <Text style={[styles.tableCell, { width: "18%" }]}>{villagesWithUsers}</Text>
+                <Text style={[styles.tableCell, { width: "17%" }]}>{villagesWithUsers}</Text>
                 <Text style={[styles.tableCell, styles.textCenter, { width: "7%" }]}>
                   {rowUsers > 0 ? rowUsers.toLocaleString() : "-"}
                 </Text>

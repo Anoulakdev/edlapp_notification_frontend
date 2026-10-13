@@ -24,6 +24,7 @@ export function LocationPickerModal({
 
   useEffect(() => {
     let mapInstance: any = null;
+    let active = true;
 
     if (isOpen) {
       // Default Vientiane coordinates fallback
@@ -31,12 +32,26 @@ export function LocationPickerModal({
       const defaultLng = 102.630867;
 
       const initMap = (initialLat: number, initialLng: number) => {
+        if (!active) return;
         setLat(initialLat.toFixed(6));
         setLng(initialLng.toFixed(6));
 
         loadLeaflet().then((L) => {
+          if (!active) return;
           const container = document.getElementById("picker-map-container");
           if (!container) return;
+
+          // Clean up previous instance on container if any
+          if (mapRef.current) {
+            try {
+              mapRef.current.remove();
+            } catch (_) {}
+            mapRef.current = null;
+          }
+
+          if ((container as any)._leaflet_id) {
+            delete (container as any)._leaflet_id;
+          }
 
           // Create Leaflet Map instance centered on initial coords
           mapInstance = L.map("picker-map-container").setView([initialLat, initialLng], 16);
@@ -83,8 +98,8 @@ export function LocationPickerModal({
 
           // Fix leaflet rendering size issue inside modal
           setTimeout(() => {
-            if (mapInstance) {
-              mapInstance.invalidateSize();
+            if (active && mapRef.current) {
+              mapRef.current.invalidateSize();
             }
           }, 250);
         }).catch((err) => {
@@ -95,10 +110,12 @@ export function LocationPickerModal({
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
+            if (!active) return;
             initMap(position.coords.latitude, position.coords.longitude);
           },
           (error) => {
             console.warn("Failed to get geolocation on init, fallback to default:", error.message);
+            if (!active) return;
             initMap(defaultLat, defaultLng);
           },
           { enableHighAccuracy: true, timeout: 5000 }
@@ -109,10 +126,13 @@ export function LocationPickerModal({
     }
 
     return () => {
-      if (mapInstance) {
-        mapInstance.remove();
+      active = false;
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (_) {}
+        mapRef.current = null;
       }
-      mapRef.current = null;
       markerRef.current = null;
     };
   }, [isOpen]);

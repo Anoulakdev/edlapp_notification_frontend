@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { cn, getSocketUrl } from "@/lib/utils";
 import { useNavItems } from "./config";
 import { io } from "socket.io-client";
-import axiosInstance, { rawBackendUrl } from "@/lib/axiosInstance";
+import axiosInstance from "@/lib/axiosInstance";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -34,10 +34,7 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
       (item) => item.href === "/registermeter" || item.children?.some((c) => c.href === "/registermeter")
     );
 
-    const socketUrl =
-      typeof window !== "undefined" && window.location.hostname !== "localhost"
-        ? window.location.origin
-        : rawBackendUrl;
+    const socketUrl = getSocketUrl();
 
     let chatSocket: any = null;
     let meterSocket: any = null;

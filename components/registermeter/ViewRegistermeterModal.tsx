@@ -150,6 +150,17 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
           const container = document.getElementById("view-map-container");
           if (!container) return;
 
+          if (viewMapRef.current) {
+            try {
+              viewMapRef.current.remove();
+            } catch (_) {}
+            viewMapRef.current = null;
+          }
+
+          if ((container as any)._leaflet_id) {
+            delete (container as any)._leaflet_id;
+          }
+
           mapInstance = L.map("view-map-container").setView([initialLat, initialLng], 16);
           viewMapRef.current = mapInstance;
 
@@ -297,10 +308,12 @@ export function ViewRegistermeterModal({ open, onClose, selectedDoc }: ViewRegis
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
       }
-      if (mapInstance) {
-        mapInstance.remove();
+      if (viewMapRef.current) {
+        try {
+          viewMapRef.current.remove();
+        } catch (_) {}
+        viewMapRef.current = null;
       }
-      viewMapRef.current = null;
       userMarkerRef.current = null;
       routePolylineRef.current = null;
     };

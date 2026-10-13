@@ -187,6 +187,7 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
   // Load Leaflet and initialize map on open
   useEffect(() => {
     let mapInstance: any = null;
+    let active = true;
 
     if (open) {
       const defaultLat = 17.974855;
@@ -195,8 +196,21 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
       const initialLng = lng ? parseFloat(lng) : defaultLng;
 
       loadLeaflet().then((L) => {
+        if (!active) return;
         const container = document.getElementById("map-container");
         if (!container) return;
+
+        // Clean up previous instance on container if any
+        if (mapRef.current) {
+          try {
+            mapRef.current.remove();
+          } catch (_) {}
+          mapRef.current = null;
+        }
+
+        if ((container as any)._leaflet_id) {
+          delete (container as any)._leaflet_id;
+        }
 
         // Create map with zoom level 16
         mapInstance = L.map("map-container").setView([initialLat, initialLng], 16);
@@ -242,8 +256,8 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
 
         // Fix leaflet layout rendering inside hidden modal elements
         setTimeout(() => {
-          if (mapInstance) {
-            mapInstance.invalidateSize();
+          if (active && mapRef.current) {
+            mapRef.current.invalidateSize();
           }
         }, 250);
       }).catch((err) => {
@@ -252,10 +266,13 @@ export function AddEmergencyModal({ open, onClose, onRefresh }: AddEmergencyModa
     }
 
     return () => {
-      if (mapInstance) {
-        mapInstance.remove();
+      active = false;
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (_) {}
+        mapRef.current = null;
       }
-      mapRef.current = null;
       markerRef.current = null;
     };
   }, [open]);

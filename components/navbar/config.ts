@@ -58,6 +58,8 @@ const ROLE_1_NAV_ITEMS: NavItem[] = [
   { label: "ຜູ້ໃຊ້ງານ", href: "/users", icon: Users },
   { label: "ສິດຜູ້ໃຊ້ງານ", href: "/role", icon: Shield },
   { label: "ຊ່ອງທາງຮັບແຈ້ງ", href: "/sourcetype", icon: Layers },
+  { label: "ສະຖານະມອດໄຟ", href: "/turnoffstatus", icon: FileX },
+  { label: "ສະຖານະມອດໄຟສຸກເສີນ", href: "/emergencystatus", icon: AlertCircle },
   { label: "ສະຖານະບັນຫາ", href: "/problemstatus", icon: AlertTriangle },
   { label: "ສະຖານະຂໍໝໍ້ນັບໄຟ", href: "/meterstatus", icon: Component },
   { label: "sync ຂໍ້ມູນ", href: "/syncdata", icon: Users },

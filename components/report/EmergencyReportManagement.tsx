@@ -22,6 +22,7 @@ import {
   Clock,
   Timer,
   Zap,
+  Loader2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
@@ -54,6 +55,11 @@ interface Voltage {
   name: string;
 }
 
+interface EmergencyStatus {
+  id: number;
+  name: string;
+}
+
 interface EmergencyDocReportItem {
   id: number;
   title: string;
@@ -69,10 +75,42 @@ interface EmergencyDocReportItem {
   district?: District | null;
   voltageId?: number | null;
   voltage?: Voltage | null;
+  emergencyStatusId?: number | null;
+  emergencyStatus?: EmergencyStatus | null;
   createdAt: string;
   updatedAt: string;
   emergencyAddresses?: EmergencyAddress[];
 }
+
+const getStatusBadgeStyle = (statusName?: string) => {
+  if (!statusName) {
+    return "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700";
+  }
+  const name = statusName.toLowerCase();
+  if (
+    name.includes("ສຳເລັດ") ||
+    name.includes("ແລ້ວ") ||
+    name.includes("complete") ||
+    name.includes("success")
+  ) {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50";
+  }
+  if (name.includes("ຍົກເລີກ") || name.includes("cancel")) {
+    return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50";
+  }
+  if (
+    name.includes("ກຳລັງດຳເນີນງານ") ||
+    name.includes("ກຳລັງ") ||
+    name.includes("process") ||
+    name.includes("progress")
+  ) {
+    return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/50";
+  }
+  if (name.includes("ລໍຖ້າ") || name.includes("pending")) {
+    return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50";
+  }
+  return "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700";
+};
 
 export function EmergencyReportManagement() {
   // Filter States
@@ -97,6 +135,8 @@ export function EmergencyReportManagement() {
   // Status States
   const [loading, setLoading] = useState<boolean>(false);
   const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
 
   // User Role, Province & District States for role-based filters
   const [currentUserRoleId, setCurrentUserRoleId] = useState<number | null>(null);
@@ -300,143 +340,152 @@ export function EmergencyReportManagement() {
 
   // Export to Excel (.xlsx) using SheetJS 'xlsx' library
   const handleExportExcel = async () => {
+    if (isExportingExcel || isExportingPdf) return;
     if (!startDate || !endDate) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ Excel");
       return;
     }
 
-    let allData: EmergencyDocReportItem[] = [];
+    setIsExportingExcel(true);
     try {
-      const params: Record<string, any> = {
-        page: 1,
-        limit: 9999,
-        startDate,
-        endDate,
-      };
-      if (effectiveProvinceId && effectiveProvinceId !== "all") params.provinceId = Number(effectiveProvinceId);
-      if (effectiveDistrictId && effectiveDistrictId !== "all") params.districtId = Number(effectiveDistrictId);
-      if (voltageId && voltageId !== "all") params.voltageId = Number(voltageId);
+      let allData: EmergencyDocReportItem[] = [];
+      try {
+        const params: Record<string, any> = {
+          page: 1,
+          limit: 9999,
+          startDate,
+          endDate,
+        };
+        if (effectiveProvinceId && effectiveProvinceId !== "all") params.provinceId = Number(effectiveProvinceId);
+        if (effectiveDistrictId && effectiveDistrictId !== "all") params.districtId = Number(effectiveDistrictId);
+        if (voltageId && voltageId !== "all") params.voltageId = Number(voltageId);
 
-      const res = await axiosInstance.get("/reports/emergency", { params });
-      if (res.data && Array.isArray(res.data.data)) {
-        allData = res.data.data;
-      } else if (Array.isArray(res.data)) {
-        allData = res.data;
-      }
-    } catch {
-      toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນທັງໝົດໄດ້");
-      return;
-    }
-
-    if (allData.length === 0) {
-      toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
-      return;
-    }
-
-    const XLSX = await import("xlsx");
-
-    const exportRows = allData.map((d, index) => {
-      const villagesWithUsers =
-        d.emergencyAddresses
-          ?.map(
-            (a) =>
-              `${a.village?.village_name || `Village #${a.villageId}`}${a.userCount ? ` (${a.userCount} ທ່ານ)` : ""
-              }`
-          )
-          .join(", ") || "-";
-
-      const totalUsers =
-        d.emergencyAddresses?.reduce(
-          (acc, a) => acc + (Number(a.userCount) || 0),
-          0
-        ) || 0;
-
-      return {
-        "ລຳດັບ": index + 1,
-        "ຫົວຂໍ້": d.title || "",
-        "ລາຍລະອຽດ": d.description || "",
-        "ວັນທີແຈ້ງເຫດ": d.emergencyDate ? moment(d.emergencyDate).format("DD/MM/YYYY") : "",
-        "ເວລາ": `${d.startTime || "--:--"} - ${d.endTime || "--:--"}`,
-        "ເວລາທີ່ໃຊ້ (ນາທີ)": d.useTime !== null && d.useTime !== undefined ? d.useTime : "-",
-        "ແຮງດັນ": d.voltage?.name || "-",
-        "ແຂວງ": d.province?.province_name || "-",
-        "ເມືອງ": d.district?.district_name || "-",
-        "ບ້ານທີ່ຈະມອດໄຟ": villagesWithUsers,
-        "ຜູ້ໃຊ້ໄຟທີ່ໄດ້ຮັບການແຈ້ງເຕືອນ": totalUsers,
-      };
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Emergency Outage Report");
-
-    // Calculate dynamic column widths for all columns
-    const keys = Object.keys(exportRows[0] || {});
-    worksheet["!cols"] = keys.map((key) => {
-      let maxLen = Math.max(key.length * 2, 16);
-      exportRows.forEach((row) => {
-        const valStr = String((row as any)[key] ?? "");
-        if (valStr.length > maxLen) {
-          maxLen = valStr.length;
+        const res = await axiosInstance.get("/reports/emergency", { params });
+        if (res.data && Array.isArray(res.data.data)) {
+          allData = res.data.data;
+        } else if (Array.isArray(res.data)) {
+          allData = res.data;
         }
-      });
-      return { wch: Math.min(maxLen, 60) };
-    });
+      } catch {
+        toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນທັງໝົດໄດ້");
+        return;
+      }
 
-    XLSX.writeFile(workbook, `emergency_report_${startDate}_to_${endDate}.xlsx`);
-    toast.success("ສົ່ງອອກຂໍ້ມູນ Excel (.xlsx) ສຳເລັດແລ້ວ");
+      if (allData.length === 0) {
+        toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
+        return;
+      }
+
+      const XLSX = await import("xlsx");
+
+      const exportRows = allData.map((d, index) => {
+        const villagesWithUsers =
+          d.emergencyAddresses
+            ?.map(
+              (a) =>
+                `${a.village?.village_name || `Village #${a.villageId}`}${a.userCount ? ` (${a.userCount} ທ່ານ)` : ""
+                }`
+            )
+            .join(", ") || "-";
+
+        const totalUsers =
+          d.emergencyAddresses?.reduce(
+            (acc, a) => acc + (Number(a.userCount) || 0),
+            0
+          ) || 0;
+
+        return {
+          "ລຳດັບ": index + 1,
+          "ສະຖານະ": d.emergencyStatus?.name || "-",
+          "ຫົວຂໍ້": d.title || "",
+          "ລາຍລະອຽດ": d.description || "",
+          "ວັນທີແຈ້ງເຫດ": d.emergencyDate ? moment(d.emergencyDate).format("DD/MM/YYYY") : "",
+          "ເວລາ": `${d.startTime || "--:--"} - ${d.endTime || "--:--"}`,
+          "ເວລາທີ່ໃຊ້ (ນາທີ)": d.useTime !== null && d.useTime !== undefined ? d.useTime : "-",
+          "ແຮງດັນ": d.voltage?.name || "-",
+          "ແຂວງ": d.province?.province_name || "-",
+          "ເມືອງ": d.district?.district_name || "-",
+          "ບ້ານທີ່ຈະມອດໄຟ": villagesWithUsers,
+          "ຜູ້ໃຊ້ໄຟທີ່ໄດ້ຮັບການແຈ້ງເຕືອນ": totalUsers,
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Emergency Outage Report");
+
+      // Calculate dynamic column widths for all columns
+      const keys = Object.keys(exportRows[0] || {});
+      worksheet["!cols"] = keys.map((key) => {
+        let maxLen = Math.max(key.length * 2, 16);
+        exportRows.forEach((row) => {
+          const valStr = String((row as any)[key] ?? "");
+          if (valStr.length > maxLen) {
+            maxLen = valStr.length;
+          }
+        });
+        return { wch: Math.min(maxLen, 60) };
+      });
+
+      XLSX.writeFile(workbook, `emergency_report_${startDate}_to_${endDate}.xlsx`);
+      toast.success("ສົ່ງອອກຂໍ້ມູນ Excel (.xlsx) ສຳເລັດແລ້ວ");
+    } finally {
+      setIsExportingExcel(false);
+    }
   };
 
   // Export to PDF (.pdf) using @react-pdf/renderer with PhetsarathOT font
   const handleExportPDF = async () => {
+    if (isExportingExcel || isExportingPdf) return;
     if (!startDate || !endDate) {
       toast.warning("ກະລຸນາເລືອກ ວັນທີເລີ່ມຕົ້ນ ແລະ ຫາວັນທີ ກ່ອນສົ່ງອອກ PDF");
       return;
     }
 
-    // ── 1. Fetch ALL records (no pagination limit) ──────────────────────────
-    let allData: EmergencyDocReportItem[] = [];
+    setIsExportingPdf(true);
     try {
-      const params: Record<string, any> = {
-        page: 1,
-        limit: 9999,
-        startDate,
-        endDate,
-      };
-      if (effectiveProvinceId && effectiveProvinceId !== "all") params.provinceId = Number(effectiveProvinceId);
-      if (effectiveDistrictId && effectiveDistrictId !== "all") params.districtId = Number(effectiveDistrictId);
-      if (voltageId && voltageId !== "all") params.voltageId = Number(voltageId);
+      // ── 1. Fetch ALL records (no pagination limit) ──────────────────────────
+      let allData: EmergencyDocReportItem[] = [];
+      try {
+        const params: Record<string, any> = {
+          page: 1,
+          limit: 9999,
+          startDate,
+          endDate,
+        };
+        if (effectiveProvinceId && effectiveProvinceId !== "all") params.provinceId = Number(effectiveProvinceId);
+        if (effectiveDistrictId && effectiveDistrictId !== "all") params.districtId = Number(effectiveDistrictId);
+        if (voltageId && voltageId !== "all") params.voltageId = Number(voltageId);
 
-      const res = await axiosInstance.get("/reports/emergency", { params });
-      if (res.data && Array.isArray(res.data.data)) {
-        allData = res.data.data;
-      } else if (Array.isArray(res.data)) {
-        allData = res.data;
+        const res = await axiosInstance.get("/reports/emergency", { params });
+        if (res.data && Array.isArray(res.data.data)) {
+          allData = res.data.data;
+        } else if (Array.isArray(res.data)) {
+          allData = res.data;
+        }
+      } catch {
+        toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນທັງໝົດໄດ້");
+        return;
       }
-    } catch {
-      toast.error("ບໍ່ສາມາດດຶງຂໍ້ມູນທັງໝົດໄດ້");
-      return;
-    }
 
-    if (allData.length === 0) {
-      toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
-      return;
-    }
+      if (allData.length === 0) {
+        toast.warning("ບໍ່ມີຂໍ້ມູນລາຍງານເພື່ອສົ່ງອອກ");
+        return;
+      }
 
-    const filterProvince =
-      effectiveProvinceId && effectiveProvinceId !== "all"
-        ? provinces.find((p) => String(p.id) === effectiveProvinceId)?.province_name ?? "ທຸກແຂວງ"
-        : "ທຸກແຂວງ";
-    const filterDistrict =
-      effectiveDistrictId && effectiveDistrictId !== "all"
-        ? districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ"
-        : "ທຸກເມືອງ";
-    const filterVoltage =
-      voltageId && voltageId !== "all"
-        ? voltages.find((v) => String(v.id) === voltageId)?.name ?? "ທຸກແຮງດັນ"
-        : "ທຸກແຮງດັນ";
+      const filterProvince =
+        effectiveProvinceId && effectiveProvinceId !== "all"
+          ? provinces.find((p) => String(p.id) === effectiveProvinceId)?.province_name ?? "ທຸກແຂວງ"
+          : "ທຸກແຂວງ";
+      const filterDistrict =
+        effectiveDistrictId && effectiveDistrictId !== "all"
+          ? districts.find((d) => String(d.id) === effectiveDistrictId)?.district_name ?? "ທຸກເມືອງ"
+          : "ທຸກເມືອງ";
+      const filterVoltage =
+        voltageId && voltageId !== "all"
+          ? voltages.find((v) => String(v.id) === voltageId)?.name ?? "ທຸກແຮງດັນ"
+          : "ທຸກແຮງດັນ";
 
-    try {
       const { EmergencyReportPDF } = await import("./pdf/EmergencyReportPDF");
       const { generateAndDownloadPDF } = await import("@/lib/pdf/downloadPdf");
 
@@ -456,6 +505,8 @@ export function EmergencyReportManagement() {
     } catch (err) {
       console.error("Error generating PDF:", err);
       toast.error("ເກີດຂໍ້ຜິດພາດໃນການສ້າງ PDF");
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -819,21 +870,31 @@ export function EmergencyReportManagement() {
                   <button
                     type="button"
                     onClick={handleExportExcel}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-xs font-bold rounded-xl border border-emerald-200/80 dark:border-emerald-900/50 transition-all shadow-xs"
+                    disabled={isExportingExcel || isExportingPdf}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold rounded-xl border border-emerald-200/80 dark:border-emerald-900/50 transition-all shadow-xs"
                     title="ສົ່ງອອກ Excel (.xlsx)"
                   >
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                    <span>ສົ່ງອອກ Excel (.xlsx)</span>
+                    {isExportingExcel ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                    ) : (
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                    )}
+                    <span>{isExportingExcel ? "ກຳລັງສົ່ງອອກ..." : "ສົ່ງອອກ Excel (.xlsx)"}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleExportPDF}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 text-xs font-bold rounded-xl border border-red-200/80 dark:border-red-900/50 transition-all shadow-xs"
+                    disabled={isExportingExcel || isExportingPdf}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold rounded-xl border border-red-200/80 dark:border-red-900/50 transition-all shadow-xs"
                     title="ສົ່ງອອກ PDF (.pdf)"
                   >
-                    <FileType className="w-4 h-4 text-red-500" />
-                    <span>ສົ່ງອອກ PDF (.pdf)</span>
+                    {isExportingPdf ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                    ) : (
+                      <FileType className="w-4 h-4 text-red-500" />
+                    )}
+                    <span>{isExportingPdf ? "ກຳລັງສ້າງ PDF..." : "ສົ່ງອອກ PDF (.pdf)"}</span>
                   </button>
                 </div>
               )}
@@ -845,6 +906,7 @@ export function EmergencyReportManagement() {
                 <thead>
                   <tr className="bg-slate-50/80 dark:bg-slate-850 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 select-none">
                     <th className="py-4 px-4 w-12 text-center">#</th>
+                    <th className="py-4 px-4 min-w-[130px]">ສະຖານະ</th>
                     <th className="py-4 px-4 min-w-[200px]">ຫົວຂໍ້</th>
                     <th className="py-4 px-4 min-w-[140px]">ວັນທີແຈ້ງເຫດ</th>
                     <th className="py-4 px-4 min-w-[120px]">ເວລາ</th>
@@ -860,7 +922,7 @@ export function EmergencyReportManagement() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="py-16 text-center text-slate-400">
+                      <td colSpan={10} className="py-16 text-center text-slate-400">
                         <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-3 text-red-500" />
                         <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
                           ກຳລັງໂຫຼດຂໍ້ມູນລາຍງານ...
@@ -878,6 +940,21 @@ export function EmergencyReportManagement() {
                           {/* # */}
                           <td className="py-4 px-4 text-center font-bold text-slate-400 group-hover:text-red-600">
                             {rowNum}
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-4 px-4 whitespace-nowrap">
+                            {item.emergencyStatus?.name ? (
+                              <span
+                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusBadgeStyle(
+                                  item.emergencyStatus.name
+                                )}`}
+                              >
+                                {item.emergencyStatus.name}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-medium">-</span>
+                            )}
                           </td>
 
                           {/* Title */}
@@ -972,7 +1049,7 @@ export function EmergencyReportManagement() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={9} className="py-16 text-center text-slate-400">
+                      <td colSpan={10} className="py-16 text-center text-slate-400">
                         <AlertCircle className="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
                         <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
                           ບໍ່ພົບຂໍ້ມູນລາຍງານຕາມຕົວກອງນີ້

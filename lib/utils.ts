@@ -50,10 +50,45 @@ export function loadLeaflet(): Promise<any> {
 export const ASSET_BASE_URL = (() => {
   const defaultUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
   if (typeof window === "undefined") return defaultUrl;
-  return window.location.hostname !== "localhost"
-    ? `${window.location.origin}/backend`
-    : defaultUrl;
+  // If running in browser and URL is proxied under /backend, keep /backend prefix
+  if (window.location.pathname.startsWith("/backend")) {
+    return `${window.location.origin}/backend`;
+  }
+  // By returning empty string on client, Next.js rewrites (/upload/* -> backend) seamlessly proxy assets
+  return "";
 })();
+
+export function getSocketUrl(): string {
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) {
+    return process.env.NEXT_PUBLIC_SOCKET_URL;
+  }
+  const defaultBackend = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
+  if (typeof window === "undefined") {
+    return defaultBackend;
+  }
+  const host = window.location.hostname;
+  // In dev / LAN testing (localhost, 127.0.0.1, or local IPs like 192.168.x.x, 10.x.x.x, or port 4600):
+  if (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    /^192\.168\./.test(host) ||
+    /^10\./.test(host) ||
+    window.location.port === "4600"
+  ) {
+    try {
+      const parsed = new URL(defaultBackend);
+      // If backend was configured with localhost, adapt to client LAN IP with backend port
+      if (host !== "localhost" && host !== "127.0.0.1" && parsed.hostname === "localhost") {
+        return `${parsed.protocol}//${host}:${parsed.port || "4500"}`;
+      }
+      return defaultBackend;
+    } catch {
+      return defaultBackend;
+    }
+  }
+  // In production behind reverse proxy (e.g. https://crm.edl.com.la)
+  return window.location.origin;
+}
 
 export function getImageUrl(url?: string | null): string | null {
   if (!url || typeof url !== "string" || !url.trim()) return null;

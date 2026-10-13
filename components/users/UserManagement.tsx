@@ -35,8 +35,9 @@ import { EditUserModal } from "./EditUserModal";
 import { DeleteUserModal } from "./DeleteUserModal";
 
 import { User } from "@/schemas/user";
-import axiosInstance, { rawBackendUrl } from "@/lib/axiosInstance";
+import axiosInstance from "@/lib/axiosInstance";
 import { io } from "socket.io-client";
+import { getSocketUrl } from "@/lib/utils";
 import { encryptId } from "@/lib/crypto";
 
 export type { User };
@@ -229,10 +230,7 @@ export function UserManagement() {
 
   // Realtime Socket listener for live Online / Offline updates
   useEffect(() => {
-    const socketUrl =
-      typeof window !== "undefined" && window.location.hostname !== "localhost"
-        ? window.location.origin
-        : rawBackendUrl;
+    const socketUrl = getSocketUrl();
 
     const socket = io(`${socketUrl}/users`, {
       transports: ["websocket"],
@@ -391,7 +389,15 @@ export function UserManagement() {
                   style={{ background: user.empimg ? "transparent" : `rgb(${user.avatarColor})` }}
                 >
                   {user.empimg ? (
-                    <img src={user.empimg} alt="profile" className="w-full h-full object-cover object-top" />
+                    <img
+                      src={user.empimg}
+                      alt="profile"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
+                      className="w-full h-full object-cover object-top"
+                    />
                   ) : (
                     user.avatar
                   )}

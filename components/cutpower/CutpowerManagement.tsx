@@ -20,8 +20,9 @@ import {
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
-import { axiosInstance, rawBackendUrl } from "@/lib/axiosInstance";
+import { axiosInstance } from "@/lib/axiosInstance";
 import { io } from "socket.io-client";
+import { getSocketUrl } from "@/lib/utils";
 import { encryptId } from "@/lib/crypto";
 import moment from "moment";
 import { TableTooltip, ButtonTooltip } from "@/lib/Tooltip";
@@ -305,10 +306,7 @@ export function CutpowerManagement() {
 
   // Real-time Socket.io Connection
   useEffect(() => {
-    const socketUrl =
-      typeof window !== "undefined" && window.location.hostname !== "localhost"
-        ? window.location.origin
-        : rawBackendUrl;
+    const socketUrl = getSocketUrl();
 
     const socket = io(`${socketUrl}/cutpowerdoc`, {
       transports: ["websocket"],

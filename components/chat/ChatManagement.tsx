@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axiosInstance from "@/lib/axiosInstance";
 import { io, Socket } from "socket.io-client";
+import { getSocketUrl, ASSET_BASE_URL } from "@/lib/utils";
 import { ArrowLeft, Loader2, Volume2, VolumeX } from "lucide-react";
 import { TopicSelector } from "./TopicSelector";
 import { ConversationList } from "./ConversationList";
@@ -52,10 +53,7 @@ export function ChatManagement() {
   const prevFirstMessageIdRef = useRef<number | string | undefined>(undefined);
   const prevConversationIdRef = useRef<number | string | undefined>(undefined);
 
-  const rawBackendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
-  const backendUrl = typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? `${window.location.origin}/backend`
-    : rawBackendUrl;
+  const backendUrl = ASSET_BASE_URL;
 
   // 0. Load persisted topic and conversation on mount
   useEffect(() => {
@@ -193,9 +191,7 @@ export function ChatManagement() {
 
   // 3. Socket Connection & Event Handling (Connected once on mount)
   useEffect(() => {
-    const socketUrl = typeof window !== "undefined" && window.location.hostname !== "localhost"
-      ? window.location.origin
-      : rawBackendUrl;
+    const socketUrl = getSocketUrl();
 
     const socket = io(`${socketUrl}/conversation`, {
       transports: ["websocket"],
@@ -363,7 +359,7 @@ export function ChatManagement() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [rawBackendUrl]);
+  }, []);
 
   // 4. Join WebSocket topic room on topic selection
   useEffect(() => {

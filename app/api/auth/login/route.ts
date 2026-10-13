@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
 
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4500";
 
     // Call NestJS backend endpoint (which returns { token, user })
     const response = await axios.post(`${apiBaseUrl}/api/auth/login`, {

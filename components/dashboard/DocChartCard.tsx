@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -133,8 +133,12 @@ export function DocChartCard({
 
 
 
-  const labels = items.map((i) => i.monthName || `ເດືອນ ${i.monthNum}`);
-  const dataValues = items.map((i) => i.count || 0);
+  const { labels, dataValues } = useMemo(() => {
+    return {
+      labels: items.map((i) => i.monthName || `ເດືອນ ${i.monthNum}`),
+      dataValues: items.map((i) => i.count || 0),
+    };
+  }, [items]);
 
   const gridColor = isDark
     ? "rgba(255, 255, 255, 0.06)"
@@ -143,179 +147,194 @@ export function DocChartCard({
     ? "rgba(148, 163, 184, 0.75)"
     : "rgba(100, 116, 139, 0.75)";
 
-  const chartOptions: ChartOptions<"line" | "bar"> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: isDark ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.95)",
-        titleColor: "#ffffff",
-        bodyColor: "#ffffff",
-        borderColor: style.primary,
-        borderWidth: 1.5,
-        padding: 12,
-        cornerRadius: 10,
-        boxPadding: 6,
-        usePointStyle: true,
-        callbacks: {
-          title: (tooltipItems) => {
-            return `📅 ເດືອນ: ${tooltipItems[0]?.label || ""}`;
-          },
-          label: (context) => {
-            const val = context.parsed.y ?? 0;
-            return ` ຈຳນວນ: ${val.toLocaleString()} ລາຍການ`;
-          },
-        },
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          color: tickColor,
-          font: {
-            size: 11,
-            family: "var(--font-sans)",
-          },
-          precision: 0,
-        },
-        grid: {
-          color: gridColor,
-        },
-      },
-      x: {
-        ticks: {
-          color: tickColor,
-          font: {
-            size: 11,
-            family: "var(--font-sans)",
-          },
-          maxRotation: 45,
-          minRotation: 0,
-        },
-        grid: {
+  const chartOptions: ChartOptions<"line" | "bar"> = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
           display: false,
         },
-      },
-    },
-  };
-
-  const lineChartData = {
-    labels,
-    datasets: [
-      {
-        label: title,
-        data: dataValues,
-        borderColor: style.border,
-        backgroundColor: style.bgFill,
-        borderWidth: 2.5,
-        pointBackgroundColor: style.border,
-        pointBorderColor: isDark ? "#0f172a" : "#ffffff",
-        pointBorderWidth: 2,
-        pointRadius: 4.5,
-        pointHoverRadius: 7,
-        pointHoverBackgroundColor: style.border,
-        pointHoverBorderColor: "#ffffff",
-        pointHoverBorderWidth: 2,
-        tension: 0.38,
-        fill: true,
-      },
-    ],
-  };
-
-  const barChartData = {
-    labels,
-    datasets: [
-      {
-        label: title,
-        data: dataValues,
-        backgroundColor: style.hoverBg,
-        borderColor: style.border,
-        borderWidth: 1,
-        borderRadius: 8,
-        borderSkipped: false,
-        hoverBackgroundColor: style.border,
-        barPercentage: 0.65,
-      },
-    ],
-  };
-
-  const radarChartData = {
-    labels,
-    datasets: [
-      {
-        label: title,
-        data: dataValues,
-        borderColor: style.border,
-        backgroundColor: style.bgFill.replace("0.12", "0.25"),
-        borderWidth: 2,
-        pointBackgroundColor: style.border,
-        pointBorderColor: isDark ? "#0f172a" : "#ffffff",
-        pointBorderWidth: 1.5,
-        pointRadius: 3.5,
-        pointHoverRadius: 6,
-      },
-    ],
-  };
-
-  const radarOptions: ChartOptions<"radar"> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: isDark ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.95)",
-        titleColor: "#ffffff",
-        bodyColor: "#ffffff",
-        borderColor: style.primary,
-        borderWidth: 1.5,
-        padding: 10,
-        cornerRadius: 10,
-        boxPadding: 6,
-        usePointStyle: true,
-        callbacks: {
-          title: (tooltipItems) => {
-            return `📅 ເດືອນ: ${tooltipItems[0]?.label || ""}`;
-          },
-          label: (context) => {
-            const val = context.parsed.r ?? 0;
-            return ` ຈຳນວນ: ${val.toLocaleString()} ລາຍການ`;
+        tooltip: {
+          backgroundColor: isDark ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.95)",
+          titleColor: "#ffffff",
+          bodyColor: "#ffffff",
+          borderColor: style.primary,
+          borderWidth: 1.5,
+          padding: 12,
+          cornerRadius: 10,
+          boxPadding: 6,
+          usePointStyle: true,
+          callbacks: {
+            title: (tooltipItems) => {
+              return `📅 ເດືອນ: ${tooltipItems[0]?.label || ""}`;
+            },
+            label: (context) => {
+              const val = context.parsed.y ?? 0;
+              return ` ຈຳນວນ: ${val.toLocaleString()} ລາຍການ`;
+            },
           },
         },
       },
-    },
-    scales: {
-      r: {
-        angleLines: {
-          color: gridColor,
-        },
-        grid: {
-          color: gridColor,
-        },
-        pointLabels: {
-          color: tickColor,
-          font: {
-            size: 10,
-            family: "var(--font-sans)",
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: tickColor,
+            font: {
+              size: 11,
+              family: "var(--font-sans)",
+            },
+            precision: 0,
+          },
+          grid: {
+            color: gridColor,
           },
         },
-        ticks: {
-          backdropColor: "transparent",
-          color: tickColor,
-          font: {
-            size: 9,
+        x: {
+          ticks: {
+            color: tickColor,
+            font: {
+              size: 11,
+              family: "var(--font-sans)",
+            },
+            maxRotation: 45,
+            minRotation: 0,
           },
-          precision: 0,
+          grid: {
+            display: false,
+          },
         },
-        beginAtZero: true,
       },
-    },
-  };
+    }),
+    [isDark, style.primary, tickColor, gridColor]
+  );
+
+  const lineChartData = useMemo(
+    () => ({
+      labels,
+      datasets: [
+        {
+          label: title,
+          data: dataValues,
+          borderColor: style.border,
+          backgroundColor: style.bgFill,
+          borderWidth: 2.5,
+          pointBackgroundColor: style.border,
+          pointBorderColor: isDark ? "#0f172a" : "#ffffff",
+          pointBorderWidth: 2,
+          pointRadius: 4.5,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: style.border,
+          pointHoverBorderColor: "#ffffff",
+          pointHoverBorderWidth: 2,
+          tension: 0.38,
+          fill: true,
+        },
+      ],
+    }),
+    [labels, dataValues, title, style.border, style.bgFill, isDark]
+  );
+
+  const barChartData = useMemo(
+    () => ({
+      labels,
+      datasets: [
+        {
+          label: title,
+          data: dataValues,
+          backgroundColor: style.hoverBg,
+          borderColor: style.border,
+          borderWidth: 1,
+          borderRadius: 8,
+          borderSkipped: false,
+          hoverBackgroundColor: style.border,
+          barPercentage: 0.65,
+        },
+      ],
+    }),
+    [labels, dataValues, title, style.hoverBg, style.border]
+  );
+
+  const radarChartData = useMemo(
+    () => ({
+      labels,
+      datasets: [
+        {
+          label: title,
+          data: dataValues,
+          borderColor: style.border,
+          backgroundColor: style.bgFill.replace("0.12", "0.25"),
+          borderWidth: 2,
+          pointBackgroundColor: style.border,
+          pointBorderColor: isDark ? "#0f172a" : "#ffffff",
+          pointBorderWidth: 1.5,
+          pointRadius: 3.5,
+          pointHoverRadius: 6,
+        },
+      ],
+    }),
+    [labels, dataValues, title, style.border, style.bgFill, isDark]
+  );
+
+  const radarOptions: ChartOptions<"radar"> = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          backgroundColor: isDark ? "rgba(15, 23, 42, 0.95)" : "rgba(30, 41, 59, 0.95)",
+          titleColor: "#ffffff",
+          bodyColor: "#ffffff",
+          borderColor: style.primary,
+          borderWidth: 1.5,
+          padding: 10,
+          cornerRadius: 10,
+          boxPadding: 6,
+          usePointStyle: true,
+          callbacks: {
+            title: (tooltipItems) => {
+              return `📅 ເດືອນ: ${tooltipItems[0]?.label || ""}`;
+            },
+            label: (context) => {
+              const val = context.parsed.r ?? 0;
+              return ` ຈຳນວນ: ${val.toLocaleString()} ລາຍການ`;
+            },
+          },
+        },
+      },
+      scales: {
+        r: {
+          angleLines: {
+            color: gridColor,
+          },
+          grid: {
+            color: gridColor,
+          },
+          pointLabels: {
+            color: tickColor,
+            font: {
+              size: 10,
+              family: "var(--font-sans)",
+            },
+          },
+          ticks: {
+            backdropColor: "transparent",
+            color: tickColor,
+            font: {
+              size: 9,
+            },
+            precision: 0,
+          },
+          beginAtZero: true,
+        },
+      },
+    }),
+    [isDark, style.primary, gridColor, tickColor]
+  );
 
   return (
     <div className="group relative rounded-3xl p-6 bg-[rgb(var(--card))] border border-[rgb(var(--border))] shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between">

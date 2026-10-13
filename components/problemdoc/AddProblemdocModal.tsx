@@ -258,6 +258,17 @@ export function AddProblemdocModal({ open, onClose, onRefresh }: AddProblemdocMo
         const container = document.getElementById("map-container");
         if (!container) return;
 
+        if (mapRef.current) {
+          try {
+            mapRef.current.remove();
+          } catch (_) {}
+          mapRef.current = null;
+        }
+
+        if ((container as any)._leaflet_id) {
+          delete (container as any)._leaflet_id;
+        }
+
         mapInstance = L.map("map-container").setView([initialLat, initialLng], 16);
         mapRef.current = mapInstance;
 
@@ -296,8 +307,8 @@ export function AddProblemdocModal({ open, onClose, onRefresh }: AddProblemdocMo
         });
 
         setTimeout(() => {
-          if (mapInstance && active) {
-            mapInstance.invalidateSize();
+          if (mapRef.current && active) {
+            mapRef.current.invalidateSize();
           }
         }, 250);
       }).catch((err) => {
@@ -307,10 +318,12 @@ export function AddProblemdocModal({ open, onClose, onRefresh }: AddProblemdocMo
 
     return () => {
       active = false;
-      if (mapInstance) {
-        mapInstance.remove();
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (_) {}
+        mapRef.current = null;
       }
-      mapRef.current = null;
       markerRef.current = null;
     };
   }, [open]);

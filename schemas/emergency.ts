@@ -42,6 +42,14 @@ export const emergencyDocSchema = z.object({
     })
     .nullable()
     .optional(),
+  emergencyStatusId: z.number().nullable().optional(),
+  emergencyStatus: z
+    .object({
+      id: z.number(),
+      name: z.string(),
+    })
+    .nullable()
+    .optional(),
   createdById: z.number().nullable().optional(),
   province: z
     .object({

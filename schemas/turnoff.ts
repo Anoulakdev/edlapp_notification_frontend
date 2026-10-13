@@ -44,6 +44,14 @@ export const turnoffDocSchema = z.object({
     })
     .nullable()
     .optional(),
+  turnoffStatusId: z.number().nullable().optional(),
+  turnoffStatus: z
+    .object({
+      id: z.number(),
+      name: z.string(),
+    })
+    .nullable()
+    .optional(),
   createdById: z.number().nullable().optional(),
   province: z
     .object({
