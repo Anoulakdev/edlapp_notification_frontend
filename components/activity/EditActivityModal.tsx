@@ -29,6 +29,7 @@ export function EditActivityModal({
   const [location, setLocation] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [facebookLink, setFacebookLink] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [currentFileName, setCurrentFileName] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -42,6 +43,7 @@ export function EditActivityModal({
       setLocation(selectedDoc.location || "");
       setStartDate(selectedDoc.startDate ? moment(selectedDoc.startDate).format("YYYY-MM-DD") : "");
       setEndDate(selectedDoc.endDate ? moment(selectedDoc.endDate).format("YYYY-MM-DD") : "");
+      setFacebookLink(selectedDoc.facebookLink || "");
       setCurrentFileName(selectedDoc.actFile || "");
       setFile(null);
       setErrors({});
@@ -76,6 +78,7 @@ export function EditActivityModal({
       location,
       startDate,
       endDate,
+      facebookLink,
     });
 
     if (!result.success) {
@@ -98,6 +101,7 @@ export function EditActivityModal({
       formData.append("location", location);
       formData.append("startDate", startDate);
       formData.append("endDate", endDate);
+      formData.append("facebookLink", facebookLink.trim());
       if (file) {
         formData.append("actFile", file);
       }
@@ -191,6 +195,16 @@ export function EditActivityModal({
                   error={errors.endDate}
                 />
               </div>
+            </div>
+
+            <div>
+              <Input
+                label="ລິ້ງ Facebook"
+                placeholder="ເຊັ່ນ: https://www.facebook.com/..."
+                value={facebookLink}
+                onChange={(e) => setFacebookLink(e.target.value)}
+                error={errors.facebookLink}
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">

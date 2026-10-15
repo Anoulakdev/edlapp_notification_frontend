@@ -6,6 +6,7 @@ export const activityBaseSchema = z.object({
   location: z.string().trim().min(1, "ກະລຸນາໃສ່ສະຖານທີ່"),
   startDate: z.string().min(1, "ກະລຸນາເລືອກວັນທີເລີ່ມຕົ້ນ"),
   endDate: z.string().min(1, "ກະລຸນາເລືອກວັນທີສິ້ນສຸດ"),
+  facebookLink: z.string().trim().optional().or(z.literal("")),
 });
 
 export const createActivitySchema = activityBaseSchema;
@@ -19,6 +20,7 @@ export const activitySchema = z.object({
   endDate: z.string(),
   location: z.string(),
   actFile: z.string(),
+  facebookLink: z.string().nullable().optional(),
   createdById: z.number(),
   createdBy: z
     .object({

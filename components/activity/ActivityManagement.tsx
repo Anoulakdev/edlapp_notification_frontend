@@ -195,16 +195,39 @@ export function ActivityManagement() {
       {
         accessorKey: "title",
         header: "ຫົວຂໍ້ກິດຈະກຳ",
-        cell: ({ row }) => (
-          <div className="py-1 min-w-[200px] max-w-[320px]">
-            <span
-              className="text-sm font-semibold text-slate-800 dark:text-slate-200 line-clamp-1 block"
-              title={row.original.title}
-            >
-              {row.original.title}
-            </span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const doc = row.original;
+          return (
+            <div className="py-1 min-w-[200px] max-w-[320px]">
+              <span
+                className="text-sm font-semibold text-slate-800 dark:text-slate-200 line-clamp-1 block"
+                title={doc.title}
+              >
+                {doc.title}
+              </span>
+              {doc.facebookLink && (
+                <a
+                  href={
+                    doc.facebookLink.startsWith("http")
+                      ? doc.facebookLink
+                      : `https://${doc.facebookLink}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#1877F2] dark:text-[#388af6] hover:underline mt-0.5"
+                  title="ເປີດລິ້ງ Facebook"
+                >
+                  <svg className="w-3 h-3 fill-current shrink-0" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                  <span className="truncate max-w-[180px]">Facebook</span>
+                  <ExternalLink className="w-2.5 h-2.5 opacity-70 shrink-0" />
+                </a>
+              )}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "location",

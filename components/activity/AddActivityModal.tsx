@@ -21,6 +21,7 @@ export function AddActivityModal({ open, onClose, onRefresh }: AddActivityModalP
   const [location, setLocation] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [facebookLink, setFacebookLink] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -34,6 +35,7 @@ export function AddActivityModal({ open, onClose, onRefresh }: AddActivityModalP
       setLocation("");
       setStartDate("");
       setEndDate("");
+      setFacebookLink("");
       setFile(null);
       setPreviewUrl("");
       setErrors({});
@@ -58,6 +60,7 @@ export function AddActivityModal({ open, onClose, onRefresh }: AddActivityModalP
       location,
       startDate,
       endDate,
+      facebookLink,
     });
 
     if (!result.success) {
@@ -88,6 +91,9 @@ export function AddActivityModal({ open, onClose, onRefresh }: AddActivityModalP
       formData.append("location", location);
       formData.append("startDate", startDate);
       formData.append("endDate", endDate);
+      if (facebookLink.trim()) {
+        formData.append("facebookLink", facebookLink.trim());
+      }
       formData.append("actFile", file);
 
       await axiosInstance.post("/activities", formData, {
@@ -174,6 +180,16 @@ export function AddActivityModal({ open, onClose, onRefresh }: AddActivityModalP
                   error={errors.endDate}
                 />
               </div>
+            </div>
+
+            <div>
+              <Input
+                label="ລິ້ງ Facebook"
+                placeholder="ເຊັ່ນ: https://www.facebook.com/..."
+                value={facebookLink}
+                onChange={(e) => setFacebookLink(e.target.value)}
+                error={errors.facebookLink}
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">
