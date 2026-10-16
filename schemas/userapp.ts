@@ -16,6 +16,7 @@ export interface UserApp {
   otp_end: string | null;
   otp_cycle: number | null;
   access_noti: string | null;
+  created_at?: string | null;
 }
 
 export interface UserAppPaginationResponse {

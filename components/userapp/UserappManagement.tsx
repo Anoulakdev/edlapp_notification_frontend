@@ -226,18 +226,6 @@ export function UserappManagement() {
         },
       },
       {
-        accessorKey: "email",
-        header: "ອີເມວ",
-        cell: ({ row }) => {
-          const user = row.original;
-          return (
-            <span className="text-xs text-slate-600 dark:text-slate-400 truncate block max-w-[160px]">
-              {user.email || "-"}
-            </span>
-          );
-        },
-      },
-      {
         accessorKey: "birthday",
         header: "ວັນເກີດ",
         cell: ({ row }) => {
@@ -246,6 +234,20 @@ export function UserappManagement() {
             <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
               {user.birthday
                 ? moment(user.birthday).format("DD/MM/YYYY")
+                : "-"}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "created_at",
+        header: "ວັນທີສ້າງ",
+        cell: ({ row }) => {
+          const user = row.original;
+          return (
+            <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
+              {user.created_at
+                ? moment(user.created_at).format("DD/MM/YYYY HH:mm")
                 : "-"}
             </span>
           );
