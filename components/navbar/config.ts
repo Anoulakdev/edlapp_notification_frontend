@@ -36,6 +36,7 @@ import {
   Scale,
   FileSpreadsheet,
   Newspaper,
+  Smartphone,
 } from "lucide-react";
 
 export type NavChild = {
@@ -312,6 +313,10 @@ const ROLE_10_NAV_ITEMS: NavItem[] = [
   { label: "ລາຍການຊຳລະເງິນ", href: "/payment", icon: CreditCard },
 ];
 
+const ROLE_11_NAV_ITEMS: NavItem[] = [
+  { label: "ຜູ້ໃຊ້ແອັບ", href: "/userapp", icon: Smartphone },
+];
+
 export const navItems: NavItem[] = [];
 
 let authMePromise: Promise<any> | null = null;
@@ -362,6 +367,8 @@ export function useNavItems() {
         setNavItemsState(ROLE_9_NAV_ITEMS);
       } else if (roleId === 10) {
         setNavItemsState(ROLE_10_NAV_ITEMS);
+      } else if (roleId === 11) {
+        setNavItemsState(ROLE_11_NAV_ITEMS);
       } else {
         setNavItemsState([]);
       }
@@ -395,6 +402,8 @@ export function useNavItems() {
               setNavItemsState(ROLE_9_NAV_ITEMS);
             } else if (roleId === 10) {
               setNavItemsState(ROLE_10_NAV_ITEMS);
+            } else if (roleId === 11) {
+              setNavItemsState(ROLE_11_NAV_ITEMS);
             } else {
               setNavItemsState([]);
             }

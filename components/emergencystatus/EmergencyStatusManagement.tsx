@@ -117,7 +117,7 @@ export function EmergencyStatusManagement() {
         cell: ({ row }) => {
           return (
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              {row.index + 1 + pagination.pageIndex * pagination.pageSize}
+              {row.index + 1}
             </span>
           );
         },
@@ -162,7 +162,7 @@ export function EmergencyStatusManagement() {
         },
       },
     ],
-    [pagination]
+    []
   );
 
   // Client-side filtering
