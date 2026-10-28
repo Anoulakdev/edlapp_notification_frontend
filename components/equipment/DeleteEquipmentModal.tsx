@@ -56,9 +56,9 @@ export function DeleteEquipmentModal({
             >
               {selectedDoc?.name}
             </div>
-            {selectedDoc?.typeEquipment?.name && (
+            {selectedDoc?.unit && (
               <div className="text-xs text-slate-500 dark:text-slate-400">
-                {selectedDoc.typeEquipment.name}
+                ຫົວໜ່ວຍ: {selectedDoc.unit}
               </div>
             )}
           </div>

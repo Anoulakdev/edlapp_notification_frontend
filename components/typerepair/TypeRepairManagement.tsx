@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Search,
@@ -8,26 +9,27 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Calendar,
   FileText,
 } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, flexRender } from "@tanstack/react-table";
 import { toast } from "react-toastify";
 import { axiosInstance } from "@/lib/axiosInstance";
-import moment from "moment";
 import { ButtonTooltip } from "@/lib/Tooltip";
-import { TypeUnit } from "@/schemas/typeunit";
+import { TypeRepair } from "@/schemas/typerepair";
+import { Badge } from "@/components/ui/Badge";
 
 // Modals
-import { AddTypeUnitModal } from "./AddTypeUnitModal";
-import { EditTypeUnitModal } from "./EditTypeUnitModal";
-import { DeleteTypeUnitModal } from "./DeleteTypeUnitModal";
+import { AddTypeRepairModal } from "./AddTypeRepairModal";
+import { EditTypeRepairModal } from "./EditTypeRepairModal";
+import { DeleteTypeRepairModal } from "./DeleteTypeRepairModal";
 
 const ROWS_PER_PAGE = 10;
 
-export function TypeunitManagement() {
-  const [docs, setDocs] = useState<TypeUnit[]>([]);
+export function TypeRepairManagement() {
+  const router = useRouter();
+  const [docs, setDocs] = useState<TypeRepair[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
 
   // Pagination State
@@ -40,36 +42,56 @@ export function TypeunitManagement() {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [selectedDoc, setSelectedDoc] = useState<TypeUnit | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<TypeRepair | null>(null);
 
-  // Fetch Type Units from backend
+  // Authenticate user & role check
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await axiosInstance.get("/auth/me");
+        if (res.data?.roleId === 1) {
+          setAuthorized(true);
+        } else {
+          router.replace("/unauthorized");
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        router.replace("/signin");
+      }
+    };
+    checkAuth();
+  }, [router]);
+
+  // Fetch Type Repairs from backend
   const fetchDocs = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get("/typeunits");
+      const res = await axiosInstance.get("/typerepairs");
       const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
       setDocs(data);
     } catch (err) {
-      console.error("Failed to load type units:", err);
-      toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນຫົວໜ່ວຍໄດ້");
+      console.error("Failed to load type repairs:", err);
+      toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນປະເພດສ້ອມແປງໄດ້");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchDocs();
-  }, [fetchDocs]);
+    if (authorized) {
+      fetchDocs();
+    }
+  }, [authorized, fetchDocs]);
 
   // Handlers
   const openAdd = () => setAddOpen(true);
 
-  const openEdit = (doc: TypeUnit) => {
+  const openEdit = (doc: TypeRepair) => {
     setSelectedDoc(doc);
     setEditOpen(true);
   };
 
-  const openDelete = (doc: TypeUnit) => {
+  const openDelete = (doc: TypeRepair) => {
     setSelectedDoc(doc);
     setDeleteOpen(true);
   };
@@ -77,18 +99,37 @@ export function TypeunitManagement() {
   const handleDelete = async () => {
     if (!selectedDoc) return;
     try {
-      await axiosInstance.delete(`/typeunits/${selectedDoc.id}`);
+      await axiosInstance.delete(`/typerepairs/${selectedDoc.id}`);
       setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
       setDeleteOpen(false);
-      toast.success("ລົບຂໍ້ມູນຫົວໜ່ວຍສຳເລັດ");
+      toast.success("ລົບຂໍ້ມູນປະເພດສ້ອມແປງສຳເລັດ");
+    } catch (err: any) {
+      console.error("Failed to delete type repair:", err);
+      const errMsg = err?.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ";
+      toast.error(errMsg);
+    }
+  };
+
+  const toggleStatus = async (doc: TypeRepair) => {
+    const nextStatus = doc.actived ? "false" : "true";
+    try {
+      await axiosInstance.put(
+        `/typerepairs/updatestatus/${doc.id}?actived=${nextStatus}`
+      );
+      setDocs((prev) =>
+        prev.map((d) =>
+          d.id === doc.id ? { ...d, actived: !doc.actived } : d
+        )
+      );
+      toast.success("ປ່ຽນສະຖານະສຳເລັດ");
     } catch (err) {
-      console.error("Failed to delete type unit:", err);
-      toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
+      console.error("Failed to toggle type repair status:", err);
+      toast.error("ເກີດຂໍ້ຜິດພາດໃນການປ່ຽນສະຖານະ");
     }
   };
 
   // Columns definition
-  const columns = useMemo<ColumnDef<TypeUnit>[]>(
+  const columns = useMemo<ColumnDef<TypeRepair>[]>(
     () => [
       {
         id: "index",
@@ -96,14 +137,14 @@ export function TypeunitManagement() {
         cell: ({ row }) => {
           return (
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              {row.index + 1 + pagination.pageIndex * pagination.pageSize}
+              {row.index + 1}
             </span>
           );
         },
       },
       {
         accessorKey: "name",
-        header: "ຊື່ຫົວໜ່ວຍ",
+        header: "ຊື່ປະເພດສ້ອມແປງ",
         cell: ({ row }) => {
           const doc = row.original;
           return (
@@ -114,15 +155,21 @@ export function TypeunitManagement() {
         },
       },
       {
-        id: "createdAt",
-        header: "ວັນທີສ້າງ",
+        accessorKey: "actived",
+        header: "ສະຖານະ",
         cell: ({ row }) => {
           const doc = row.original;
+          const isActive = doc.actived ?? true;
           return (
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-350 flex items-center gap-1.5 whitespace-nowrap">
-              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              {moment(doc.createdAt).format("DD/MM/YYYY HH:mm")}
-            </span>
+            <button
+              onClick={() => toggleStatus(doc)}
+              className="focus:outline-none hover:opacity-80 transition-opacity cursor-pointer"
+              title={isActive ? "ຄລິກເພື່ອປິດການໃຊ້ງານ" : "ຄລິກເພື່ອເປີດການໃຊ້ງານ"}
+            >
+              <Badge color={isActive ? "success" : "danger"}>
+                {isActive ? "ເປີດໃຊ້ງານ" : "ປິດໃຊ້ງານ"}
+              </Badge>
+            </button>
           );
         },
       },
@@ -131,7 +178,6 @@ export function TypeunitManagement() {
         header: "#",
         cell: ({ row }) => {
           const doc = row.original;
-          const hasDocs = !!(doc.problemEquipments && doc.problemEquipments.length > 0);
           return (
             <div className="flex items-center gap-1.5 shrink-0">
               <ButtonTooltip text="ແກ້ໄຂ">
@@ -142,15 +188,10 @@ export function TypeunitManagement() {
                   <Edit2 className="w-4 h-4" />
                 </button>
               </ButtonTooltip>
-              <ButtonTooltip text={hasDocs ? "ບໍ່ສາມາດລົບໄດ້" : "ລົບ"}>
+              <ButtonTooltip text="ລົບ">
                 <button
                   onClick={() => openDelete(doc)}
-                  disabled={hasDocs}
-                  className={`p-2 rounded-xl transition-colors shrink-0 ${
-                    hasDocs
-                      ? "text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed opacity-50"
-                      : "text-red-500 bg-red-500/10 hover:bg-red-500/20 cursor-pointer"
-                  }`}
+                  className="p-2 rounded-xl text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors shrink-0 cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -160,7 +201,7 @@ export function TypeunitManagement() {
         },
       },
     ],
-    [pagination]
+    []
   );
 
   // Client-side filtering
@@ -203,32 +244,43 @@ export function TypeunitManagement() {
     return pages;
   };
 
+  if (authorized === null) {
+    return (
+      <div className="min-h-[calc(100vh-6rem)] flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">ກຳລັງກວດສອບສິດການເຂົ້າເຖິງ...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-screen-2xl mx-auto px-4 md:px-6 py-8" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
-        <div>
-          <h1
-            className="text-3xl font-bold mb-1"
-            style={{ color: "rgb(var(--text-primary))", fontFamily: "var(--font-display)" }}
-          >
-            ຫົວໜ່ວຍ
-          </h1>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1
+              className="text-3xl font-bold mb-1"
+              style={{ color: "rgb(var(--text-primary))", fontFamily: "var(--font-display)" }}
+            >
+              ປະເພດສ້ອມແປງ
+            </h1>
+          </div>
         </div>
         <div className="sm:ml-auto flex items-center">
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:opacity-90 transition-opacity cursor-pointer"
           >
             <Plus className="w-4 h-4" strokeWidth={2.5} />
-            ເພີ່ມຂໍ້ມູນ
+            ເພີ່ມປະເພດສ້ອມແປງ
           </button>
         </div>
       </div>
 
       {/* Table Card Container */}
       <div
-        className="rounded-2xl overflow-hidden"
+        className="rounded-2xl overflow-hidden shadow-sm"
         style={{ background: "rgb(var(--card))", border: "1px solid rgb(var(--border))" }}
       >
         {/* Toolbar */}
@@ -240,7 +292,7 @@ export function TypeunitManagement() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="ຄົ້ນຫາ..."
+              placeholder="ຄົ້ນຫາປະເພດສ້ອມແປງ..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none transition-all"
@@ -263,18 +315,25 @@ export function TypeunitManagement() {
 
         {/* Table layout */}
         <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full min-w-[800px] lg:min-w-full">
+          <table className="w-full min-w-[600px] lg:min-w-full">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} style={{ background: "rgb(var(--bg))" }}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="text-left px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-400"
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
+                  {headerGroup.headers.map((header) => {
+                    const widthClass =
+                      header.id === "index" ? "w-[12%] min-w-[60px]" :
+                        header.id === "name" ? "w-[50%] min-w-[200px]" :
+                          header.id === "actived" ? "w-[20%] min-w-[120px]" :
+                            header.id === "actions" ? "w-[18%] min-w-[100px]" : "";
+                    return (
+                      <th
+                        key={header.id}
+                        className={`text-left px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-400 ${widthClass}`}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    );
+                  })}
                 </tr>
               ))}
             </thead>
@@ -296,7 +355,7 @@ export function TypeunitManagement() {
                         <FileText className="w-6 h-6 text-slate-350" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold">ບໍ່ພົບຂໍ້ມູນຫົວໜ່ວຍ</p>
+                        <p className="text-sm font-semibold">ບໍ່ພົບຂໍ້ມູນປະເພດສ້ອມແປງ</p>
                       </div>
                     </div>
                   </td>
@@ -308,11 +367,18 @@ export function TypeunitManagement() {
                     className="border-t hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors"
                     style={{ borderColor: "rgb(var(--border))" }}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
+                    {row.getVisibleCells().map((cell) => {
+                      const widthClass =
+                        cell.column.id === "index" ? "w-[12%] min-w-[60px]" :
+                          cell.column.id === "name" ? "w-[50%] min-w-[200px]" :
+                            cell.column.id === "actived" ? "w-[20%] min-w-[120px]" :
+                              cell.column.id === "actions" ? "w-[18%] min-w-[100px]" : "";
+                      return (
+                        <td key={cell.id} className={`px-6 py-4 ${widthClass}`}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
               )}
@@ -333,7 +399,7 @@ export function TypeunitManagement() {
               <button
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border bg-theme-bg border-theme text-slate-500 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border bg-theme-bg border-theme text-slate-500 disabled:opacity-40 cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -364,7 +430,7 @@ export function TypeunitManagement() {
               <button
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border bg-theme-bg border-theme text-slate-500 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border bg-theme-bg border-theme text-slate-500 disabled:opacity-40 cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -374,16 +440,16 @@ export function TypeunitManagement() {
       </div>
 
       {/* MODALS */}
-      <AddTypeUnitModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={fetchDocs} />
+      <AddTypeRepairModal open={addOpen} onClose={() => setAddOpen(false)} onRefresh={fetchDocs} />
 
-      <EditTypeUnitModal
+      <EditTypeRepairModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
         selectedDoc={selectedDoc}
         onRefresh={fetchDocs}
       />
 
-      <DeleteTypeUnitModal
+      <DeleteTypeRepairModal
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         onDelete={handleDelete}

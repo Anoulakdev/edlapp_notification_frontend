@@ -8,7 +8,6 @@ import {
   Settings,
   Layers,
   LayoutTemplate,
-  Box,
   FileText,
   CalendarDays,
   FolderOpen,
@@ -33,7 +32,6 @@ import {
   Bot,
   Star,
   CreditCard,
-  Scale,
   FileSpreadsheet,
   Newspaper,
   Smartphone,
@@ -63,6 +61,7 @@ const ROLE_1_NAV_ITEMS: NavItem[] = [
   { label: "ສະຖານະມອດໄຟສຸກເສີນ", href: "/emergencystatus", icon: AlertCircle },
   { label: "ສະຖານະບັນຫາ", href: "/problemstatus", icon: AlertTriangle },
   { label: "ສະຖານະຂໍໝໍ້ນັບໄຟ", href: "/meterstatus", icon: Component },
+  { label: "ປະເພດສ້ອມແປງ", href: "/typerepair", icon: Wrench },
   { label: "sync ຂໍ້ມູນ", href: "/syncdata", icon: Users },
 ];
 
@@ -85,9 +84,6 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
       { label: "ສູນສ້ອມແປງເມືອງ", href: "/repairdistrict", icon: Wrench },
       { label: "ປະເພດບັນຫາ", href: "/problemtype", icon: Layers },
       { label: "ແຮງດັນ", href: "/voltage", icon: Zap },
-      { label: "ໝວດໝູ່ອຸປະກອນ", href: "/typeequipment", icon: Box },
-      { label: "ອຸປະກອນ", href: "/equipment", icon: Component },
-      { label: "ຫົວໜ່ວຍ", href: "/typeunit", icon: Scale },
       { label: "ຫົວຂໍ້ການສົນທະນາ", href: "/topic", icon: Layers },
       { label: "ຂໍ້ຄວາມອັດໂນມັດ", href: "/messageauto", icon: Bot },
     ],
@@ -111,6 +107,11 @@ const ROLE_2_NAV_ITEMS: NavItem[] = [
         label: "ລາຍງານການແຈ້ງບັນຫາ",
         href: "/problemreport",
         icon: AlertTriangle,
+      },
+      {
+        label: "ລາຍງານອຸປະກອນ",
+        href: "/equipmentreport",
+        icon: Component,
       },
       {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
@@ -143,9 +144,6 @@ const ROLE_3_NAV_ITEMS: NavItem[] = [
       { label: "ສູນສ້ອມແປງເມືອງ", href: "/repairdistrict", icon: Wrench },
       { label: "ປະເພດບັນຫາ", href: "/problemtype", icon: Layers },
       { label: "ແຮງດັນ", href: "/voltage", icon: Zap },
-      { label: "ໝວດໝູ່ອຸປະກອນ", href: "/typeequipment", icon: Box },
-      { label: "ອຸປະກອນ", href: "/equipment", icon: Component },
-      { label: "ຫົວໜ່ວຍ", href: "/typeunit", icon: Scale },
     ],
   },
   {
@@ -167,6 +165,11 @@ const ROLE_3_NAV_ITEMS: NavItem[] = [
         label: "ລາຍງານການແຈ້ງບັນຫາ",
         href: "/problemreport",
         icon: AlertTriangle,
+      },
+      {
+        label: "ລາຍງານອຸປະກອນ",
+        href: "/equipmentreport",
+        icon: Component,
       },
       {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
@@ -192,9 +195,6 @@ const ROLE_4_NAV_ITEMS: NavItem[] = [
     children: [
       { label: "ປະເພດບັນຫາ", href: "/problemtype", icon: Layers },
       { label: "ແຮງດັນ", href: "/voltage", icon: Zap },
-      { label: "ໝວດໝູ່ອຸປະກອນ", href: "/typeequipment", icon: Box },
-      { label: "ອຸປະກອນ", href: "/equipment", icon: Component },
-      { label: "ຫົວໜ່ວຍ", href: "/typeunit", icon: Scale },
       { label: "ຫົວຂໍ້ການສົນທະນາ", href: "/topic", icon: Layers },
       { label: "ຂໍ້ຄວາມອັດໂນມັດ", href: "/messageauto", icon: Bot },
     ],
@@ -220,6 +220,11 @@ const ROLE_4_NAV_ITEMS: NavItem[] = [
         icon: AlertTriangle,
       },
       {
+        label: "ລາຍງານອຸປະກອນ",
+        href: "/equipmentreport",
+        icon: Component,
+      },
+      {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
         href: "/registermeterreport",
         icon: FileText,
@@ -236,6 +241,11 @@ const ROLE_5_NAV_ITEMS: NavItem[] = [
   { label: "ແຈ້ງບັນຫາ", href: "/problemdoc", icon: FileX },
   { label: "ຂໍໝໍ້ນັບໄຟໃໝ່", href: "/registermeter", icon: FileText },
   // { label: "ລາຍການຊຳລະເງິນ", href: "/payment", icon: CreditCard },
+  {
+    label: "ຈັດການຂໍ້ມູນ",
+    icon: FolderCog,
+    children: [{ label: "ອຸປະກອນ", href: "/equipment", icon: Component }],
+  },
   {
     label: "ລາຍງານ",
     icon: BarChart3,
@@ -255,6 +265,11 @@ const ROLE_5_NAV_ITEMS: NavItem[] = [
         label: "ລາຍງານການແຈ້ງບັນຫາ",
         href: "/problemreport",
         icon: AlertTriangle,
+      },
+      {
+        label: "ລາຍງານອຸປະກອນ",
+        href: "/equipmentreport",
+        icon: Component,
       },
       {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
@@ -291,6 +306,11 @@ const ROLE_6_NAV_ITEMS: NavItem[] = [
         label: "ລາຍງານການແຈ້ງບັນຫາ",
         href: "/problemreport",
         icon: AlertTriangle,
+      },
+      {
+        label: "ລາຍງານອຸປະກອນ",
+        href: "/equipmentreport",
+        icon: Component,
       },
       {
         label: "ລາຍງານການຂໍໝໍ້ນັບໄຟໃໝ່",
@@ -341,6 +361,7 @@ function getAuthMeDeduplicated() {
 
 export function useNavItems() {
   const [navItemsState, setNavItemsState] = useState<NavItem[]>([]);
+  const [roleIdState, setRoleIdState] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -349,6 +370,7 @@ export function useNavItems() {
       typeof window !== "undefined" ? localStorage.getItem("userRoleId") : null;
     if (cachedRoleId) {
       const roleId = parseInt(cachedRoleId, 10);
+      setRoleIdState(Number.isNaN(roleId) ? null : roleId);
       if (roleId === 1) {
         setNavItemsState(ROLE_1_NAV_ITEMS);
       } else if (roleId === 2) {
@@ -384,6 +406,7 @@ export function useNavItems() {
 
           if (roleId !== undefined && roleId !== null) {
             localStorage.setItem("userRoleId", String(roleId));
+            setRoleIdState(Number(roleId));
             if (roleId === 1) {
               setNavItemsState(ROLE_1_NAV_ITEMS);
             } else if (roleId === 2) {
@@ -409,10 +432,12 @@ export function useNavItems() {
             }
           } else {
             localStorage.removeItem("userRoleId");
+            setRoleIdState(null);
             setNavItemsState([]);
           }
         } else {
           localStorage.removeItem("userRoleId");
+          setRoleIdState(null);
           setNavItemsState([]);
         }
       } catch (error) {
@@ -425,7 +450,7 @@ export function useNavItems() {
     fetchRole();
   }, []);
 
-  return { navItems: navItemsState, loading };
+  return { navItems: navItemsState, roleId: roleIdState, loading };
 }
 
 export const noticesData = [

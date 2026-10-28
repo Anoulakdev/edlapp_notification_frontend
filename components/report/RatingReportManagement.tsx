@@ -616,7 +616,7 @@ export function RatingReportManagement() {
   const isLoading = loadingData || loadingCount || loadingAgentCount;
 
   return (
-    <div className="max-w-screen-2xl mx-auto px-4 md:px-6 py-6 font-sans text-slate-800 dark:text-slate-100 space-y-6 print:bg-white print:p-0">
+    <div className="max-w-screen-2xl mx-auto px-4 md:px-6 py-6 font-sans text-slate-800 dark:text-slate-100 space-y-3.5 print:bg-white print:p-0">
       {/* Main Search & Filter Control Card */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-slate-200/80 dark:border-gray-700/80 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-gray-700 pb-4">

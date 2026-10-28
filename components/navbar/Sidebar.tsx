@@ -20,8 +20,9 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [chatUnreadCount, setChatUnreadCount] = useState<number>(0);
   const [meterCount, setMeterCount] = useState<number>(0);
+  const [problemCount, setProblemCount] = useState<number>(0);
   const pathname = usePathname();
-  const { navItems: filteredNavItems, loading } = useNavItems();
+  const { navItems: filteredNavItems, roleId, loading } = useNavItems();
 
   // Fetch unread count & listen to real-time WebSocket updates
   useEffect(() => {
@@ -30,14 +31,22 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
     const hasChat = filteredNavItems.some(
       (item) => item.href === "/chat" || item.children?.some((c) => c.href === "/chat")
     );
-    const hasRegisterMeter = filteredNavItems.some(
-      (item) => item.href === "/registermeter" || item.children?.some((c) => c.href === "/registermeter")
-    );
+    const hasRegisterMeter =
+      (roleId === 2 || roleId === 3) &&
+      filteredNavItems.some(
+        (item) => item.href === "/registermeter" || item.children?.some((c) => c.href === "/registermeter")
+      );
+    const hasProblemDoc =
+      (roleId === 5 || roleId === 6) &&
+      filteredNavItems.some(
+        (item) => item.href === "/problemdoc" || item.children?.some((c) => c.href === "/problemdoc")
+      );
 
     const socketUrl = getSocketUrl();
 
     let chatSocket: any = null;
     let meterSocket: any = null;
+    let problemSocket: any = null;
 
     if (hasChat) {
       // 1. Fetch initial chat unread count
@@ -119,11 +128,46 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
       setMeterCount(0);
     }
 
+    if (hasProblemDoc) {
+      // 3. Fetch initial problem count
+      const fetchProblemCount = async () => {
+        try {
+          const res = await axiosInstance.get("/problemdocs/countproblem");
+          if (res.data && typeof res.data.total === "number") {
+            setProblemCount(res.data.total);
+          } else if (typeof res.data === "number") {
+            setProblemCount(res.data);
+          }
+        } catch (err: any) {
+          if (err?.response?.status !== 403) {
+            console.error("Failed to fetch problem count:", err);
+          }
+        }
+      };
+      fetchProblemCount();
+
+      // Problemdoc socket for realtime updates
+      problemSocket = io(`${socketUrl}/problemdoc`, {
+        transports: ["websocket"],
+      });
+
+      problemSocket.on("problemdocUpdated", () => {
+        fetchProblemCount();
+      });
+
+      problemSocket.on("countProblemUpdated", () => {
+        fetchProblemCount();
+      });
+    } else {
+      setProblemCount(0);
+    }
+
     return () => {
       if (chatSocket) chatSocket.disconnect();
       if (meterSocket) meterSocket.disconnect();
+      if (problemSocket) problemSocket.disconnect();
     };
-  }, [filteredNavItems, loading]);
+  }, [filteredNavItems, roleId, loading]);
 
   // Auto-expand menu groups if a child route is active (only if sidebar is not collapsed)
   useEffect(() => {
@@ -267,7 +311,14 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
 
                         const isChildChat = child.href === "/chat";
                         const isChildMeter = child.href === "/registermeter";
-                        const childBadgeCount = isChildChat ? chatUnreadCount : isChildMeter ? meterCount : 0;
+                        const isChildProblem = child.href === "/problemdoc";
+                        const childBadgeCount = isChildChat
+                          ? chatUnreadCount
+                          : isChildMeter
+                          ? meterCount
+                          : isChildProblem
+                          ? problemCount
+                          : 0;
 
                         return (
                           <Link
@@ -302,7 +353,14 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
               const active = pathname === item.href;
               const isChat = item.href === "/chat";
               const isMeter = item.href === "/registermeter";
-              const badgeCount = isChat ? chatUnreadCount : isMeter ? meterCount : 0;
+              const isProblem = item.href === "/problemdoc";
+              const badgeCount = isChat
+                ? chatUnreadCount
+                : isMeter
+                ? meterCount
+                : isProblem
+                ? problemCount
+                : 0;
 
               return (
                 <Link

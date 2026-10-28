@@ -167,7 +167,7 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
           if (viewMapRef.current) {
             try {
               viewMapRef.current.remove();
-            } catch (_) {}
+            } catch (_) { }
             viewMapRef.current = null;
           }
 
@@ -196,9 +196,18 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
           const targetMarker = L.marker([initialLat, initialLng], {
             icon: DefaultIcon
           }).addTo(mapInstance);
-          targetMarker.bindPopup(`<b>ຈຸດແຈ້ງບັນຫາ: ${selectedDoc.fullName}</b>`).openPopup();
+          const safeFullName = String(selectedDoc.fullName || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+          targetMarker.bindPopup(`<b>ຈຸດແຈ້ງບັນຫາ: ${safeFullName}</b>`).openPopup();
 
           // Get user's current location and calculate route in real-time
+          let lastRoutedLoc: { lat: number; lng: number } | null = null;
+          let activeRouteController: AbortController | null = null;
+
           if (navigator.geolocation) {
             const startWatching = (highAccuracy: boolean) => {
               watchId = navigator.geolocation.watchPosition(
@@ -228,6 +237,24 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
                     userMarkerRef.current.bindPopup("<b>ຕຳແໜ່ງປັດຈຸບັນຂອງທ່ານ</b>");
                   }
 
+                  // Skip re-requesting OSRM route if user moved less than ~15 meters
+                  if (lastRoutedLoc) {
+                    const dLat = (currentLat - lastRoutedLoc.lat) * 111320;
+                    const dLng =
+                      (currentLng - lastRoutedLoc.lng) *
+                      111320 *
+                      Math.cos((currentLat * Math.PI) / 180);
+                    const movedMeters = Math.hypot(dLat, dLng);
+                    if (movedMeters < 15) {
+                      return;
+                    }
+                  }
+                  lastRoutedLoc = { lat: currentLat, lng: currentLng };
+
+                  if (activeRouteController) {
+                    activeRouteController.abort();
+                  }
+
                   const waypoints = getWaypoints(currentLat, currentLng, initialLat, initialLng);
                   const waypointStrings = waypoints.map(w => `${w.lng},${w.lat}`).join(";");
 
@@ -236,6 +263,7 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
                     : `https://router.project-osrm.org/route/v1/driving/${currentLng},${currentLat};${initialLng},${initialLat}?overview=full&geometries=geojson`;
 
                   const controller = new AbortController();
+                  activeRouteController = controller;
                   const timeoutId = setTimeout(() => controller.abort(), 4000);
 
                   fetch(routeUrl, { signal: controller.signal })
@@ -325,11 +353,11 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
       if (viewMapRef.current) {
         try {
           viewMapRef.current.remove();
-        } catch (_) {}
+        } catch (_) { }
         viewMapRef.current = null;
       }
     };
-  }, [open, selectedDoc]);
+  }, [open, selectedDoc?.id, selectedDoc?.lat, selectedDoc?.lng]);
 
   const getStatusBadgeClass = (statusId?: number | null) => {
     if (statusId === 1) {
@@ -787,6 +815,27 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
                               </span>
                             )}
                           </div>
+                          {(displayDoc.problemAssigns.typeRepair?.name ||
+                            displayDoc.problemAssigns.voltage?.name ||
+                            displayDoc.problemAssigns.carRepair) && (
+                              <div className="flex items-center gap-1.5 flex-wrap pt-1.5 border-t border-slate-200/50 dark:border-slate-800/50 text-[10px]">
+                                {displayDoc.problemAssigns.typeRepair?.name && (
+                                  <span className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-900/40 font-medium">
+                                    ປະເພດສ້ອມແປງ: {displayDoc.problemAssigns.typeRepair.name}
+                                  </span>
+                                )}
+                                {displayDoc.problemAssigns.voltage?.name && (
+                                  <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/50 dark:border-amber-900/40 font-medium">
+                                    ແຮງດັນ: {displayDoc.problemAssigns.voltage.name}
+                                  </span>
+                                )}
+                                {displayDoc.problemAssigns.carRepair && (
+                                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-900/40 font-medium">
+                                    ນຳໃຊ້ລົດອູ່ສ້ອມແປງ
+                                  </span>
+                                )}
+                              </div>
+                            )}
                         </div>
                       </div>
                     )}
@@ -836,23 +885,18 @@ export function ViewProblemdocModal({ open, onClose, selectedDoc }: ViewProblemd
                                 <div className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">
                                   {pe.equipment?.name || "ອຸປະກອນ"}
                                 </div>
-                                <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 flex-wrap">
-                                  {pe.typeEquipment?.name && (
-                                    <span className="px-1.5 py-0.5 rounded bg-slate-200/50 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                                      {pe.typeEquipment.name}
-                                    </span>
-                                  )}
-                                  {pe.comment && (
+                                {pe.comment && (
+                                  <div className="text-[10px] text-slate-400 mt-0.5">
                                     <span className="text-slate-500 dark:text-slate-400 italic truncate max-w-[220px]">
                                       ໝາຍເຫດ: {pe.comment}
                                     </span>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="shrink-0">
                               <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-200/50 dark:border-amber-900/40 tabular-nums">
-                                {pe.amount} {pe.typeUnit?.name || "ອັນ"}
+                                {pe.amount} {pe.equipment?.unit || "ອັນ"}
                               </span>
                             </div>
                           </div>

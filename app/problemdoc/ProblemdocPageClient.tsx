@@ -33,7 +33,7 @@ export function ProblemdocPageClient() {
       />
 
       <ProblemdocManagement
-        key={refreshKey}
+        refreshTrigger={refreshKey}
         onRepairRequest={handleRepairRequest}
       />
     </>

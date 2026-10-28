@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const equipmentBaseSchema = z.object({
-  typeEquipmentId: z.coerce.number().min(1, "ກະລຸນາເລືອກໝວດໝູ່ອຸປະກອນ"),
   name: z.string().trim().min(1, "ກະລຸນາໃສ່ຊື່ອຸປະກອນ"),
+  unit: z.string().trim().min(1, "ກະລຸນາໃສ່ຫົວໜ່ວຍ"),
 });
 
 export const createEquipmentSchema = equipmentBaseSchema;
@@ -10,18 +10,17 @@ export const updateEquipmentSchema = equipmentBaseSchema;
 
 export const equipmentSchema = z.object({
   id: z.number(),
-  typeEquipmentId: z.number(),
+  branchId: z.number().optional(),
   name: z.string(),
+  unit: z.string(),
   actived: z.boolean().optional(),
-  createdById: z.number(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  typeEquipment: z
+  createdById: z.number().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  branch: z
     .object({
       id: z.number(),
       name: z.string(),
-      code: z.string().nullable().optional(),
-      actived: z.boolean().optional(),
     })
     .nullable()
     .optional(),

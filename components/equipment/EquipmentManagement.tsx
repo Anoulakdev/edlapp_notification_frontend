@@ -9,7 +9,6 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   User,
   Calendar,
   FileText,
@@ -26,6 +25,7 @@ import { axiosInstance } from "@/lib/axiosInstance";
 import moment from "moment";
 import { ButtonTooltip } from "@/lib/Tooltip";
 import { Equipment } from "@/schemas/equipment";
+import { Badge } from "@/components/ui/Badge";
 
 // Modals
 import { AddEquipmentModal } from "./AddEquipmentModal";
@@ -37,12 +37,10 @@ const ROWS_PER_PAGE = 10;
 export function EquipmentManagement() {
   const router = useRouter();
   const [docs, setDocs] = useState<Equipment[]>([]);
-  const [typeEquipments, setTypeEquipments] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedTypeEquipmentFilter, setSelectedTypeEquipmentFilter] = useState<string>("");
 
   // Pagination State
   const [pagination, setPagination] = useState({
@@ -58,12 +56,12 @@ export function EquipmentManagement() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<Equipment | null>(null);
 
-  // Authenticate user & role check
+  // Authenticate user & role check (roles 5)
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const res = await axiosInstance.get("/auth/me");
-        if ([2, 3, 4].includes(res.data?.roleId)) {
+        if ([5].includes(res.data?.roleId)) {
           setAuthorized(true);
         } else {
           router.replace("/unauthorized");
@@ -76,21 +74,6 @@ export function EquipmentManagement() {
     checkAuth();
   }, [router]);
 
-  // Fetch type equipments for filter select
-  useEffect(() => {
-    if (authorized) {
-      const fetchTypeEquipments = async () => {
-        try {
-          const res = await axiosInstance.get("/typeequipments/selecttypeequipment");
-          setTypeEquipments(Array.isArray(res.data) ? res.data : []);
-        } catch (err) {
-          console.error("Failed to load type equipments:", err);
-        }
-      };
-      fetchTypeEquipments();
-    }
-  }, [authorized]);
-
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -102,7 +85,6 @@ export function EquipmentManagement() {
   // Fetch Equipments from backend
   const fetchDocs = useCallback(async (
     searchVal = "",
-    typeEquipmentId = "",
     page = 1,
     limit = ROWS_PER_PAGE
   ) => {
@@ -111,7 +93,6 @@ export function EquipmentManagement() {
       const res = await axiosInstance.get("/equipments", {
         params: {
           search: searchVal.trim() || undefined,
-          typeEquipmentId: typeEquipmentId || undefined,
           page,
           limit,
         },
@@ -139,7 +120,6 @@ export function EquipmentManagement() {
 
   const prevFiltersRef = useRef({
     debouncedSearch,
-    selectedTypeEquipmentFilter,
   });
 
   // Fetch data when filters or pagination changes
@@ -147,13 +127,10 @@ export function EquipmentManagement() {
     if (!authorized) return;
 
     const prev = prevFiltersRef.current;
-    const filtersChanged =
-      prev.debouncedSearch !== debouncedSearch ||
-      prev.selectedTypeEquipmentFilter !== selectedTypeEquipmentFilter;
+    const filtersChanged = prev.debouncedSearch !== debouncedSearch;
 
     prevFiltersRef.current = {
       debouncedSearch,
-      selectedTypeEquipmentFilter,
     };
 
     if (filtersChanged && pagination.pageIndex !== 0) {
@@ -163,14 +140,12 @@ export function EquipmentManagement() {
 
     fetchDocs(
       debouncedSearch,
-      selectedTypeEquipmentFilter,
       pagination.pageIndex + 1,
       pagination.pageSize
     );
   }, [
     authorized,
     debouncedSearch,
-    selectedTypeEquipmentFilter,
     pagination.pageIndex,
     pagination.pageSize,
     fetchDocs,
@@ -180,14 +155,12 @@ export function EquipmentManagement() {
   const handleRefresh = useCallback(() => {
     fetchDocs(
       debouncedSearch,
-      selectedTypeEquipmentFilter,
       pagination.pageIndex + 1,
       pagination.pageSize
     );
   }, [
     fetchDocs,
     debouncedSearch,
-    selectedTypeEquipmentFilter,
     pagination.pageIndex,
     pagination.pageSize,
   ]);
@@ -212,9 +185,28 @@ export function EquipmentManagement() {
       setDeleteOpen(false);
       toast.success("ລົບຂໍ້ມູນອຸປະກອນສຳເລັດ");
       handleRefresh();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete equipment:", err);
-      toast.error("ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ");
+      const errMsg = err?.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການລົບຂໍ້ມູນ";
+      toast.error(errMsg);
+    }
+  };
+
+  const toggleStatus = async (doc: Equipment) => {
+    const nextStatus = doc.actived ? "false" : "true";
+    try {
+      await axiosInstance.put(
+        `/equipments/updatestatus/${doc.id}?actived=${nextStatus}`
+      );
+      setDocs((prev) =>
+        prev.map((d) =>
+          d.id === doc.id ? { ...d, actived: !doc.actived } : d
+        )
+      );
+      toast.success("ປ່ຽນສະຖານະສຳເລັດ");
+    } catch (err) {
+      console.error("Failed to toggle equipment status:", err);
+      toast.error("ເກີດຂໍ້ຜິດພາດໃນການປ່ຽນສະຖານະ");
     }
   };
 
@@ -245,15 +237,34 @@ export function EquipmentManagement() {
         },
       },
       {
-        id: "typeEquipment",
-        header: "ໝວດໝູ່ອຸປະກອນ",
+        accessorKey: "unit",
+        header: "ຫົວໜ່ວຍ",
         cell: ({ row }) => {
           const doc = row.original;
           return (
             <span className="text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5 whitespace-nowrap">
               <Box className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              {doc.typeEquipment?.name || "-"}
+              {doc.unit || "-"}
             </span>
+          );
+        },
+      },
+      {
+        accessorKey: "actived",
+        header: "ສະຖານະ",
+        cell: ({ row }) => {
+          const doc = row.original;
+          const isActive = !!doc.actived;
+          return (
+            <button
+              onClick={() => toggleStatus(doc)}
+              className="focus:outline-none hover:opacity-80 transition-opacity cursor-pointer"
+              title={isActive ? "ຄລິກເພື່ອປິດການໃຊ້ງານ" : "ຄລິກເພື່ອເປີດການໃຊ້ງານ"}
+            >
+              <Badge color={isActive ? "success" : "danger"}>
+                {isActive ? "ເປີດໃຊ້ງານ" : "ປິດໃຊ້ງານ"}
+              </Badge>
+            </button>
           );
         },
       },
@@ -427,34 +438,6 @@ export function EquipmentManagement() {
             />
           </div>
 
-          <div className="relative w-full sm:w-60">
-            <select
-              value={selectedTypeEquipmentFilter}
-              onChange={(e) => setSelectedTypeEquipmentFilter(e.target.value)}
-              className="w-full pl-3 pr-10 py-2 h-[38px] appearance-none rounded-xl text-sm outline-none transition-all cursor-pointer"
-              style={{
-                fontFamily: "inherit",
-                background: "rgb(var(--bg))",
-                border: "1px solid rgb(var(--border))",
-                color: "rgb(var(--text-primary))",
-              }}
-              onFocus={(e) =>
-                (e.currentTarget.style.borderColor = "rgb(var(--brand))")
-              }
-              onBlur={(e) =>
-                (e.currentTarget.style.borderColor = "rgb(var(--border))")
-              }
-            >
-              <option value="">-- ໝວດໝູ່ອຸປະກອນທັງໝົດ --</option>
-              {typeEquipments.map((t) => (
-                <option key={t.id} value={String(t.id)}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
           <div className="flex items-center gap-2 sm:ml-auto">
             <span className="text-xs text-slate-500">
               {totalCount} ລາຍການ
@@ -474,18 +457,20 @@ export function EquipmentManagement() {
                   {headerGroup.headers.map((header) => {
                     const widthClass =
                       header.id === "index"
-                        ? "w-[8%] min-w-[60px]"
+                        ? "w-[6%] min-w-[50px]"
                         : header.id === "name"
-                          ? "w-[30%] min-w-[180px]"
-                          : header.id === "typeEquipment"
-                            ? "w-[25%] min-w-[150px]"
-                            : header.id === "creator"
-                              ? "w-[17%] min-w-[130px]"
-                              : header.id === "createdAt"
-                                ? "w-[12%] min-w-[110px]"
-                                : header.id === "actions"
-                                  ? "w-[8%] min-w-[70px]"
-                                  : "";
+                          ? "w-[28%] min-w-[160px]"
+                          : header.id === "unit"
+                            ? "w-[16%] min-w-[100px]"
+                            : header.id === "actived"
+                              ? "w-[16%] min-w-[110px]"
+                              : header.id === "creator"
+                                ? "w-[18%] min-w-[120px]"
+                                : header.id === "createdAt"
+                                  ? "w-[10%] min-w-[100px]"
+                                  : header.id === "actions"
+                                    ? "w-[6%] min-w-[70px]"
+                                    : "";
                     return (
                       <th
                         key={header.id}

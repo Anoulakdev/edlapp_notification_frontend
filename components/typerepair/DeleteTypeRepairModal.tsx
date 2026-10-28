@@ -5,14 +5,14 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/FormElements";
 import { Trash2 } from "lucide-react";
 
-interface DeleteTypeUnitModalProps {
+interface DeleteTypeRepairModalProps {
   open: boolean;
   onClose: () => void;
   onDelete: () => Promise<void>;
   selectedDoc: { id: number; name: string } | null;
 }
 
-export function DeleteTypeUnitModal({ open, onClose, onDelete, selectedDoc }: DeleteTypeUnitModalProps) {
+export function DeleteTypeRepairModal({ open, onClose, onDelete, selectedDoc }: DeleteTypeRepairModalProps) {
   const [saving, setSaving] = useState(false);
 
   const handleDelete = async () => {
@@ -21,14 +21,14 @@ export function DeleteTypeUnitModal({ open, onClose, onDelete, selectedDoc }: De
       await onDelete();
       onClose();
     } catch (err) {
-      console.error("Failed to delete type unit:", err);
+      console.error("Failed to delete type repair:", err);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="ລົບຂໍ້ມູນຫົວໜ່ວຍ" size="sm">
+    <Modal open={open} onClose={onClose} title="ລົບຂໍ້ມູນປະເພດສ້ອມແປງ" size="sm">
       <div className="space-y-5" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
         <div
           className="flex items-center gap-4 p-4 rounded-xl"

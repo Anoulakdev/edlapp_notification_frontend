@@ -60,6 +60,12 @@ export const problemDocSchema = z.object({
   problemstatusId: z.number(),
   branchId: z.number().nullable().optional(),
   repairDistrictId: z.number().nullable().optional(),
+  parentProblemId: z.number().nullable().optional(),
+  isChild: z.boolean().optional(),
+  isParent: z.boolean().optional(),
+  isMain: z.boolean().optional(),
+  docType: z.enum(["parent", "child", "main"]).optional(),
+  duplicateCount: z.number().optional(),
   createdById: z.number(),
   createdName: z.string().optional().nullable(),
   createdTel: z.string().optional().nullable(),
@@ -155,33 +161,39 @@ export const problemDocSchema = z.object({
       commentText: z.string().nullable().optional(),
       commentAudio: z.string().nullable().optional(),
       commentImg: z.string().nullable().optional(),
+      carRepair: z.boolean().nullable().optional(),
+      voltageId: z.number().nullable().optional(),
+      voltage: z
+        .object({
+          id: z.number(),
+          name: z.string(),
+        })
+        .nullable()
+        .optional(),
+      typeRepairId: z.number().nullable().optional(),
+      typeRepair: z
+        .object({
+          id: z.number(),
+          name: z.string(),
+        })
+        .nullable()
+        .optional(),
       problemEquipments: z
         .array(
           z.object({
             id: z.number().optional(),
-            typeEquipmentId: z.number(),
+            problemAssignId: z.number().optional(),
             equipmentId: z.number(),
             amount: z.number(),
-            typeUnitId: z.number(),
             comment: z.string().nullable().optional(),
-            typeEquipment: z
-              .object({
-                id: z.number(),
-                name: z.string(),
-              })
-              .optional(),
             equipment: z
               .object({
                 id: z.number(),
                 name: z.string(),
+                unit: z.string().optional().nullable(),
               })
-              .optional(),
-            typeUnit: z
-              .object({
-                id: z.number(),
-                name: z.string(),
-              })
-              .optional(),
+              .optional()
+              .nullable(),
           })
         )
         .nullable()
@@ -241,6 +253,24 @@ export const problemDocSchema = z.object({
         .optional(),
     })
     .nullable()
+    .optional(),
+  parentProblem: z
+    .object({
+      id: z.number(),
+      fullName: z.string(),
+      tel: z.string(),
+    })
+    .nullable()
+    .optional(),
+  duplicateProblems: z
+    .array(
+      z.object({
+        id: z.number(),
+        fullName: z.string(),
+        tel: z.string(),
+        problemstatusId: z.number().optional().nullable(),
+      }),
+    )
     .optional(),
 });
 

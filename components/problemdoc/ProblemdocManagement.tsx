@@ -41,11 +41,27 @@ import { AlreadyReportedModal } from "./AlreadyReportedModal";
 
 const ROWS_PER_PAGE = 10;
 
+const getDistanceInMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  const R = 6371e3; // metres
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 interface ProblemdocManagementProps {
   onRepairRequest?: (doc: ProblemDoc) => void;
+  refreshTrigger?: number;
 }
 
-export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementProps = {}) {
+export function ProblemdocManagement({ onRepairRequest, refreshTrigger }: ProblemdocManagementProps = {}) {
   const router = useRouter();
   const [docs, setDocs] = useState<ProblemDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,18 +103,15 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
   const [currentUserDistrictId, setCurrentUserDistrictId] = useState<number | null>(null);
 
   const effectiveProvinceId = useMemo(() => {
-    if (currentUserRoleId === 4 || currentUserRoleId === 5) {
+    if (currentUserRoleId === 5) {
       return currentUserProvinceId ? String(currentUserProvinceId) : "";
     }
     return selectedProvinceId;
   }, [currentUserRoleId, currentUserProvinceId, selectedProvinceId]);
 
   const effectiveDistrictId = useMemo(() => {
-    if (currentUserRoleId === 5) {
-      return currentUserDistrictId ? String(currentUserDistrictId) : "";
-    }
     return selectedDistrictId;
-  }, [currentUserRoleId, currentUserDistrictId, selectedDistrictId]);
+  }, [selectedDistrictId]);
 
   // Modals States
   const [addOpen, setAddOpen] = useState(false);
@@ -107,7 +120,9 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
   const [assignOpen, setAssignOpen] = useState(false);
   const [alreadyReportedOpen, setAlreadyReportedOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<ProblemDoc | null>(null);
+  const [nearbyModalDoc, setNearbyModalDoc] = useState<{ doc: ProblemDoc; nearby: any[] } | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
 
   // Fetch Current Logged-in User Profile on mount
   useEffect(() => {
@@ -120,6 +135,8 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
         setCurrentUserDistrictId(res.data?.districtId || null);
       } catch (err) {
         console.error("Failed to load user profile:", err);
+      } finally {
+        setAuthLoaded(true);
       }
     };
     fetchCurrentUser();
@@ -209,46 +226,15 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
     setAssignOpen(true);
   };
 
-  const openRepair = (doc: ProblemDoc) => {
+  const openRepair = useCallback((doc: ProblemDoc) => {
     if (onRepairRequest) {
       onRepairRequest(doc);
     }
-  };
-
-  const handleAcceptWork = async (doc: ProblemDoc) => {
-    try {
-      await axiosInstance.put(`/problemdocs/updatereceiver/${doc.id}`, {
-        problemstatusId: 3,
-      });
-      toast.success("ຮັບວຽກສຳເລັດ");
-      handleRefresh();
-    } catch (err: any) {
-      console.error("Failed to receive work:", err);
-      const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການຮັບວຽກ";
-      toast.error(errMsg);
-    }
-  };
+  }, [onRepairRequest]);
 
   const openAlreadyReported = (doc: ProblemDoc) => {
     setSelectedDoc(doc);
     setAlreadyReportedOpen(true);
-  };
-
-  const handleConfirmAlreadyReported = async () => {
-    if (!selectedDoc) return;
-    try {
-      await axiosInstance.put(`/problemdocs/updatestatus/${selectedDoc.id}`, {
-        problemstatusId: 5,
-      });
-      toast.success("ອັບເດດສະຖານະເປັນ 'ຈຸດນີ້ໄດ້ຖືກແຈ້ງແລ້ວ' ສຳເລັດ");
-      setAlreadyReportedOpen(false);
-      setSelectedDoc(null);
-      handleRefresh();
-    } catch (err: any) {
-      console.error("Failed to update status:", err);
-      const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະ";
-      toast.error(errMsg);
-    }
   };
 
   // Debounce search input
@@ -325,6 +311,8 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
 
   // Fetch documents when filter state or pagination changes
   useEffect(() => {
+    if (!authLoaded) return;
+
     const prev = prevFiltersRef.current;
     const filtersChanged =
       prev.debouncedSearch !== debouncedSearch ||
@@ -368,6 +356,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       pagination.pageSize
     );
   }, [
+    authLoaded,
     debouncedSearch,
     problemDate,
     effectiveProvinceId,
@@ -489,6 +478,46 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
       pagination.pageSize
     );
   }, [fetchDocs, debouncedSearch, problemDate, effectiveProvinceId, effectiveDistrictId, selectedVillageId, selectedProblemTypeId, selectedProblemStatusId, selectedSourceTypeId, filterMyDocs, pagination.pageIndex, pagination.pageSize]);
+
+  // Refresh in place when parent triggers refreshTrigger (e.g. after RepairProblemdocModal completes)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      handleRefresh();
+    }
+  }, [refreshTrigger, handleRefresh]);
+
+  const handleAcceptWork = useCallback(async (doc: ProblemDoc) => {
+    try {
+      await axiosInstance.put(`/problemdocs/updatereceiver/${doc.id}`, {
+        problemstatusId: 3,
+      });
+      toast.success("ຮັບວຽກສຳເລັດ");
+      handleRefresh();
+    } catch (err: any) {
+      console.error("Failed to receive work:", err);
+      const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການຮັບວຽກ";
+      toast.error(errMsg);
+    }
+  }, [handleRefresh]);
+
+  const handleConfirmAlreadyReported = async (parentProblemId?: number) => {
+    if (!selectedDoc) return;
+    try {
+      await axiosInstance.put(`/problemdocs/updateparentproblem/${selectedDoc.id}`, {
+        problemstatusId: 5,
+        parentProblemId: parentProblemId ? Number(parentProblemId) : undefined,
+      });
+      toast.success("ອັບເດດສະຖານະເປັນ 'ຈຸດນີ້ໄດ້ຖືກແຈ້ງແລ້ວ' ສຳເລັດ");
+      setAlreadyReportedOpen(false);
+      setSelectedDoc(null);
+      handleRefresh();
+    } catch (err: any) {
+      console.error("Failed to update parent problem:", err);
+      const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການອັບເດດ";
+      toast.error(errMsg);
+      throw err;
+    }
+  };
 
   // Handlers
   const openAdd = () => setAddOpen(true);
@@ -641,15 +670,90 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
           );
         },
       },
+      ...(currentUserRoleId === 5
+        ? [
+          {
+            id: "nearbyRepairs",
+            header: "ມີຈຸດສ້ອມແປງໃກ້ຄຽງ",
+            cell: ({ row }: any) => {
+              const doc = row.original;
+
+              if (doc.problemstatusId !== 1) {
+                return (
+                  <span className="text-xs font-semibold text-slate-350 dark:text-slate-600 px-2">-</span>
+                );
+              }
+
+              const rawNearby: any[] = (doc as any).nearbyProblems && Array.isArray((doc as any).nearbyProblems)
+                ? (doc as any).nearbyProblems
+                : docs
+                  .filter(
+                    (other) =>
+                      other.id !== doc.id &&
+                      (other.problemstatusId === 2 || other.problemstatusId === 3) &&
+                      other.lat &&
+                      other.lng &&
+                      doc.lat &&
+                      doc.lng &&
+                      getDistanceInMeters(doc.lat, doc.lng, other.lat, other.lng) <= 1000
+                  )
+                  .map((other) => ({
+                    id: other.id,
+                    fullName: other.fullName,
+                    tel: other.tel,
+                    problemtype: other.problemtype,
+                    village: other.village,
+                    problemstatusId: other.problemstatusId,
+                    problemstatus: other.problemstatus,
+                    distance: Math.round(getDistanceInMeters(doc.lat, doc.lng, other.lat, other.lng)),
+                  }))
+                  .sort((a, b) => a.distance - b.distance);
+
+              const nearby = rawNearby.filter(
+                (n) => n.problemstatusId === 2 || n.problemstatusId === 3
+              );
+
+              const hasNearby = nearby.length > 0;
+
+              if (!hasNearby) {
+                return (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800/50 dark:text-slate-500 whitespace-nowrap">
+                    ບໍ່ມີ
+                  </span>
+                );
+              }
+
+              const nearest = nearby[0];
+              const tooltipContent = nearby
+                .map((n: any) => `#${n.id} ${n.fullName || ""} (${n.distance}m)`)
+                .join(", ");
+
+              return (
+                <ButtonTooltip text={tooltipContent}>
+                  <button
+                    type="button"
+                    onClick={() => setNearbyModalDoc({ doc, nearby })}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>ມີ ({nearby.length} ຈຸດ)</span>
+                    <span className="text-[10px] opacity-80 font-normal">~{nearest.distance}m</span>
+                  </button>
+                </ButtonTooltip>
+              );
+            },
+          } as ColumnDef<ProblemDoc>,
+        ]
+        : []),
       {
         id: "actions",
         header: "#",
         cell: ({ row }) => {
           const doc = row.original;
           const isCreator = currentUserId !== null && Number(currentUserId) === Number(doc.createdById);
-          const canAssign = currentUserRoleId === 3 && (doc.problemstatusId === 1 || doc.problemstatusId === 2);
+          const canAssign = currentUserRoleId === 5 && (doc.problemstatusId === 1 || doc.problemstatusId === 2);
           const isAssigned = Boolean(doc.branchId && doc.repairDistrictId);
-          const canMarkAlreadyReported = currentUserRoleId === 3 && (doc.problemstatusId === 1);
+          const canMarkAlreadyReported = currentUserRoleId === 5 && (doc.problemstatusId === 1);
           const canReceiveWork = currentUserRoleId === 6 && doc.problemstatusId === 2;
           const canRepairWork = currentUserRoleId === 6 && doc.problemstatusId === 3;
 
@@ -739,7 +843,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
         },
       },
     ],
-    [currentUserId, currentUserRoleId]
+    [currentUserId, currentUserRoleId, docs, handleAcceptWork, openRepair]
   );
 
   const filteredDocs = useMemo(() => {
@@ -871,7 +975,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
                 />
               </div>
 
-              {currentUserRoleId !== 4 && currentUserRoleId !== 5 && (
+              {currentUserRoleId !== 4 && currentUserRoleId !== 5 && currentUserRoleId !== 6 && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-500 uppercase">ແຂວງ</label>
                   <div className="relative w-full">
@@ -893,7 +997,7 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
                 </div>
               )}
 
-              {currentUserRoleId !== 5 && (
+              {currentUserRoleId !== 6 && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-500 uppercase">ເມືອງ</label>
                   <div className="relative w-full">
@@ -997,20 +1101,22 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
                 </div>
               </div>
 
-              <div className="flex items-center pb-2.5">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={filterMyDocs}
-                    onChange={(e) => setFilterMyDocs(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-350 dark:border-slate-700 bg-transparent focus:ring-brand cursor-pointer"
-                    style={{ accentColor: "rgb(var(--brand))" }}
-                  />
-                  <span className="text-xs font-semibold text-slate-500 uppercase">ສະເພາະເອກະສານຂອງຂ້ອຍ</span>
-                </label>
-              </div>
+              {currentUserRoleId === 4 && (
+                <div className="flex items-center pb-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={filterMyDocs}
+                      onChange={(e) => setFilterMyDocs(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-350 dark:border-slate-700 bg-transparent focus:ring-brand cursor-pointer"
+                      style={{ accentColor: "rgb(var(--brand))" }}
+                    />
+                    <span className="text-xs font-semibold text-slate-500 uppercase">ສະເພາະເອກະສານຂອງຂ້ອຍ</span>
+                  </label>
+                </div>
+              )}
 
-              <div className="flex items-center pb-2.5 sm:col-span-2 md:col-span-1 justify-end">
+              <div className="flex items-center pb-2.5 sm:col-span-2 md:col-span-1 md:col-start-4 justify-end">
                 <button
                   onClick={handleClearFilters}
                   className="text-xs font-medium text-slate-500 hover:underline"
@@ -1176,6 +1282,84 @@ export function ProblemdocManagement({ onRepairRequest }: ProblemdocManagementPr
         }}
         selectedDoc={selectedDoc}
       />
+
+      {nearbyModalDoc && (
+        <Modal
+          open={Boolean(nearbyModalDoc)}
+          onClose={() => setNearbyModalDoc(null)}
+          title="ຈຸດສ້ອມແປງໃກ້ຄຽງ (ລັດສະໝີ 1,000 ແມັດ)"
+          size="md"
+        >
+          <div className="space-y-4" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-xs">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                ເອກະສານຫຼັກ: #{nearbyModalDoc.doc.id} - {nearbyModalDoc.doc.fullName}
+              </span>
+              <p className="text-slate-500 mt-0.5">
+                {[nearbyModalDoc.doc.village?.village_name, nearbyModalDoc.doc.district?.district_name, nearbyModalDoc.doc.province?.province_name].filter(Boolean).join(", ")}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                ພົບ {nearbyModalDoc.nearby.length} ຈຸດໃກ້ຄຽງ:
+              </div>
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {nearbyModalDoc.nearby.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          #{item.id} - {item.fullName || "ບໍ່ລະບຸຊື່"}
+                        </span>
+                        {item.problemtype?.name && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            {item.problemtype.name}
+                          </span>
+                        )}
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${item.problemstatusId === 2
+                            ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                            }`}
+                        >
+                          {item.problemstatus?.callcenter ||
+                            (item.problemstatusId === 2
+                              ? "ມອບໝາຍແລ້ວ"
+                              : "ກຳລັງສ້ອມແປງ")}
+                        </span>
+                      </div>
+                      <div className="text-slate-500 mt-1 flex items-center gap-3">
+                        {item.tel && <span>ໂທ: {item.tel}</span>}
+                        {item.village?.village_name && <span>ບ້ານ: {item.village.village_name}</span>}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                        ~{item.distance} ແມັດ
+                      </div>
+                      <span className="text-[10px] text-slate-400">ຫ່າງຈາກຈຸດນີ້</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setNearbyModalDoc(null)}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:opacity-80 transition-opacity"
+              >
+                ປິດ
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

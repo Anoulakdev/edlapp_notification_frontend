@@ -4,17 +4,17 @@ import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Button } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
-import { editTypeUnitSchema } from "@/schemas/typeunit";
+import { editTypeRepairSchema } from "@/schemas/typerepair";
 import { toast } from "react-toastify";
 
-interface EditTypeUnitModalProps {
+interface EditTypeRepairModalProps {
   open: boolean;
   onClose: () => void;
   selectedDoc: { id: number; name: string } | null;
   onRefresh: () => void;
 }
 
-export function EditTypeUnitModal({ open, onClose, selectedDoc, onRefresh }: EditTypeUnitModalProps) {
+export function EditTypeRepairModal({ open, onClose, selectedDoc, onRefresh }: EditTypeRepairModalProps) {
   const [name, setName] = useState("");
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -26,14 +26,14 @@ export function EditTypeUnitModal({ open, onClose, selectedDoc, onRefresh }: Edi
       const fetchDocDetails = async () => {
         try {
           setLoadingDoc(true);
-          const res = await axiosInstance.get(`/typeunits/${selectedDoc.id}`);
+          const res = await axiosInstance.get(`/typerepairs/${selectedDoc.id}`);
           const doc = res.data;
 
           setName(doc.name || "");
           setErrors({});
         } catch (err) {
-          console.error("Failed to load type unit details:", err);
-          setErrors({ apiError: "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນຫົວໜ່ວຍໄດ້" });
+          console.error("Failed to load type repair details:", err);
+          setErrors({ apiError: "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນປະເພດສ້ອມແປງໄດ້" });
         } finally {
           setLoadingDoc(false);
         }
@@ -45,7 +45,7 @@ export function EditTypeUnitModal({ open, onClose, selectedDoc, onRefresh }: Edi
   const handleSubmit = async () => {
     if (!selectedDoc) return;
 
-    const result = editTypeUnitSchema.safeParse({
+    const result = editTypeRepairSchema.safeParse({
       name,
     });
 
@@ -63,15 +63,15 @@ export function EditTypeUnitModal({ open, onClose, selectedDoc, onRefresh }: Edi
     setSaving(true);
 
     try {
-      await axiosInstance.put(`/typeunits/${selectedDoc.id}`, {
+      await axiosInstance.put(`/typerepairs/${selectedDoc.id}`, {
         name: name.trim(),
       });
 
-      toast.success("ແກ້ໄຂຂໍ້ມູນຫົວໜ່ວຍສຳເລັດ");
+      toast.success("ແກ້ໄຂຂໍ້ມູນປະເພດສ້ອມແປງສຳເລັດ");
       onRefresh();
       onClose();
     } catch (err: any) {
-      console.error("Failed to update type unit:", err);
+      console.error("Failed to update type repair:", err);
       const errMsg = err.response?.data?.message || "ເກີດຂໍ້ຜິດພາດໃນການອັບເດດຂໍ້ມູນ";
       setErrors({ apiError: errMsg });
       toast.error(errMsg);
@@ -81,7 +81,7 @@ export function EditTypeUnitModal({ open, onClose, selectedDoc, onRefresh }: Edi
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="ແກ້ໄຂຂໍ້ມູນຫົວໜ່ວຍ" size="md">
+    <Modal open={open} onClose={onClose} title="ແກ້ໄຂຂໍ້ມູນປະເພດສ້ອມແປງ" size="md">
       {loadingDoc ? (
         <div className="py-20 flex flex-col items-center justify-center gap-3">
           <div className="w-10 h-10 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
@@ -97,8 +97,8 @@ export function EditTypeUnitModal({ open, onClose, selectedDoc, onRefresh }: Edi
 
           <div className="space-y-4">
             <Input
-              label="ຊື່ຫົວໜ່ວຍ *"
-              placeholder="ປ້ອນຊື່ຫົວໜ່ວຍ..."
+              label="ຊື່ປະເພດສ້ອມແປງ *"
+              placeholder="ປ້ອນຊື່ປະເພດສ້ອມແປງ..."
               value={name}
               onChange={(e) => setName(e.target.value)}
               error={errors.name}
@@ -110,7 +110,7 @@ export function EditTypeUnitModal({ open, onClose, selectedDoc, onRefresh }: Edi
               ຍົກເລີກ
             </Button>
             <Button variant="primary" onClick={handleSubmit} loading={saving} className="flex-1">
-              ບັນທຶກ
+              ອັບເດດ
             </Button>
           </div>
         </div>

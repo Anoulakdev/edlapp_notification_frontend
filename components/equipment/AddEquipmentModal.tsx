@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input, Select, Button } from "@/components/ui/FormElements";
+import { Input, Button } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { createEquipmentSchema } from "@/schemas/equipment";
 import { toast } from "react-toastify";
@@ -19,40 +19,23 @@ export function AddEquipmentModal({
   onClose,
   onRefresh,
 }: AddEquipmentModalProps) {
-  const [typeEquipmentId, setTypeEquipmentId] = useState<string>("");
   const [name, setName] = useState("");
+  const [unit, setUnit] = useState("");
   const [saving, setSaving] = useState(false);
-  const [loadingTypeEquipments, setLoadingTypeEquipments] = useState(false);
-  const [typeEquipments, setTypeEquipments] = useState<{ id: number; name: string }[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open) {
-      setTypeEquipmentId("");
       setName("");
+      setUnit("");
       setErrors({});
-
-      const fetchTypeEquipments = async () => {
-        try {
-          setLoadingTypeEquipments(true);
-          const res = await axiosInstance.get("/typeequipments/selecttypeequipment");
-          setTypeEquipments(Array.isArray(res.data) ? res.data : []);
-        } catch (err) {
-          console.error("Failed to load type equipments:", err);
-          toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນໝວດໝູ່ອຸປະກອນໄດ້");
-        } finally {
-          setLoadingTypeEquipments(false);
-        }
-      };
-
-      fetchTypeEquipments();
     }
   }, [open]);
 
   const handleSubmit = async () => {
     const result = createEquipmentSchema.safeParse({
-      typeEquipmentId: typeEquipmentId ? Number(typeEquipmentId) : 0,
       name,
+      unit,
     });
 
     if (!result.success) {
@@ -70,8 +53,8 @@ export function AddEquipmentModal({
 
     try {
       await axiosInstance.post("/equipments", {
-        typeEquipmentId: Number(typeEquipmentId),
         name: name.trim(),
+        unit: unit.trim(),
       });
 
       toast.success("ເພີ່ມຂໍ້ມູນອຸປະກອນສຳເລັດ");
@@ -88,19 +71,6 @@ export function AddEquipmentModal({
     }
   };
 
-  const typeEquipmentOptions = [
-    {
-      value: "",
-      label: loadingTypeEquipments
-        ? "ກຳລັງໂຫຼດໝວດໝູ່ອຸປະກອນ..."
-        : "-- ເລືອກໝວດໝູ່ອຸປະກອນ --",
-    },
-    ...typeEquipments.map((t) => ({
-      value: String(t.id),
-      label: t.name,
-    })),
-  ];
-
   return (
     <Modal open={open} onClose={onClose} title="ເພີ່ມຂໍ້ມູນອຸປະກອນ" size="md">
       <div
@@ -114,21 +84,20 @@ export function AddEquipmentModal({
         )}
 
         <div className="space-y-4">
-          <Select
-            label="ໝວດໝູ່ອຸປະກອນ *"
-            options={typeEquipmentOptions}
-            value={typeEquipmentId}
-            onChange={(e) => setTypeEquipmentId(e.target.value)}
-            error={errors.typeEquipmentId}
-            disabled={loadingTypeEquipments}
-          />
-
           <Input
             label="ຊື່ອຸປະກອນ *"
             placeholder="ປ້ອນຊື່ອຸປະກອນ..."
             value={name}
             onChange={(e) => setName(e.target.value)}
             error={errors.name}
+          />
+
+          <Input
+            label="ຫົວໜ່ວຍ *"
+            placeholder="ປ້ອນຫົວໜ່ວຍ (ເຊັ່ນ: ອັນ, ຊຸດ, ແມັດ, ຫຼອດ...)..."
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            error={errors.unit}
           />
         </div>
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, memo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Button, Textarea } from "@/components/ui/FormElements";
+import { Button, Textarea, Select, Checkbox } from "@/components/ui/FormElements";
 import { axiosInstance } from "@/lib/axiosInstance";
 import { toast } from "react-toastify";
 import { ProblemDoc } from "@/schemas/problemdoc";
@@ -12,35 +12,35 @@ import {
   X,
   Square,
   Wrench,
-  Plus,
-  Trash2,
-  PackageCheck,
+  Search,
+  Truck,
+  FileText,
 } from "lucide-react";
 import moment from "moment";
 
-interface EquipmentRow {
-  id: string;
-  typeEquipmentId: string;
-  equipmentId: string;
+interface SelectedEquipmentState {
+  checked: boolean;
   amount: number | string;
-  typeUnitId: string;
   comment: string;
-}
-
-interface TypeEquipmentItem {
-  id: number;
-  name: string;
-  code?: string;
 }
 
 interface EquipmentItem {
   id: number;
   name: string;
-  typeEquipmentId?: number;
-  typeEquipment?: { id: number; name: string };
+  unit?: string;
+  branchId?: number;
+  branch?: {
+    id: number;
+    name: string;
+  };
 }
 
-interface TypeUnitItem {
+interface TypeRepairItem {
+  id: number;
+  name: string;
+}
+
+interface VoltageItem {
   id: number;
   name: string;
 }
@@ -66,11 +66,19 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Type of Repair, Voltage & Car Repair states
+  const [typeRepairId, setTypeRepairId] = useState("");
+  const [voltageId, setVoltageId] = useState("");
+  const [carRepair, setCarRepair] = useState(false);
+  const [typeRepairs, setTypeRepairs] = useState<TypeRepairItem[]>([]);
+  const [voltages, setVoltages] = useState<VoltageItem[]>([]);
+
   // Equipment states
-  const [equipments, setEquipments] = useState<EquipmentRow[]>([]);
-  const [typeEquipments, setTypeEquipments] = useState<TypeEquipmentItem[]>([]);
+  const [selectedEquipments, setSelectedEquipments] = useState<
+    Record<number, SelectedEquipmentState>
+  >({});
   const [equipmentsList, setEquipmentsList] = useState<EquipmentItem[]>([]);
-  const [typeUnits, setTypeUnits] = useState<TypeUnitItem[]>([]);
+  const [equipmentSearch, setEquipmentSearch] = useState("");
   const [loadingMasterData, setLoadingMasterData] = useState(false);
 
   const imgInputRef = useRef<HTMLInputElement>(null);
@@ -107,7 +115,7 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
     audioChunksRef.current = [];
   }, []);
 
-  // Fetch master data for equipments when modal opens
+  // Fetch master data for equipments, type repairs, and voltages when modal opens
   useEffect(() => {
     if (!open) return;
 
@@ -115,18 +123,18 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
     const fetchMasterData = async () => {
       setLoadingMasterData(true);
       try {
-        const [resTypes, resEquips, resUnits] = await Promise.all([
-          axiosInstance.get("/typeequipments/selecttypeequipment"),
+        const [resEquips, resTypeRepairs, resVoltages] = await Promise.all([
           axiosInstance.get("/equipments/selectequipment"),
-          axiosInstance.get("/typeunits/selecttypeunit"),
+          axiosInstance.get("/typerepairs/selecttyperepair"),
+          axiosInstance.get("/voltages/selectvoltage"),
         ]);
         if (isMounted) {
-          setTypeEquipments(Array.isArray(resTypes.data) ? resTypes.data : []);
           setEquipmentsList(Array.isArray(resEquips.data) ? resEquips.data : []);
-          setTypeUnits(Array.isArray(resUnits.data) ? resUnits.data : []);
+          setTypeRepairs(Array.isArray(resTypeRepairs.data) ? resTypeRepairs.data : []);
+          setVoltages(Array.isArray(resVoltages.data) ? resVoltages.data : []);
         }
       } catch (err) {
-        console.error("Failed to load master data for equipment:", err);
+        console.error("Failed to load master data for repair:", err);
       } finally {
         if (isMounted) setLoadingMasterData(false);
       }
@@ -139,73 +147,138 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
     };
   }, [open]);
 
+  // Merge master equipments with any existing equipments on the problemdoc
+  const displayEquipments = useMemo(() => {
+    const list = [...equipmentsList];
+    if (selectedDoc?.problemAssigns?.problemEquipments) {
+      selectedDoc.problemAssigns.problemEquipments.forEach((pe) => {
+        const eqId = Number(pe.equipmentId || (pe as any).equipment?.id);
+        if (eqId && !list.some((e) => e.id === eqId)) {
+          list.push({
+            id: eqId,
+            name: (pe as any).equipment?.name || `ອຸປະກອນ #${eqId}`,
+            unit: (pe as any).equipment?.unit || "",
+          });
+        }
+      });
+    }
+    return list;
+  }, [equipmentsList, selectedDoc]);
+
+  // Filtered equipments based on search
+  const filteredEquipments = useMemo(() => {
+    if (!equipmentSearch.trim()) return displayEquipments;
+    const term = equipmentSearch.toLowerCase();
+    return displayEquipments.filter(
+      (eq) =>
+        eq.name.toLowerCase().includes(term) ||
+        (eq.unit && eq.unit.toLowerCase().includes(term))
+    );
+  }, [displayEquipments, equipmentSearch]);
+
+  // Checked equipments list
+  const checkedEquipments = useMemo(() => {
+    return Object.entries(selectedEquipments)
+      .filter(([_, item]) => item.checked)
+      .map(([eqId, item]) => ({
+        equipmentId: Number(eqId),
+        amount: item.amount === "" ? 0 : Number(item.amount),
+        comment: item.comment?.trim() || undefined,
+      }));
+  }, [selectedEquipments]);
+
+  // Pre-fill existing data when modal opens
   useEffect(() => {
     if (open) {
       setError("");
+      setEquipmentSearch("");
       setCommentText(selectedDoc?.problemAssigns?.commentText || "");
+      setTypeRepairId(
+        selectedDoc?.problemAssigns?.typeRepairId
+          ? String(selectedDoc.problemAssigns.typeRepairId)
+          : ""
+      );
+      setVoltageId(
+        selectedDoc?.problemAssigns?.voltageId
+          ? String(selectedDoc.problemAssigns.voltageId)
+          : ""
+      );
+      setCarRepair(Boolean(selectedDoc?.problemAssigns?.carRepair));
       setImgFile(null);
       setAudioFile(null);
-      setImgPreview("");
+      setImgPreview((prev) => {
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return "";
+      });
       setRecordingState("idle");
       cleanupRecording();
 
       // Pre-fill existing equipments if available
+      const initialSelected: Record<number, SelectedEquipmentState> = {};
       if (
         selectedDoc?.problemAssigns?.problemEquipments &&
         selectedDoc.problemAssigns.problemEquipments.length > 0
       ) {
-        setEquipments(
-          selectedDoc.problemAssigns.problemEquipments.map((pe) => ({
-            id: Math.random().toString(36).substring(2, 9),
-            typeEquipmentId: String(pe.typeEquipmentId || pe.typeEquipment?.id || ""),
-            equipmentId: String(pe.equipmentId || pe.equipment?.id || ""),
-            amount: pe.amount || 1,
-            typeUnitId: String(pe.typeUnitId || pe.typeUnit?.id || ""),
-            comment: pe.comment || "",
-          }))
-        );
-      } else {
-        setEquipments([]);
+        selectedDoc.problemAssigns.problemEquipments.forEach((pe) => {
+          const eqId = Number(pe.equipmentId || (pe as any).equipment?.id);
+          if (eqId) {
+            initialSelected[eqId] = {
+              checked: true,
+              amount: pe.amount || 1,
+              comment: pe.comment || "",
+            };
+          }
+        });
       }
+      setSelectedEquipments(initialSelected);
     } else {
+      setImgPreview((prev) => {
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return "";
+      });
       setRecordingState("idle");
       cleanupRecording();
     }
   }, [open, selectedDoc, cleanupRecording]);
 
-  const handleAddEquipment = () => {
-    setEquipments((prev) => [
+  const handleToggleEquipment = (eqId: number) => {
+    setSelectedEquipments((prev) => {
+      const current = prev[eqId];
+      const isNowChecked = !current?.checked;
+      return {
+        ...prev,
+        [eqId]: {
+          checked: isNowChecked,
+          amount:
+            current?.amount !== undefined && current?.amount !== ""
+              ? current.amount
+              : 1,
+          comment: current?.comment ?? "",
+        },
+      };
+    });
+  };
+
+  const handleAmountChange = (eqId: number, val: string) => {
+    setSelectedEquipments((prev) => ({
       ...prev,
-      {
-        id: Math.random().toString(36).substring(2, 9),
-        typeEquipmentId: "",
-        equipmentId: "",
-        amount: 1,
-        typeUnitId: "",
-        comment: "",
+      [eqId]: {
+        checked: prev[eqId]?.checked ?? true,
+        amount: val,
+        comment: prev[eqId]?.comment ?? "",
       },
-    ]);
+    }));
   };
 
-  const handleRemoveEquipment = (id: string) => {
-    setEquipments((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const handleEquipmentChange = (
-    id: string,
-    field: keyof EquipmentRow,
-    value: string | number
-  ) => {
-    setEquipments((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        const updated = { ...item, [field]: value };
-        if (field === "typeEquipmentId") {
-          updated.equipmentId = "";
-        }
-        return updated;
-      })
-    );
+  const handleCommentChange = (eqId: number, val: string) => {
+    setSelectedEquipments((prev) => ({
+      ...prev,
+      [eqId]: {
+        checked: prev[eqId]?.checked ?? true,
+        amount: prev[eqId]?.amount ?? 1,
+        comment: val,
+      },
+    }));
   };
 
   // Native Browser MediaRecorder
@@ -307,13 +380,20 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
     const file = e.target.files?.[0];
     if (file) {
       setImgFile(file);
-      setImgPreview(URL.createObjectURL(file));
+      const nextUrl = URL.createObjectURL(file);
+      setImgPreview((prev) => {
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return nextUrl;
+      });
     }
   };
 
   const removeImg = () => {
     setImgFile(null);
-    setImgPreview("");
+    setImgPreview((prev) => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return "";
+    });
     if (imgInputRef.current) imgInputRef.current.value = "";
   };
 
@@ -327,36 +407,27 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
     }
 
     const trimmedText = commentText.trim();
-    if (!trimmedText && !imgFile && !audioFile && equipments.length === 0) {
+    if (
+      !trimmedText &&
+      !imgFile &&
+      !audioFile &&
+      checkedEquipments.length === 0 &&
+      !typeRepairId &&
+      !voltageId &&
+      !carRepair
+    ) {
       setError(
-        "ກະລຸນາປ້ອນຂໍ້ມູນຢ່າງນ້ອຍ 1 ຢ່າງ (ຂໍ້ຄວາມ, ຮູບພາບ, ໄຟລ໌ສຽງ ຫຼື ອຸປະກອນສ້ອມແປງ)"
+        "ກະລຸນາປ້ອນຂໍ້ມູນການສ້ອມແປງ (ປະເພດສ້ອມແປງ, ແຮງດັນ, ລົດສ້ອມແປງ, ຂໍ້ຄວາມ, ຮູບພາບ, ໄຟລ໌ສຽງ ຫຼື ອຸປະກອນສ້ອມແປງ)"
       );
       return;
     }
 
-    // Validation for equipment rows
-    for (let i = 0; i < equipments.length; i++) {
-      const eq = equipments[i];
-      if (!eq.typeEquipmentId) {
-        const msg = `ກະລຸນາເລືອກໝວດໝູ່ອຸປະກອນ ສຳລັບລາຍການທີ ${i + 1}`;
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
-      if (!eq.equipmentId) {
-        const msg = `ກະລຸນາເລືອກອຸປະກອນ ສຳລັບລາຍການທີ ${i + 1}`;
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
+    // Validation for checked equipments
+    for (let i = 0; i < checkedEquipments.length; i++) {
+      const eq = checkedEquipments[i];
       if (!eq.amount || Number(eq.amount) < 1) {
-        const msg = `ກະລຸນາໃສ່ຈຳນວນທີ່ຖືກຕ້ອງ (ຢ່າງນ້ອຍ 1) ສຳລັບລາຍການທີ ${i + 1}`;
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
-      if (!eq.typeUnitId) {
-        const msg = `ກະລຸນາເລືອກຫົວໜ່ວຍ ສຳລັບລາຍການທີ ${i + 1}`;
+        const foundEq = displayEquipments.find((e) => e.id === eq.equipmentId);
+        const msg = `ກະລຸນາໃສ່ຈຳນວນທີ່ຖືກຕ້ອງ (ຢ່າງນ້ອຍ 1) ສຳລັບ ${foundEq?.name || "ອຸປະກອນ"}`;
         setError(msg);
         toast.error(msg);
         return;
@@ -368,21 +439,20 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
     try {
       const formData = new FormData();
       formData.append("problemstatusId", "4");
+
+      // carRepair: send true if checked, false if not checked
+      formData.append("carRepair", carRepair ? "true" : "false");
+
+      if (typeRepairId) formData.append("typeRepairId", typeRepairId);
+      if (voltageId) formData.append("voltageId", voltageId);
       if (trimmedText) formData.append("commentText", trimmedText);
       if (imgFile) formData.append("commentImg", imgFile);
       if (audioFile) formData.append("commentAudio", audioFile);
 
       const hadExistingEquipments =
         (selectedDoc?.problemAssigns?.problemEquipments?.length || 0) > 0;
-      if (equipments.length > 0 || hadExistingEquipments) {
-        const payload = equipments.map((item) => ({
-          typeEquipmentId: Number(item.typeEquipmentId),
-          equipmentId: Number(item.equipmentId),
-          amount: Number(item.amount) || 1,
-          typeUnitId: Number(item.typeUnitId),
-          comment: item.comment?.trim() || undefined,
-        }));
-        formData.append("problemEquipments", JSON.stringify(payload));
+      if (checkedEquipments.length > 0 || hadExistingEquipments) {
+        formData.append("problemEquipments", JSON.stringify(checkedEquipments));
       }
 
       await axiosInstance.put(`/problemdocs/repair/${selectedDoc.id}`, formData, {
@@ -420,15 +490,20 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
         {/* 2-Column Responsive Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           {/* Left Column: General Repair Progress Details */}
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             {/* Doc Summary Card */}
             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 text-xs text-slate-500 space-y-1">
-              <p className="font-semibold text-slate-700 dark:text-slate-300">
-                ແຈ້ງຊ່ວຍເຫຼືອເລກທີ:{" "}
-                <span className="font-mono text-blue-600 dark:text-blue-400">
-                  #{selectedDoc?.id}
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  ແຈ້ງຊ່ວຍເຫຼືອເລກທີ:{" "}
+                  <span className="font-mono text-blue-600 dark:text-blue-400">
+                    #{selectedDoc?.id}
+                  </span>
                 </span>
-              </p>
+                <span className="text-[11px] text-slate-400">
+                  {selectedDoc?.createdAt ? moment(selectedDoc.createdAt).format("DD/MM/YYYY HH:mm") : "-"}
+                </span>
+              </div>
               <p>
                 ຜູ້ແຈ້ງ:{" "}
                 <span className="font-bold text-slate-800 dark:text-slate-200">
@@ -444,10 +519,95 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
               </p>
             </div>
 
+            {/* Type Repair & Voltage Selection */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Select
+                  label="ປະເພດສ້ອມແປງ"
+                  value={typeRepairId}
+                  disabled={loadingMasterData}
+                  onChange={(e) => setTypeRepairId(e.target.value)}
+                  options={[
+                    {
+                      value: "",
+                      label: loadingMasterData
+                        ? "-- ກຳລັງໂຫຼດ... --"
+                        : "-- ເລືອກປະເພດສ້ອມແປງ --",
+                    },
+                    ...typeRepairs.map((tr) => ({
+                      value: String(tr.id),
+                      label: tr.name,
+                    })),
+                  ]}
+                />
+
+                <Select
+                  label="ແຮງດັນ"
+                  value={voltageId}
+                  disabled={loadingMasterData}
+                  onChange={(e) => setVoltageId(e.target.value)}
+                  options={[
+                    {
+                      value: "",
+                      label: loadingMasterData
+                        ? "-- ກຳລັງໂຫຼດ... --"
+                        : "-- ເລືອກແຮງດັນ --",
+                    },
+                    ...voltages.map((v) => ({
+                      value: String(v.id),
+                      label: v.name,
+                    })),
+                  ]}
+                />
+              </div>
+
+              {/* carRepair Checkbox Card */}
+              <div
+                onClick={() => setCarRepair(!carRepair)}
+                className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${carRepair
+                  ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-300 dark:border-blue-800 shadow-xs"
+                  : "bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/80"
+                  }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${carRepair
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                      }`}
+                  >
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span
+                      className={`text-xs font-semibold block transition-colors ${carRepair
+                        ? "text-blue-900 dark:text-blue-200 font-bold"
+                        : "text-slate-700 dark:text-slate-300"
+                        }`}
+                    >
+                      ນຳໃຊ້ລົດອູ່ສ້ອມແປງ
+                    </span>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 block">
+                      {carRepair
+                        ? "ເລືອກນຳໃຊ້ລົດອູ່ສ້ອມແປງໃນວຽກນີ້"
+                        : "ໝາຍຕິກຫາກມີການນຳໃຊ້ລົດອູ່ສ້ອມແປງ"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={carRepair}
+                    onChange={(e) => setCarRepair(e.target.checked)}
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Comment Text */}
             <Textarea
               label="ຂໍ້ຄວາມອະທິບາຍ"
-              rows={3}
+              rows={2}
               placeholder="ໃສ່ຂໍ້ຄວາມອະທິບາຍຄວາມຄືບໜ້າການສ້ອມແປງ..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
@@ -560,224 +720,197 @@ export const RepairProblemdocModal = memo(function RepairProblemdocModal({
                 </button>
               )}
             </div>
-
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-2.5 rounded-lg border border-amber-200 dark:border-amber-900/40">
-              * ກະລຸນາໃສ່ຂໍ້ມູນຢ່າງນ້ອຍ 1 ຢ່າງ (ຂໍ້ຄວາມ, ຮູບພາບ, ໄຟລ໌ສຽງ ຫຼື ອຸປະກອນສ້ອມແປງ)
-            </p>
           </div>
 
           {/* Right Column: ອຸປະກອນສ້ອມແປງ (Repair Equipment) */}
           <div className="space-y-3 flex flex-col h-full lg:border-l lg:border-slate-200 dark:lg:border-slate-800 lg:pl-5">
-            <div className="flex items-center justify-between pb-1">
+            <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <Wrench className="w-4 h-4 text-amber-500" />
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                   ອຸປະກອນສ້ອມແປງ
                 </label>
-                {equipments.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    {equipments.length} ລາຍການ
-                  </span>
-                )}
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  ເລືອກແລ້ວ {checkedEquipments.length} ລາຍການ
+                </span>
               </div>
-              <button
-                type="button"
-                disabled={loadingMasterData}
-                onClick={handleAddEquipment}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-50 transition-colors shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>ເພີ່ມອຸປະກອນ</span>
-              </button>
+
+              {/* Search Filter Input */}
+              <div className="relative w-44 sm:w-52">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={equipmentSearch}
+                  onChange={(e) => setEquipmentSearch(e.target.value)}
+                  placeholder="ຄົ້ນຫາອຸປະກອນ..."
+                  className="w-full pl-8 pr-2.5 py-1 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
             </div>
 
-            {equipments.length === 0 ? (
-              <div
-                onClick={handleAddEquipment}
-                className="cursor-pointer border border-dashed border-slate-200 dark:border-slate-800 hover:border-amber-400 dark:hover:border-amber-500 rounded-xl p-4 text-center text-xs text-slate-400 hover:text-amber-600 transition-all flex items-center justify-center gap-3 bg-slate-50/60 dark:bg-slate-900/30 group py-6"
-              >
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:bg-amber-500/20 transition-colors">
-                  <PackageCheck className="w-4 h-4" />
-                </div>
-                <div className="text-left">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 group-hover:text-amber-600 dark:group-hover:text-amber-400 block text-xs">
-                    {loadingMasterData
-                      ? "ກຳລັງໂຫຼດຂໍ້ມູນອຸປະກອນ..."
-                      : "ບໍ່ທັນມີລາຍການອຸປະກອນທີ່ນຳໃຊ້"}
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    ກົດທີ່ນີ້ ຫຼື ກົດປຸ່ມ &quot;+ ເພີ່ມອຸປະກອນ&quot; ດ້ານເທິງຖ້າມີການນຳໃຊ້ອຸປະກອນ
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                {equipments.map((item, index) => {
-                    const filteredEquips = item.typeEquipmentId
-                      ? equipmentsList.filter(
-                        (eq) =>
-                          !eq.typeEquipmentId ||
-                          String(eq.typeEquipmentId) === String(item.typeEquipmentId) ||
-                          String(eq.typeEquipment?.id) === String(item.typeEquipmentId)
-                      )
-                      : equipmentsList;
+            {/* Equipment Table Container */}
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900/60 shadow-xs flex-1 flex flex-col">
+              <div className="max-h-[460px] overflow-y-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="sticky top-0 bg-slate-50 dark:bg-slate-950/90 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 z-10">
+                    <tr className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                      <th className="py-2.5 px-3 w-12 text-center">
+                        <div className="flex items-center justify-center">
+                          <Checkbox
+                            checked={
+                              filteredEquipments.length > 0 &&
+                              filteredEquipments.every(
+                                (eq) => selectedEquipments[eq.id]?.checked
+                              )
+                            }
+                            onChange={(e) => {
+                              const isCheckAll = e.target.checked;
+                              setSelectedEquipments((prev) => {
+                                const updated = { ...prev };
+                                filteredEquipments.forEach((eq) => {
+                                  updated[eq.id] = {
+                                    checked: isCheckAll,
+                                    amount: updated[eq.id]?.amount ?? 1,
+                                    comment: updated[eq.id]?.comment ?? "",
+                                  };
+                                });
+                                return updated;
+                              });
+                            }}
+                          />
+                        </div>
+                      </th>
+                      <th className="py-2.5 px-3 min-w-[140px]">
+                        ຊື່ອຸປະກອນ
+                      </th>
+                      <th className="py-2.5 px-2 w-20 text-center">
+                        ຫົວໜ່ວຍ
+                      </th>
+                      <th className="py-2.5 px-2 w-24 text-center">
+                        ຈຳນວນ
+                      </th>
+                      <th className="py-2.5 px-3 min-w-[130px]">
+                        ໝາຍເຫດ
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                    {loadingMasterData ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                          ກຳລັງໂຫຼດຂໍ້ມູນອຸປະກອນ...
+                        </td>
+                      </tr>
+                    ) : filteredEquipments.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                          {equipmentSearch ? "ບໍ່ພົບອຸປະກອນທີ່ຄົ້ນຫາ" : "ບໍ່ມີລາຍການອຸປະກອນ"}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEquipments.map((eq) => {
+                        const state = selectedEquipments[eq.id];
+                        const isChecked = Boolean(state?.checked);
+                        const amount = state?.amount !== undefined ? state.amount : 1;
+                        const comment = state?.comment ?? "";
 
-                    return (
-                      <div
-                        key={item.id}
-                        className="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/90 dark:border-slate-800 hover:border-amber-400/50 dark:hover:border-amber-500/40 transition-colors space-y-1.5 shadow-xs"
-                      >
-                        {/* Row 1: Item #, Category, Equipment, Delete */}
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold shrink-0">
-                            {index + 1}
-                          </span>
-
-                          {/* Type Equipment */}
-                          <div className="flex-1 min-w-0">
-                            <select
-                              value={item.typeEquipmentId}
-                              onChange={(e) =>
-                                handleEquipmentChange(
-                                  item.id,
-                                  "typeEquipmentId",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-2 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer truncate"
-                              title="ໝວດໝູ່ອຸປະກອນ"
-                            >
-                              <option value="">-- ເລືອກໝວດໝູ່ --</option>
-                              {typeEquipments.map((t) => (
-                                <option key={t.id} value={t.id}>
-                                  {t.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Equipment */}
-                          <div className="flex-1 min-w-0">
-                            <select
-                              value={item.equipmentId}
-                              disabled={!item.typeEquipmentId}
-                              onChange={(e) =>
-                                handleEquipmentChange(
-                                  item.id,
-                                  "equipmentId",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-2 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed truncate"
-                              title="ອຸປະກອນ"
-                            >
-                              <option value="">-- ເລືອກອຸປະກອນ --</option>
-                              {filteredEquips.map((eq) => (
-                                <option key={eq.id} value={eq.id}>
-                                  {eq.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Remove button */}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveEquipment(item.id)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
-                            title="ລຶບລາຍການນີ້"
+                        return (
+                          <tr
+                            key={eq.id}
+                            className={`transition-colors border-b border-slate-100 dark:border-slate-800/60 ${
+                              isChecked
+                                ? "bg-amber-50/60 dark:bg-amber-950/20"
+                                : "hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
+                            }`}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                            {/* Checkbox */}
+                            <td className="py-2 px-3 text-center">
+                              <div className="flex items-center justify-center">
+                                <Checkbox
+                                  checked={isChecked}
+                                  onChange={() => handleToggleEquipment(eq.id)}
+                                />
+                              </div>
+                            </td>
 
-                        {/* Row 2: Amount, Unit, Note/Comment */}
-                        <div className="flex items-center gap-1.5 pl-[26px]">
-                          {/* Amount */}
-                          <div className="w-20 sm:w-24 shrink-0 flex items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 focus-within:ring-1 focus-within:ring-amber-500">
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0 mr-1 select-none">
-                              ຈ/ນ:
-                            </span>
-                            <input
-                              type="number"
-                              min={1}
-                              value={item.amount}
-                              onChange={(e) =>
-                                handleEquipmentChange(
-                                  item.id,
-                                  "amount",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full text-xs bg-transparent text-right font-medium text-slate-800 dark:text-slate-200 focus:outline-none"
-                              placeholder="1"
-                            />
-                          </div>
+                            {/* Equipment Name */}
+                            <td className="py-2 px-3">
+                              <span
+                                onClick={() => handleToggleEquipment(eq.id)}
+                                className={`font-semibold cursor-pointer select-none text-xs ${
+                                  isChecked
+                                    ? "text-amber-950 dark:text-amber-200"
+                                    : "text-slate-700 dark:text-slate-300"
+                                }`}
+                              >
+                                {eq.name}
+                              </span>
+                            </td>
 
-                          {/* Unit */}
-                          <div className="w-24 sm:w-28 shrink-0">
-                            <select
-                              value={item.typeUnitId}
-                              onChange={(e) =>
-                                handleEquipmentChange(
-                                  item.id,
-                                  "typeUnitId",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-2 py-1 rounded-lg text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer truncate"
-                              title="ຫົວໜ່ວຍ"
-                            >
-                              <option value="">-- ຫົວໜ່ວຍ --</option>
-                              {typeUnits.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                  {u.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                            {/* Unit */}
+                            <td className="py-2 px-2 text-center">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                                {eq.unit || "-"}
+                              </span>
+                            </td>
 
-                          {/* Comment / Note */}
-                          <div className="flex-1 min-w-0">
-                            <input
-                              type="text"
-                              value={item.comment}
-                              onChange={(e) =>
-                                handleEquipmentChange(
-                                  item.id,
-                                  "comment",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-2.5 py-1 rounded-lg text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                              placeholder="ໝາຍເຫດ (ຖ້າມີ)..."
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                            {/* Amount Input */}
+                            <td className="py-2 px-2">
+                              <input
+                                type="number"
+                                min={1}
+                                disabled={!isChecked}
+                                value={isChecked ? amount : ""}
+                                placeholder={isChecked ? "1" : "-"}
+                                onChange={(e) =>
+                                  handleAmountChange(eq.id, e.target.value)
+                                }
+                                className={`w-full text-center py-1 px-1.5 rounded-lg text-xs font-semibold transition-all outline-none ${
+                                  isChecked
+                                    ? "bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-700 text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-amber-500 shadow-2xs"
+                                    : "bg-slate-100/60 dark:bg-slate-900/50 border border-transparent text-slate-400 cursor-not-allowed select-none"
+                                }`}
+                              />
+                            </td>
+
+                            {/* Comment Input */}
+                            <td className="py-2 px-3">
+                              <input
+                                type="text"
+                                disabled={!isChecked}
+                                value={isChecked ? comment : ""}
+                                placeholder={isChecked ? "ໃສ່ໝາຍເຫດ..." : "-"}
+                                onChange={(e) =>
+                                  handleCommentChange(eq.id, e.target.value)
+                                }
+                                className={`w-full py-1 px-2.5 rounded-lg text-xs transition-all outline-none ${
+                                  isChecked
+                                    ? "bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-amber-500"
+                                    : "bg-slate-100/60 dark:bg-slate-900/50 border border-transparent text-slate-400 cursor-not-allowed select-none"
+                                }`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Footer info & Buttons */}
         <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
           <div className="flex gap-3">
-            <Button variant="secondary" onClick={handleClose} className="flex-1">
+            <Button variant="secondary" onClick={handleClose} disabled={saving} className="flex-1">
               ຍົກເລີກ
             </Button>
             <Button
               variant="primary"
               onClick={handleSubmit}
               loading={saving}
-              disabled={
-                !commentText.trim() &&
-                !imgFile &&
-                !audioFile &&
-                equipments.length === 0
-              }
               className="flex-1"
             >
               ບັນທຶກແກ້ໄຂວຽກ
