@@ -32,7 +32,7 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
       (item) => item.href === "/chat" || item.children?.some((c) => c.href === "/chat")
     );
     const hasRegisterMeter =
-      (roleId === 2 || roleId === 3) &&
+      (roleId === 2 || roleId === 3 || roleId === 5 || roleId === 6) &&
       filteredNavItems.some(
         (item) => item.href === "/registermeter" || item.children?.some((c) => c.href === "/registermeter")
       );
@@ -76,8 +76,8 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
           typeof data?.total === "number"
             ? data.total
             : typeof data === "number"
-            ? data
-            : 0;
+              ? data
+              : 0;
         setChatUnreadCount(count);
       });
 
@@ -86,8 +86,8 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
           typeof data?.total === "number"
             ? data.total
             : typeof data === "number"
-            ? data
-            : 0;
+              ? data
+              : 0;
         setChatUnreadCount(count);
       });
     } else {
@@ -315,10 +315,10 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
                         const childBadgeCount = isChildChat
                           ? chatUnreadCount
                           : isChildMeter
-                          ? meterCount
-                          : isChildProblem
-                          ? problemCount
-                          : 0;
+                            ? meterCount
+                            : isChildProblem
+                              ? problemCount
+                              : 0;
 
                         return (
                           <Link
@@ -357,10 +357,10 @@ export function Sidebar({ isOpen, onClose, sidebarCollapsed, setSidebarCollapsed
               const badgeCount = isChat
                 ? chatUnreadCount
                 : isMeter
-                ? meterCount
-                : isProblem
-                ? problemCount
-                : 0;
+                  ? meterCount
+                  : isProblem
+                    ? problemCount
+                    : 0;
 
               return (
                 <Link
